@@ -1,0 +1,233 @@
+suite: test daemonset
+templates:
+  - daemonset.yaml
+  - pdb.yaml
+  - servicemonitor.yaml
+  - serviceaccount.yaml
+tests:
+  - it: should render a minimal DaemonSet
+    templates:
+      - daemonset.yaml
+    set:
+      daemonSets:
+        log-shipper:
+          containers:
+            main:
+              image: fluent/fluent-bit
+              imageTag: "3.0"
+              ports:
+                http-metrics:
+                  containerPort: 2020
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: DaemonSet
+      - equal:
+          path: metadata.name
+          value: log-shipper
+      - notExists:
+          path: spec.replicas
+      - notExists:
+          path: spec.template.spec.restartPolicy
+
+  - it: should render hostNetwork/hostPID/hostIPC
+    templates:
+      - daemonset.yaml
+    set:
+      daemonSets:
+        node-exporter:
+          hostNetwork: true
+          hostPID: true
+          hostIPC: false
+          containers:
+            main:
+              image: prom/node-exporter
+              imageTag: "1.7"
+              ports:
+                metrics:
+                  containerPort: 9100
+    asserts:
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: true
+      - equal:
+          path: spec.template.spec.hostPID
+          value: true
+      - notExists:
+          path: spec.template.spec.hostIPC
+
+  - it: should preserve explicit minReadySeconds=0
+    templates:
+      - daemonset.yaml
+    set:
+      daemonSets:
+        agent:
+          minReadySeconds: 0
+          containers:
+            main:
+              image: agent
+              imageTag: "1.0"
+              ports:
+                http:
+                  containerPort: 8080
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 0
+
+  - it: should render DaemonSet updateStrategy
+    templates:
+      - daemonset.yaml
+    set:
+      daemonSets:
+        agent:
+          containers:
+            main:
+              image: agent
+              imageTag: "1.0"
+              ports:
+                http:
+                  containerPort: 8080
+          updateStrategy:
+            type: RollingUpdate
+            rollingUpdate:
+              maxUnavailable: "10%"
+              maxSurge: 0
+    asserts:
+      - equal:
+          path: spec.updateStrategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.updateStrategy.rollingUpdate.maxUnavailable
+          value: "10%"
+
+  - it: should autoCreate a PDB for DaemonSet
+    templates:
+      - pdb.yaml
+    set:
+      daemonSets:
+        agent:
+          autoCreatePdb: true
+          pdb:
+            maxUnavailable: 1
+          containers:
+            main:
+              image: agent
+              imageTag: "1.0"
+              ports:
+                http:
+                  containerPort: 8080
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: PodDisruptionBudget
+      - equal:
+          path: metadata.name
+          value: agent
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+
+  - it: should autoCreate a ServiceMonitor for DaemonSet
+    templates:
+      - servicemonitor.yaml
+    set:
+      daemonSets:
+        agent:
+          autoCreateServiceMonitor: true
+          containers:
+            main:
+              image: agent
+              imageTag: "1.0"
+              ports:
+                http-metrics:
+                  containerPort: 9100
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: ServiceMonitor
+      - equal:
+          path: metadata.name
+          value: agent
+
+  - it: should autoCreate a ServiceAccount for DaemonSet
+    templates:
+      - serviceaccount.yaml
+    set:
+      daemonSets:
+        agent:
+          autoCreateServiceAccount: true
+          containers:
+            main:
+              image: agent
+              imageTag: "1.0"
+              ports:
+                http:
+                  containerPort: 8080
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: ServiceAccount
+      - equal:
+          path: metadata.name
+          value: agent
+
+  - it: should fail when a container references an undefined secretRef
+    templates:
+      - daemonset.yaml
+    set:
+      secretRefs:
+        my-secrets:
+          - name: FOO
+            secretKeyRef:
+              name: my-secret
+              key: foo
+      daemonSets:
+        agent:
+          containers:
+            main:
+              image: agent
+              imageTag: "1.0"
+              ports:
+                http:
+                  containerPort: 8080
+              secretRefs:
+                - nonexistent
+    asserts:
+      - failedTemplate:
+          errorMessage: "DaemonSet agent - Container main: referenced secretRef 'nonexistent' not found in .Values.secretRefs"
+
+  - it: should deep-merge daemonSetsGeneral.securityContext with instance securityContext
+    templates:
+      - daemonset.yaml
+    set:
+      daemonSetsGeneral:
+        securityContext:
+          runAsNonRoot: true
+      daemonSets:
+        agent:
+          securityContext:
+            runAsUser: 1000
+          containers:
+            main:
+              image: agent
+              imageTag: "1.0"
+              ports:
+                http:
+                  containerPort: 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+

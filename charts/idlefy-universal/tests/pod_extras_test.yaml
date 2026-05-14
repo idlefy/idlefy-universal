@@ -1,0 +1,166 @@
+suite: test pod-spec extras (initContainers, hostAliases, dnsConfig, gracePeriod, topologySpreadConstraints)
+templates:
+  - deployment.yaml
+tests:
+  - it: should render initContainers from deployment config
+    set:
+      deployments:
+        app:
+          initContainers:
+            wait-for-db:
+              image: busybox
+              imageTag: "1.36"
+              command: [sh, -c, "until nc -z db 5432; do sleep 1; done"]
+            run-migrations:
+              image: my-app
+              imageTag: v1.0.0
+              args: [migrate, up]
+          containers:
+            main:
+              image: my-app
+              imageTag: v1.0.0
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: run-migrations
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: my-app:v1.0.0
+      - equal:
+          path: spec.template.spec.initContainers[0].args
+          value: [migrate, up]
+      - equal:
+          path: spec.template.spec.initContainers[1].name
+          value: wait-for-db
+      - equal:
+          path: spec.template.spec.initContainers[1].image
+          value: busybox:1.36
+
+  - it: should render hostAliases as a passthrough list
+    set:
+      deployments:
+        app:
+          hostAliases:
+            - ip: 10.0.0.1
+              hostnames: [legacy-db.internal]
+            - ip: 10.0.0.2
+              hostnames: [cache.internal, cache-secondary.internal]
+          containers:
+            main:
+              image: my-app
+              imageTag: v1.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.hostAliases[0].ip
+          value: 10.0.0.1
+      - equal:
+          path: spec.template.spec.hostAliases[0].hostnames
+          value: [legacy-db.internal]
+      - equal:
+          path: spec.template.spec.hostAliases[1].hostnames
+          value: [cache.internal, cache-secondary.internal]
+
+  - it: should render dnsConfig as a passthrough object
+    set:
+      deployments:
+        app:
+          dnsConfig:
+            nameservers: [1.1.1.1, 8.8.8.8]
+            searches: [my-ns.svc.cluster.local]
+            options:
+              - name: ndots
+                value: "2"
+          containers:
+            main:
+              image: my-app
+              imageTag: v1.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.dnsConfig.nameservers
+          value: [1.1.1.1, 8.8.8.8]
+      - equal:
+          path: spec.template.spec.dnsConfig.searches
+          value: [my-ns.svc.cluster.local]
+      - equal:
+          path: spec.template.spec.dnsConfig.options[0].name
+          value: ndots
+
+  - it: should render terminationGracePeriodSeconds
+    set:
+      deployments:
+        app:
+          terminationGracePeriodSeconds: 60
+          containers:
+            main:
+              image: my-app
+              imageTag: v1.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 60
+
+  - it: should render topologySpreadConstraints as a passthrough list
+    set:
+      deployments:
+        app:
+          replicas: 6
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: app
+          containers:
+            main:
+              image: my-app
+              imageTag: v1.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].maxSkew
+          value: 1
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].topologyKey
+          value: topology.kubernetes.io/zone
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].whenUnsatisfiable
+          value: DoNotSchedule
+
+  - it: should inherit pod-extras from deploymentsGeneral when deployment omits them
+    set:
+      deploymentsGeneral:
+        terminationGracePeriodSeconds: 45
+        hostAliases:
+          - ip: 10.0.0.99
+            hostnames: [shared-host.internal]
+      deployments:
+        app:
+          containers:
+            main:
+              image: my-app
+              imageTag: v1.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 45
+      - equal:
+          path: spec.template.spec.hostAliases[0].ip
+          value: 10.0.0.99
+
+  - it: should let deployment override deploymentsGeneral pod-extras
+    set:
+      deploymentsGeneral:
+        terminationGracePeriodSeconds: 45
+      deployments:
+        app:
+          terminationGracePeriodSeconds: 120
+          containers:
+            main:
+              image: my-app
+              imageTag: v1.0.0
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 120

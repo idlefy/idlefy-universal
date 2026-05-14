@@ -1,0 +1,22 @@
+deployments:
+  app:
+    autoCreateService: true
+    containers:
+      web:
+        image: nginx
+        imageTag: "1.27"
+        ports:
+          http: {containerPort: 80}
+    hpa:
+      minReplicas: 2
+      maxReplicas: 20
+      metrics:
+        - type: External
+          external:
+            metric:
+              name: queue_depth
+              selector:
+                matchLabels: {queue: orders}
+            target:
+              type: AverageValue
+              averageValue: "100"

@@ -1,0 +1,7 @@
+configs:
+  app-config:
+    type: configMap
+    data:
+      log_level: info
+      config.yaml: |
+        feature_x: true

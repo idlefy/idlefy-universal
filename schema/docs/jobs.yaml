@@ -1,0 +1,241 @@
+properties:
+  jobs:
+    description: |
+      Map of one-time Job resources keyed by name. Use cronJobs for scheduled
+      recurring runs.
+    examples:
+      - db-migration:
+          containers:
+            main: {image: migrator, imageTag: v1.0.0}
+          backoffLimit: 3
+          ttlSecondsAfterFinished: 600
+    x-agent-when-to-use: |
+      Use for one-off batch processing, data backfills, or one-shot setup
+      that runs as part of the chart install/upgrade.
+  cronJobs:
+    description: Map of CronJob resources keyed by name.
+    examples:
+      - nightly-backup:
+          schedule: "0 0 * * *"
+          containers:
+            main: {image: backup, imageTag: v1.0.0}
+
+$defs:
+  JobSpec:
+    description: A single Job. Container template lives in containers.<name>.
+    examples:
+      - containers: {main: {image: worker, imageTag: v1.0.0}}
+        backoffLimit: 3
+    properties:
+      containers:
+        description: |
+          Map of containers keyed by container name. At least one container
+          is required. The key becomes the Kubernetes container name verbatim.
+        examples:
+          - main: {image: worker, imageTag: v1.0.0, command: [./run], args: [--batch]}
+      annotations:
+        description: |
+          Extra annotations on the Job metadata. Use for GitOps tooling
+          (sync waves), Helm hook ordering, or audit fields.
+        examples:
+          - {"helm.sh/hook": post-install, "helm.sh/hook-weight": "1"}
+      labels:
+        description: |
+          Extra labels on the Job metadata. Standard chart labels are added
+          automatically. Pod-level labels live elsewhere — Jobs derive pod
+          labels from the controller's pod template.
+        examples:
+          - {team: platform, kind: batch}
+      podAnnotations:
+        description: |
+          Annotations applied to the Job's pod template
+          (spec.template.metadata). Common use: Prometheus scrape hints if
+          the job exposes metrics, or a checksum to bust caching.
+        examples:
+          - {"prometheus.io/scrape": "true", "prometheus.io/port": "9090"}
+      nodeSelector:
+        description: |
+          Node label constraints for the Job's pods (passthrough). Useful
+          for routing batch work to a dedicated nodepool or GPU node.
+        examples:
+          - {"node-role.kubernetes.io/batch": "true"}
+      tolerations:
+        description: |
+          Pod tolerations applied to the Job's pods (passthrough). Required
+          when the Job runs on tainted/specialized nodes.
+        examples:
+          - - {key: dedicated, operator: Equal, value: batch, effect: NoSchedule}
+        items:
+          description: One toleration (passthrough).
+          examples:
+            - {key: dedicated, operator: Equal, value: batch, effect: NoSchedule}
+      affinity:
+        description: |
+          Pod affinity / anti-affinity rules for the Job's pods (passthrough).
+          Use when batch pods must colocate with or avoid specific workloads.
+        examples:
+          - nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions: [{key: instance-type, operator: In, values: [c5.2xlarge]}]
+      securityContext:
+        description: |
+          Pod-level security context for the Job's pods (passthrough).
+          Common pattern: enforce non-root for batch jobs too.
+        examples:
+          - {runAsNonRoot: true, runAsUser: 1000, fsGroup: 2000}
+      volumes:
+        description: |
+          Pod volumes available to the Job's containers (passthrough).
+          Each entry defines a named volume referenced by volumeMounts on
+          the container.
+        examples:
+          - - {name: output, persistentVolumeClaim: {claimName: batch-output}}
+            - {name: scratch, emptyDir: {sizeLimit: 5Gi}}
+        items:
+          description: One volume entry (passthrough).
+          examples:
+            - {name: scratch, emptyDir: {sizeLimit: 5Gi}}
+            - {name: input, configMap: {name: batch-input}}
+      autoCreateNetworkPolicy:
+        description: |
+          When true, chart renders a `kind: NetworkPolicy` named after the
+          job. Requires a `networkPolicy:` block — strict explicit-only,
+          no silent allow/deny defaults. See NetworkPolicySpec.
+        examples:
+          - true
+      networkPolicy:
+        description: |
+          NetworkPolicy configuration for this job. Only rendered when
+          autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
+          full shape and validation rules.
+        examples:
+          - policyTypes: [Ingress]
+            ingress: []
+      autoCreateRbac:
+        description: |
+          When true, chart renders a kind: Role + kind: RoleBinding pair named
+          after the job. Requires an `rbac:` block and a resolvable
+          ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
+        examples:
+          - true
+      rbac:
+        description: |
+          Namespaced RBAC configuration for this job. Only rendered when
+          autoCreateRbac is true. See $defs/RbacSpec for full shape and
+          validation rules.
+        examples:
+          - rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get, list, watch]
+
+  CronJobSpec:
+    description: A single CronJob with cron-style schedule.
+    examples:
+      - schedule: "0 0 * * *"
+        timezone: "America/New_York"
+        containers: {main: {image: backup, imageTag: v1.0.0}}
+    x-agent-common-mistakes:
+      - "Using 6-field schedule (with seconds) — Kubernetes accepts only 5 fields."
+      - "Setting timezone on Kubernetes < 1.24 — feature unsupported."
+    properties:
+      containers:
+        description: |
+          Map of containers keyed by container name. At least one is required.
+          The key becomes the Kubernetes container name verbatim.
+        examples:
+          - main: {image: backup, imageTag: v1.0.0, args: [snapshot, --target=s3://backups]}
+      annotations:
+        description: |
+          Extra annotations on the CronJob metadata. Note: this does NOT
+          set annotations on the spawned Job pods — for those, use
+          podAnnotations.
+        examples:
+          - {"argocd.argoproj.io/sync-wave": "10"}
+      labels:
+        description: |
+          Extra labels on the CronJob metadata. Standard chart labels are
+          added automatically.
+        examples:
+          - {team: platform, kind: backup}
+      podAnnotations:
+        description: |
+          Annotations on the pod template inside the CronJob's jobTemplate.
+          These reach the actual Job pods spawned by the controller.
+        examples:
+          - {"prometheus.io/scrape": "true", "prometheus.io/port": "9090"}
+      nodeSelector:
+        description: |
+          Node label constraints applied to spawned Job pods (passthrough).
+        examples:
+          - {"kubernetes.io/os": linux}
+          - {"node-role.kubernetes.io/batch": "true"}
+      tolerations:
+        description: |
+          Pod tolerations applied to spawned Job pods (passthrough).
+        examples:
+          - - {key: dedicated, operator: Equal, value: batch, effect: NoSchedule}
+        items:
+          description: One toleration (passthrough).
+          examples:
+            - {key: dedicated, operator: Equal, value: batch, effect: NoSchedule}
+      affinity:
+        description: |
+          Pod affinity / anti-affinity rules for spawned Job pods (passthrough).
+        examples:
+          - nodeAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  preference:
+                    matchExpressions: [{key: instance-type, operator: In, values: [c5.large]}]
+      securityContext:
+        description: |
+          Pod-level security context for spawned Job pods (passthrough).
+        examples:
+          - {runAsNonRoot: true, runAsUser: 1000, fsGroup: 2000}
+      volumes:
+        description: |
+          Pod volumes available to spawned Job containers (passthrough).
+          Often used to mount the backup target (PVC), configuration (ConfigMap),
+          or credentials (Secret).
+        examples:
+          - - {name: backup-creds, secret: {secretName: backup-creds}}
+            - {name: scratch, emptyDir: {sizeLimit: 5Gi}}
+        items:
+          description: One volume entry (passthrough).
+          examples:
+            - {name: scratch, emptyDir: {sizeLimit: 5Gi}}
+            - {name: input, configMap: {name: cron-input}}
+      autoCreateNetworkPolicy:
+        description: |
+          When true, chart renders a `kind: NetworkPolicy` named after the
+          cronJob. Requires a `networkPolicy:` block — strict explicit-only,
+          no silent allow/deny defaults. See NetworkPolicySpec.
+        examples:
+          - true
+      networkPolicy:
+        description: |
+          NetworkPolicy configuration for this cronJob. Only rendered when
+          autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
+          full shape and validation rules.
+        examples:
+          - policyTypes: [Ingress]
+            ingress: []
+      autoCreateRbac:
+        description: |
+          When true, chart renders a kind: Role + kind: RoleBinding pair named
+          after the cronJob. Requires an `rbac:` block and a resolvable
+          ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
+        examples:
+          - true
+      rbac:
+        description: |
+          Namespaced RBAC configuration for this cronJob. Only rendered when
+          autoCreateRbac is true. See $defs/RbacSpec for full shape and
+          validation rules.
+        examples:
+          - rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get, list, watch]

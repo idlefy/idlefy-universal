@@ -1,0 +1,290 @@
+properties:
+  deploymentsGeneral:
+    description: |
+      Global defaults applied to every entry under deployments. Same shape
+      as DeploymentSpec but without required fields. Per-deployment values
+      override the matching keys here (deep merge).
+    examples:
+      - securityContext: {runAsNonRoot: true, runAsUser: 1000}
+        autoCreateSoftAntiAffinity: true
+    x-agent-when-to-use: |
+      Set platform-wide defaults here to avoid repeating boilerplate in
+      every deployments.<name>.
+  statefulSetsGeneral:
+    description: |
+      Chart-wide defaults applied to every statefulSets.* entry. Shares
+      the scheduling/security/probe shape with deploymentsGeneral but
+      omits fields that do not apply to StatefulSets (strategy,
+      parallelism, completions, migrations, hpa, serviceType). Per-instance
+      values override.
+    examples:
+      - securityContext: {runAsNonRoot: true, runAsUser: 1000}
+        autoCreateSoftAntiAffinity: true
+    x-agent-when-to-use: |
+      Set platform-wide defaults here to avoid repeating boilerplate in
+      every statefulSets.<name>.
+    properties:
+      nodeSelector:
+        description: |
+          Default node label constraints for every StatefulSet pod
+          (passthrough). Per-instance nodeSelector overrides this entirely.
+        examples:
+          - {"kubernetes.io/os": linux}
+      tolerations:
+        description: |
+          Default pod tolerations applied to every StatefulSet
+          (passthrough). Per-instance tolerations override this entirely.
+        examples:
+          - - {key: dedicated, operator: Equal, value: data, effect: NoSchedule}
+        items:
+          description: One toleration (passthrough).
+          examples:
+            - {key: dedicated, operator: Equal, value: data, effect: NoSchedule}
+      probes:
+        description: |
+          Default probes (liveness/readiness/startup) applied to
+          containers in every StatefulSet unless overridden.
+        examples:
+          - readinessProbe: {httpGet: {path: /ready, port: http}, initialDelaySeconds: 5}
+      networkPolicy:
+        description: |
+          Default networkPolicy block for every statefulSets.* entry. Per-instance
+          values override this entirely. See docs/recipes/network-isolated-api.md
+          for merge semantics.
+        examples:
+          - policyTypes: [Egress]
+            egress: []
+  daemonSetsGeneral:
+    description: |
+      Chart-wide defaults applied to every daemonSets.* entry. Supports a
+      narrow subset of DaemonSetSpec: nodeSelector, tolerations, affinity,
+      securityContext, priorityClassName, probes. The narrowness is
+      intentional — DaemonSets do not have replicas, HPA, rollout strategy,
+      or migration concepts, so the general block mirrors only the
+      scheduling/security/probe fields that are universally applicable.
+      Per-instance values override these.
+    examples:
+      - securityContext: {runAsNonRoot: true, runAsUser: 1000}
+        tolerations: [{operator: Exists}]
+    x-agent-when-to-use: |
+      Set platform-wide defaults here to avoid repeating boilerplate in
+      every daemonSets.<name>.
+    properties:
+      nodeSelector:
+        description: |
+          Default node label constraints for every DaemonSet pod
+          (passthrough). Per-instance nodeSelector overrides this entirely.
+        examples:
+          - {"kubernetes.io/os": linux}
+      tolerations:
+        description: |
+          Default pod tolerations applied to every DaemonSet (passthrough).
+          DaemonSets typically tolerate every taint so they land on every
+          node. Per-instance tolerations override this entirely.
+        examples:
+          - - {operator: Exists}
+        items:
+          description: One toleration (passthrough).
+          examples:
+            - {operator: Exists}
+      probes:
+        description: |
+          Default probes (liveness/readiness/startup) applied to
+          containers in every DaemonSet unless overridden.
+        examples:
+          - readinessProbe: {httpGet: {path: /ready, port: http}, initialDelaySeconds: 5}
+      networkPolicy:
+        description: |
+          Default networkPolicy block for every daemonSets.* entry. Per-instance
+          values override this entirely. See docs/recipes/network-isolated-api.md
+          for merge semantics.
+        examples:
+          - policyTypes: [Egress]
+            egress: []
+  generic:
+    description: |
+      Chart-wide settings shared by every resource: image pull secrets,
+      default service account, and per-resource-type defaults (ingressesGeneral,
+      httpRoutesGeneral, serviceMonitorGeneral).
+    examples:
+      - extraImagePullSecrets: [{name: registry-secret}]
+        ingressesGeneral: {domain: example.com}
+        serviceMonitorGeneral: {labels: {prometheus: kube-prometheus}}
+    x-agent-when-to-use: Set platform-wide defaults that should not be repeated.
+    properties:
+      extraImagePullSecrets:
+        description: |
+          Image pull secret references added to every pod template the chart
+          renders. Use for private-registry credentials shared across all
+          workloads. Per-pod / per-ServiceAccount pull secrets stack on top.
+        examples:
+          - [{name: ghcr-pull-secret}]
+          - [{name: dockerhub-pull-secret}, {name: ecr-pull-secret}]
+      annotations:
+        description: |
+          Default annotations merged into the metadata of every resource the
+          chart emits (Deployments, Services, Ingresses, etc.).
+        examples:
+          - {"argocd.argoproj.io/sync-wave": "0"}
+      labels:
+        description: |
+          Default labels merged into the metadata of every resource the chart
+          emits. Standard chart labels (app.kubernetes.io/*) are added on top.
+        examples:
+          - {team: platform, env: prod}
+
+$defs:
+  DeploymentDefaultsSpec:
+    description: |
+      Defaults shape — identical to DeploymentSpec except no required fields.
+      Every key here is inherited by deployments.<name> entries that omit it.
+      Lint rule 9 enforces key-set equivalence with DeploymentSpec.
+    examples:
+      - securityContext: {runAsNonRoot: true, runAsUser: 1000}
+        autoCreateSoftAntiAffinity: true
+        probes:
+          readinessProbe: {httpGet: {path: /ready, port: http}, periodSeconds: 10}
+    x-agent-when-to-use: |
+      Set platform-wide defaults here to avoid repeating boilerplate in
+      every deployments.<name>.
+    properties:
+      containers:
+        description: |
+          Default containers map applied when a deployment does not define
+          its own containers. Rarely useful — most deployments need their
+          own containers; prefer per-deployment definition.
+        examples:
+          - main: {image: nginx, imageTag: "1.25"}
+      annotations:
+        description: |
+          Default annotations merged onto every Deployment metadata.
+          Per-deployment annotations override matching keys.
+        examples:
+          - {"argocd.argoproj.io/sync-wave": "5"}
+      labels:
+        description: |
+          Default labels merged onto every Deployment metadata. Chart-emitted
+          labels (app.kubernetes.io/*) are still added automatically.
+        examples:
+          - {team: platform}
+      podAnnotations:
+        description: |
+          Default annotations applied to every pod template. Common use:
+          Prometheus scrape hints applied to every pod by default.
+        examples:
+          - {"prometheus.io/scrape": "true", "prometheus.io/port": "9090"}
+      podLabels:
+        description: |
+          Default labels applied to every pod template — propagate to running
+          pods and match NetworkPolicy / Service / ServiceMonitor selectors.
+        examples:
+          - {tier: backend}
+      nodeSelector:
+        description: |
+          Default node label constraints for pod scheduling (passthrough).
+          Per-deployment nodeSelector overrides this entirely.
+        examples:
+          - {"kubernetes.io/os": linux}
+      tolerations:
+        description: |
+          Default pod tolerations applied to every deployment (passthrough).
+          Per-deployment tolerations override this entirely.
+        examples:
+          - - {key: dedicated, operator: Equal, value: backend, effect: NoSchedule}
+        items:
+          description: |
+            One toleration (passthrough). Standard fields: key, operator,
+            value, effect, tolerationSeconds.
+          examples:
+            - {key: dedicated, operator: Equal, value: backend, effect: NoSchedule}
+      affinity:
+        description: |
+          Default pod affinity / anti-affinity rules (passthrough). Use to
+          enforce platform-wide scheduling policy (e.g. always spread by
+          zone) without per-deployment configuration.
+        examples:
+          - podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector: {matchLabels: {"app.kubernetes.io/instance": "{{ .Release.Name }}"}}
+                    topologyKey: kubernetes.io/hostname
+      securityContext:
+        description: |
+          Default pod-level security context (passthrough). Set a baseline
+          here (runAsNonRoot, runAsUser, fsGroup) and override only where
+          a specific deployment must deviate.
+        examples:
+          - {runAsNonRoot: true, runAsUser: 1000, fsGroup: 2000}
+      volumes:
+        description: |
+          Default pod volumes (passthrough). Rarely useful at the defaults
+          level — most volumes are deployment-specific. Available for cases
+          like a shared host-path log directory.
+        examples:
+          - - {name: logs, hostPath: {path: /var/log/app}}
+        items:
+          description: One volume entry (passthrough).
+          examples:
+            - {name: logs, hostPath: {path: /var/log/app}}
+      probes:
+        description: |
+          Default probes (liveness/readiness/startup) applied to containers in
+          every deployment unless the container overrides them. Define one
+          sane readiness probe here to avoid copy/paste across services.
+        examples:
+          - readinessProbe: {httpGet: {path: /ready, port: http}, initialDelaySeconds: 5}
+            livenessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 30}
+      initContainers:
+        description: |
+          Default init containers map applied to every deployment unless
+          the deployment defines its own. Useful for a chart-wide setup
+          step (e.g. waiting for a shared dependency).
+        examples:
+          - wait-for-vault:
+              image: busybox
+              imageTag: "1.36"
+              command: [sh, -c, "until nc -z vault 8200; do sleep 1; done"]
+      hostAliases:
+        description: |
+          Default /etc/hosts entries injected into every pod across the chart.
+          Per-deployment hostAliases override this entirely.
+        examples:
+          - - {ip: 10.0.0.99, hostnames: [shared-host.internal]}
+      dnsConfig:
+        description: |
+          Default pod DNS overrides applied to every deployment (passthrough).
+          Common use: lower `ndots` cluster-wide to reduce DNS amplification.
+        examples:
+          - {options: [{name: ndots, value: "2"}]}
+      topologySpreadConstraints:
+        description: |
+          Default topology spread constraints applied to every deployment
+          (passthrough). Centralize the "spread across zones" policy here
+          instead of repeating it on every workload.
+        examples:
+          - - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: {matchLabels: {"app.kubernetes.io/instance": "{{ .Release.Name }}"}}
+        items:
+          description: |
+            One topology spread constraint (passthrough). Required keys:
+            maxSkew, topologyKey, whenUnsatisfiable, labelSelector.
+          examples:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: {matchLabels: {"app.kubernetes.io/instance": "{{ .Release.Name }}"}}
+      networkPolicy:
+        description: |
+          Default networkPolicy block applied to every deployment that sets
+          autoCreateNetworkPolicy: true. Per-instance networkPolicy overrides
+          this entirely (lists are replaced wholesale, not unioned — see
+          docs/recipes/network-isolated-api.md for the replace semantics).
+          The autoCreateNetworkPolicy flag itself is per-instance only.
+        examples:
+          - policyTypes: [Egress]
+            egress:
+              - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}}]
+                ports: [{protocol: UDP, port: 53}]

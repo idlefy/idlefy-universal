@@ -1,0 +1,7 @@
+# expected_error: resource
+hpas:
+  bad:
+    scaleTargetRef: {kind: Deployment, name: api}
+    maxReplicas: 5
+    metrics:
+      - type: Resource

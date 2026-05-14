@@ -1,0 +1,93 @@
+# Whitelist of JSON-pointer paths where additionalProperties: true is allowed.
+# In Phase 1 every top-level path is whitelisted; Phase 4 shrinks this
+# down to the final list.
+allow_additional_properties_true:
+  - '#/$defs/IngressesGeneralConfig/properties/annotations'
+  - '#/$defs/IngressesGeneralConfig/properties/labels'
+  - '#/$defs/HttpRoutesGeneralConfig/properties/annotations'
+  - '#/$defs/HttpRoutesGeneralConfig/properties/labels'
+  - '#/$defs/ServiceMonitorGeneralConfig/properties/labels'
+  - '#/$defs/ServiceMonitorGeneralConfig/properties/namespaceSelector'
+  - /properties/generic/properties/labels
+  - /properties/generic/properties/annotations
+  - '#/$defs/JobSpec/properties/nodeSelector'
+  - '#/$defs/JobSpec/properties/annotations'
+  - '#/$defs/JobSpec/properties/labels'
+  - '#/$defs/JobSpec/properties/podAnnotations'
+  - '#/$defs/CronJobSpec/properties/nodeSelector'
+  - '#/$defs/CronJobSpec/properties/annotations'
+  - '#/$defs/CronJobSpec/properties/labels'
+  - '#/$defs/CronJobSpec/properties/podAnnotations'
+  - '#/$defs/PvcSpec/properties/selector'
+  - '#/$defs/PvcSpec/properties/annotations'
+  - '#/$defs/PvcSpec/properties/labels'
+  - '#/$defs/ResourceRequirements'
+  - '#/$defs/ProbeSpec'
+  - '#/$defs/ProbeSpec/properties/httpGet'
+  - '#/$defs/ProbeSpec/properties/tcpSocket'
+  - '#/$defs/ProbeSpec/properties/exec'
+  - '#/$defs/ProbeSpec/properties/grpc'
+  - '#/$defs/VolumeMount'
+  - '#/$defs/StandaloneServiceSpec/properties/annotations'
+  - '#/$defs/StandaloneServiceSpec/properties/labels'
+  - '#/$defs/ConfigSpec/properties/annotations'
+  - '#/$defs/ConfigSpec/properties/labels'
+  - '#/$defs/IngressConfig/properties/annotations'
+  - '#/$defs/IngressConfig/properties/labels'
+  - '#/$defs/NetworkPolicySpec/properties/annotations'
+  - '#/$defs/NetworkPolicySpec/properties/labels'
+  - '#/$defs/RbacSpec/properties/annotations'
+  - '#/$defs/RbacSpec/properties/labels'
+  - '#/$defs/HttpRouteRule/properties/filters/items'
+  - '#/$defs/HttpRouteConfig/properties/annotations'
+  - '#/$defs/HttpRouteConfig/properties/labels'
+  - '#/$defs/PdbConfig/properties/labels'
+  - '#/$defs/PdbConfig/properties/annotations'
+  - '#/$defs/ServiceAccountConfig/properties/labels'
+  - '#/$defs/ServiceAccountConfig/properties/annotations'
+  - '#/$defs/ServiceMonitorEndpoint/properties/relabelings/items'
+  - '#/$defs/ServiceMonitorEndpoint/properties/metricRelabelings/items'
+  - '#/$defs/ServiceMonitorEndpoint/properties/tlsConfig'
+  - '#/$defs/ServiceMonitorConfig/properties/labels'
+  - '#/$defs/ServiceMonitorConfig/properties/namespaceSelector'
+  - '#/$defs/DeploymentSpec/properties/nodeSelector'
+  - '#/$defs/DeploymentSpec/properties/annotations'
+  - '#/$defs/DeploymentSpec/properties/labels'
+  - '#/$defs/DeploymentSpec/properties/podAnnotations'
+  - '#/$defs/DeploymentSpec/properties/podLabels'
+  - '#/$defs/DeploymentDefaultsSpec/properties/nodeSelector'
+  - '#/$defs/DeploymentDefaultsSpec/properties/annotations'
+  - '#/$defs/DeploymentDefaultsSpec/properties/labels'
+  - '#/$defs/DeploymentDefaultsSpec/properties/podAnnotations'
+  - '#/$defs/DeploymentDefaultsSpec/properties/podLabels'
+  - '#/$defs/StatefulSetSpec/properties/nodeSelector'
+  - '#/$defs/StatefulSetSpec/properties/annotations'
+  - '#/$defs/StatefulSetSpec/properties/labels'
+  - '#/$defs/StatefulSetSpec/properties/podAnnotations'
+  - '#/$defs/StatefulSetSpec/properties/podLabels'
+  - /properties/statefulSetsGeneral/properties/nodeSelector
+  - '#/$defs/DaemonSetSpec/properties/nodeSelector'
+  - '#/$defs/DaemonSetSpec/properties/annotations'
+  - '#/$defs/DaemonSetSpec/properties/labels'
+  - '#/$defs/DaemonSetSpec/properties/podAnnotations'
+  - '#/$defs/DaemonSetSpec/properties/podLabels'
+  - /properties/daemonSetsGeneral/properties/nodeSelector
+  - '#/$defs/ServiceMonitorConfig/properties/relabelings/items'
+  - '#/$defs/ServiceMonitorConfig/properties/metricRelabelings/items'
+
+# Property keys that are intentionally per-instance only (no counterpart in
+# DeploymentDefaultsSpec). Rule 9 ("DeploymentSpec keys == DeploymentDefaultsSpec
+# keys") skips these. Use sparingly — only for features that the spec
+# explicitly forbids exposing as a global default (e.g. spec §3.4 prohibits
+# *General.rbac; contrast with networkPolicy, which IS in DeploymentDefaultsSpec
+# and therefore does NOT appear here).
+deployment_defaults_parity_exempt:
+  - autoCreateRbac
+  - rbac
+
+# Cross-field checks owned by templates/_validation.tpl (informational).
+tpl_covered_checks:
+  - "cross-resource secretRefs lookup"
+  - "release+name length <= 63"
+  - "computed-host regex via subdomain + global domain merge"
+  - "autoCreateIngress requires at least one container port"

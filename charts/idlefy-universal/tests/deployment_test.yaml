@@ -1,0 +1,64 @@
+suite: test deployment
+templates:
+  - deployment.yaml
+tests:
+  - it: should create a deployment with specified configuration
+    set:
+      deployments:
+        test-app:
+          replicas: 2
+          strategy:
+            type: RollingUpdate
+            rollingUpdate:
+              maxSurge: "25%"
+              maxUnavailable: 0
+          containers:
+            main:
+              image: nginx
+              imageTag: "1.21"
+              ports:
+                http:
+                  containerPort: 80
+                  servicePort: 80
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+              probes:
+                livenessProbe:
+                  httpGet:
+                    path: /health
+                    port: http
+                  initialDelaySeconds: 10
+                  periodSeconds: 30
+                readinessProbe:
+                  httpGet:
+                    path: /ready
+                    port: http
+                  initialDelaySeconds: 5
+                  periodSeconds: 10
+    asserts:
+      - isKind:
+          of: Deployment
+      - isAPIVersion:
+          of: apps/v1
+      - equal:
+          path: metadata.name
+          value: test-app
+      - equal:
+          path: spec.replicas
+          value: 2
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: "25%"
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: 0
+      - matchSnapshot:
+          path: spec.template.spec 

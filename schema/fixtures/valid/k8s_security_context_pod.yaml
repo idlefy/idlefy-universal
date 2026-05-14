@@ -1,0 +1,14 @@
+deployments:
+  app:
+    containers:
+      web:
+        image: nginx
+        imageTag: "1.27"
+        ports:
+          http: {containerPort: 80}
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+      seccompProfile:
+        type: RuntimeDefault

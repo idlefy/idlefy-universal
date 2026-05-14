@@ -1,0 +1,35 @@
+{{- range $deploymentName, $deploymentConfig := .Values.deployments }}
+{{- if $deploymentConfig.hpa }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $deploymentName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $deploymentName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $deploymentConfig.hpa.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $deploymentConfig.hpa.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ $deploymentName }}
+  minReplicas: {{ $deploymentConfig.hpa.minReplicas | default 1 }}
+  maxReplicas: {{ $deploymentConfig.hpa.maxReplicas }}
+  metrics:
+    {{- with $deploymentConfig.hpa.metrics }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $deploymentConfig.hpa.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+---
+{{- end }}

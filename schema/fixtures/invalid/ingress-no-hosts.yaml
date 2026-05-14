@@ -1,0 +1,5 @@
+# expected_error: Additional properties are not allowed
+ingresses:
+  bad:
+    ingressClassName: nginx
+    unknownField: not-allowed

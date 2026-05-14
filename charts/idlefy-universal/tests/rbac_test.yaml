@@ -1,0 +1,260 @@
+suite: test rbac
+templates:
+  - rbac.yaml
+  - deployment.yaml
+tests:
+  - it: renders Role + RoleBinding for a deployment with autoCreateRbac and autoCreateServiceAccount
+    templates:
+      - rbac.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateServiceAccount: true
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get, list, watch]
+    asserts:
+      - hasDocuments:
+          count: 2
+      - documentIndex: 0
+        equal: {path: kind, value: Role}
+      - documentIndex: 0
+        equal: {path: metadata.name, value: api}
+      - documentIndex: 0
+        equal: {path: "rules[0].resources[0]", value: configmaps}
+      - documentIndex: 1
+        equal: {path: kind, value: RoleBinding}
+      - documentIndex: 1
+        equal: {path: metadata.name, value: api}
+      - documentIndex: 1
+        equal: {path: "subjects[0].kind", value: ServiceAccount}
+      - documentIndex: 1
+        equal: {path: "subjects[0].name", value: api}
+      - documentIndex: 1
+        equal: {path: roleRef.kind, value: Role}
+      - documentIndex: 1
+        equal: {path: roleRef.name, value: api}
+
+  - it: fails when autoCreateRbac=true and rbac block is missing (RB-1 — schema-rejected)
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateServiceAccount: true
+          autoCreateRbac: true
+    asserts:
+      - failedTemplate: {}
+
+  - it: renders RBAC for a statefulSet
+    templates:
+      - rbac.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          containers:
+            main: {image: redis, imageTag: "7.2", ports: {redis: {containerPort: 6379}}}
+          autoCreateServiceAccount: true
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: ["coordination.k8s.io"]
+                resources: [leases]
+                verbs: [get, update]
+    asserts:
+      - hasDocuments: {count: 2}
+      - documentIndex: 1
+        equal: {path: "subjects[0].name", value: cache}
+
+  - it: renders RBAC for a daemonSet
+    templates:
+      - rbac.yaml
+    set:
+      daemonSets:
+        agent:
+          containers:
+            main: {image: agent, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateServiceAccount: true
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: [""]
+                resources: [nodes]
+                verbs: [get, list]
+    asserts:
+      - hasDocuments: {count: 2}
+      - documentIndex: 1
+        equal: {path: "subjects[0].name", value: agent}
+
+  - it: renders RBAC for a Job
+    templates:
+      - rbac.yaml
+    set:
+      jobs:
+        migration:
+          containers:
+            main: {image: migrator, imageTag: "1.0", command: [sh, -c, "echo migrate"]}
+          serviceAccountName: migration-sa
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: [""]
+                resources: [secrets]
+                verbs: [get]
+    asserts:
+      - hasDocuments: {count: 2}
+      - documentIndex: 1
+        equal: {path: "subjects[0].name", value: migration-sa}
+
+  - it: renders RBAC for a CronJob
+    templates:
+      - rbac.yaml
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          containers:
+            main: {image: busybox, imageTag: "1.36", command: [sh, -c, "echo tick"]}
+          serviceAccountName: cleanup-sa
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: [""]
+                resources: [pods]
+                verbs: [list]
+    asserts:
+      - hasDocuments: {count: 2}
+      - documentIndex: 1
+        equal: {path: "subjects[0].name", value: cleanup-sa}
+
+  - it: uses explicit serviceAccountName when set
+    templates:
+      - rbac.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          serviceAccountName: shared-platform-sa
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get]
+    asserts:
+      - hasDocuments: {count: 2}
+      - documentIndex: 1
+        equal: {path: "subjects[0].name", value: shared-platform-sa}
+
+  - it: uses generic.serviceAccountName as fallback
+    templates:
+      - rbac.yaml
+    set:
+      generic:
+        serviceAccountName: platform-default
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get]
+    asserts:
+      - hasDocuments: {count: 2}
+      - documentIndex: 1
+        equal: {path: "subjects[0].name", value: platform-default}
+
+  - it: fails when rules is empty (RB-2 — schema-rejected)
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateServiceAccount: true
+          autoCreateRbac: true
+          rbac:
+            rules: []
+    asserts:
+      - failedTemplate: {}
+
+  - it: fails when no ServiceAccount source is available (RB-3)
+    templates:
+      - deployment.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get]
+    asserts:
+      - failedTemplate:
+          errorMessage: "Deployment api: autoCreateRbac=true requires a ServiceAccount — set autoCreateServiceAccount: true or specify serviceAccountName"
+
+  - it: fails when rbac block is set but autoCreateRbac is not enabled (RB-4)
+    templates:
+      - deployment.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          rbac:
+            rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get]
+    asserts:
+      - failedTemplate:
+          errorMessage: "Deployment api: 'rbac' block is defined but autoCreateRbac is not true — block will be ignored, set autoCreateRbac: true to enable"
+
+  - it: fails when a rule has empty verbs (RB-5)
+    templates:
+      - deployment.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateServiceAccount: true
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: []
+    asserts:
+      - failedTemplate:
+          errorMessage: "Deployment api: rbac.rules[0] requires non-empty 'verbs'"
+
+  - it: fails when a rule has neither resources nor nonResourceURLs (RB-6)
+    templates:
+      - deployment.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateServiceAccount: true
+          autoCreateRbac: true
+          rbac:
+            rules:
+              - apiGroups: [""]
+                verbs: [get]
+    asserts:
+      - failedTemplate:
+          errorMessage: "Deployment api: rbac.rules[0] requires at least one of 'resources' or 'nonResourceURLs'"

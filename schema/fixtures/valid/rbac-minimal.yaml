@@ -1,0 +1,15 @@
+deployments:
+  api:
+    containers:
+      main:
+        image: api
+        imageTag: "1.0"
+        ports:
+          http: {containerPort: 8080}
+    autoCreateServiceAccount: true
+    autoCreateRbac: true
+    rbac:
+      rules:
+        - apiGroups: [""]
+          resources: [configmaps]
+          verbs: [get, list, watch]

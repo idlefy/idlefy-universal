@@ -1,0 +1,310 @@
+suite: test networkpolicy
+templates:
+  - networkpolicy.yaml
+  - deployment.yaml
+tests:
+  - it: renders a NetworkPolicy for a deployment with autoCreateNetworkPolicy=true
+    templates:
+      - networkpolicy.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main:
+              image: api
+              imageTag: "1.0"
+              ports:
+                http:
+                  containerPort: 8080
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Ingress]
+            ingress: []
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: NetworkPolicy
+      - equal:
+          path: metadata.name
+          value: api
+      - equal:
+          path: spec.podSelector.matchLabels["app.kubernetes.io/component"]
+          value: api
+      - equal:
+          path: spec.policyTypes
+          value: [Ingress]
+      - equal:
+          path: spec.ingress
+          value: []
+  - it: fails when autoCreateNetworkPolicy=true and networkPolicy block is missing
+    # NOTE: values.schema.json (DeploymentSpec allOf if/then) requires
+    # 'networkPolicy' when autoCreateNetworkPolicy=true, so this scenario is
+    # rejected at schema validation before validateNetworkPolicy fires. The
+    # template-level NP-1 guard in _validation.tpl remains as defense-in-depth
+    # in case the schema is ever relaxed.
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+    asserts:
+      - failedTemplate: {}
+
+  - it: renders a NetworkPolicy for a statefulSet
+    templates:
+      - networkpolicy.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          containers:
+            main: {image: redis, imageTag: "7.2", ports: {redis: {containerPort: 6379}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Ingress]
+            ingress:
+              - from:
+                  - podSelector:
+                      matchLabels: {"app.kubernetes.io/component": api}
+                ports: [{protocol: TCP, port: 6379}]
+    asserts:
+      - hasDocuments: {count: 1}
+      - equal: {path: metadata.name, value: cache}
+      - equal: {path: "spec.podSelector.matchLabels['app.kubernetes.io/component']", value: cache}
+      - equal: {path: "spec.ingress[0].from[0].podSelector.matchLabels['app.kubernetes.io/component']", value: api}
+
+  - it: renders a NetworkPolicy for a daemonSet
+    templates:
+      - networkpolicy.yaml
+    set:
+      daemonSets:
+        agent:
+          containers:
+            main: {image: agent, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Egress]
+            egress: []
+    asserts:
+      - hasDocuments: {count: 1}
+      - equal: {path: metadata.name, value: agent}
+      - equal: {path: spec.policyTypes, value: [Egress]}
+      - equal: {path: spec.egress, value: []}
+
+  - it: renders a NetworkPolicy for a Job
+    templates:
+      - networkpolicy.yaml
+    set:
+      jobs:
+        migration:
+          containers:
+            main: {image: migrator, imageTag: "1.0", command: [sh, -c, "echo migrate"]}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Egress]
+            egress:
+              - to:
+                  - namespaceSelector:
+                      matchLabels: {"kubernetes.io/metadata.name": kube-system}
+                ports: [{protocol: UDP, port: 53}]
+    asserts:
+      - hasDocuments: {count: 1}
+      - equal: {path: metadata.name, value: migration}
+      - equal: {path: "spec.egress[0].ports[0].port", value: 53}
+
+  - it: renders a NetworkPolicy for a CronJob
+    templates:
+      - networkpolicy.yaml
+    set:
+      cronJobs:
+        cleanup:
+          schedule: "*/5 * * * *"
+          containers:
+            main: {image: busybox, imageTag: "1.36", command: [sh, -c, "echo tick"]}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Egress]
+            egress: []
+    asserts:
+      - hasDocuments: {count: 1}
+      - equal: {path: metadata.name, value: cleanup}
+      - equal: {path: spec.policyTypes, value: [Egress]}
+
+  - it: renders both ingress and egress rules when policyTypes contains both
+    templates:
+      - networkpolicy.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Ingress, Egress]
+            ingress:
+              - from:
+                  - podSelector: {matchLabels: {"app.kubernetes.io/component": gateway}}
+                ports: [{protocol: TCP, port: 8080}]
+            egress:
+              - to:
+                  - podSelector: {matchLabels: {"app.kubernetes.io/component": postgres}}
+                ports: [{protocol: TCP, port: 5432}]
+    asserts:
+      - equal: {path: spec.policyTypes, value: [Ingress, Egress]}
+      - equal: {path: "spec.ingress[0].ports[0].port", value: 8080}
+      - equal: {path: "spec.egress[0].ports[0].port", value: 5432}
+
+  - it: inherits deploymentsGeneral.networkPolicy keys absent on the instance
+    templates:
+      - networkpolicy.yaml
+    set:
+      deploymentsGeneral:
+        networkPolicy:
+          policyTypes: [Egress]
+          egress:
+            - to:
+                - namespaceSelector: {matchLabels: {"kubernetes.io/metadata.name": kube-system}}
+              ports: [{protocol: UDP, port: 53}]
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Egress]
+    asserts:
+      - hasDocuments: {count: 1}
+      - equal: {path: spec.policyTypes, value: [Egress]}
+      - equal: {path: "spec.egress[0].ports[0].port", value: 53}
+
+  - it: instance networkPolicy replaces *General lists wholesale (no union)
+    templates:
+      - networkpolicy.yaml
+    set:
+      deploymentsGeneral:
+        networkPolicy:
+          policyTypes: [Egress]
+          egress:
+            - to: [{namespaceSelector: {matchLabels: {"kubernetes.io/metadata.name": kube-system}}}]
+              ports: [{protocol: UDP, port: 53}]
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Egress]
+            egress:
+              - to: [{podSelector: {matchLabels: {"app.kubernetes.io/component": db}}}]
+                ports: [{protocol: TCP, port: 5432}]
+    asserts:
+      - lengthEqual: {path: spec.egress, count: 1}
+      - equal: {path: "spec.egress[0].ports[0].port", value: 5432}
+
+  - it: instance explicit empty egress wins over non-empty *General egress (deny-all wins)
+    templates:
+      - networkpolicy.yaml
+    set:
+      deploymentsGeneral:
+        networkPolicy:
+          policyTypes: [Egress]
+          egress:
+            - to: [{namespaceSelector: {matchLabels: {"kubernetes.io/metadata.name": kube-system}}}]
+              ports: [{protocol: UDP, port: 53}]
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Egress]
+            egress: []
+    asserts:
+      - equal: {path: spec.egress, value: []}
+
+  - it: fails when policyTypes is empty (NP-2 — schema-rejected)
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: []
+            ingress: []
+    asserts:
+      - failedTemplate: {}
+
+  - it: fails when policyTypes contains Ingress but ingress key is missing (NP-3)
+    templates:
+      - deployment.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Ingress]
+    asserts:
+      - failedTemplate:
+          errorMessage: "Deployment api: policyTypes contains 'Ingress' but 'networkPolicy.ingress' is not defined (use [] for explicit deny)"
+
+  - it: fails when policyTypes contains Ingress but ingress is explicit null (NP-3 null — schema-rejected)
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Ingress]
+            ingress: ~
+    asserts:
+      - failedTemplate: {}
+
+  - it: fails when policyTypes contains Egress but egress key is missing (NP-4)
+    templates:
+      - deployment.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Egress]
+    asserts:
+      - failedTemplate:
+          errorMessage: "Deployment api: policyTypes contains 'Egress' but 'networkPolicy.egress' is not defined (use [] for explicit deny)"
+
+  - it: fails when policyTypes contains an unknown value (NP-5 — schema-rejected)
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          autoCreateNetworkPolicy: true
+          networkPolicy:
+            policyTypes: [Foo]
+            ingress: []
+    asserts:
+      - failedTemplate: {}
+
+  - it: fails when networkPolicy block is set but autoCreate is not enabled (NP-6)
+    templates:
+      - deployment.yaml
+    set:
+      deployments:
+        api:
+          containers:
+            main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+          networkPolicy:
+            policyTypes: [Ingress]
+            ingress: []
+    asserts:
+      - failedTemplate:
+          errorMessage: "Deployment api: 'networkPolicy' block is defined but autoCreateNetworkPolicy is not true — block will be ignored, set autoCreateNetworkPolicy: true to enable"

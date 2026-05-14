@@ -1,0 +1,51 @@
+properties:
+  persistentVolumeClaims:
+    description: |
+      Map of PersistentVolumeClaim resources keyed by name. Each entry creates
+      a PVC; deployments reference it through volumes[].persistentVolumeClaim.claimName.
+    examples:
+      - data-storage:
+          accessModes: [ReadWriteOnce]
+          size: 10Gi
+          storageClassName: standard
+    x-agent-when-to-use: |
+      Use for stateful workloads or for shared scratch space across containers
+      within a pod.
+
+$defs:
+  PvcSpec:
+    description: A single PVC definition.
+    examples:
+      - {accessModes: [ReadWriteOnce], size: 50Gi, storageClassName: ssd}
+    x-agent-common-mistakes:
+      - "Using 1g (lowercase) instead of 1Gi — schema requires Kubernetes unit suffix."
+    properties:
+      accessModes:
+        description: |
+          PVC access modes. ReadWriteOnce is the most common — single-node
+          read/write, fits all cloud block storage. ReadWriteMany requires a
+          filesystem that supports it (NFS, EFS, CephFS, Azure Files);
+          ReadOnlyMany is rarely useful in practice.
+        examples:
+          - [ReadWriteOnce]
+          - [ReadWriteMany]
+      selector:
+        description: |
+          Label selector to bind to a specific pre-provisioned
+          PersistentVolume. Omit for dynamic provisioning via storageClassName
+          (the standard case on cloud providers).
+        examples:
+          - {matchLabels: {volume-tier: nvme}}
+      annotations:
+        description: |
+          Annotations on the PVC metadata. Common use: volume-related
+          controller hints (e.g. snapshot-class hints, backup-tool labels)
+          or GitOps wave ordering so PVCs bind before pods reference them.
+        examples:
+          - {"helm.sh/resource-policy": keep, "velero.io/exclude-from-backup": "false"}
+      labels:
+        description: |
+          Extra labels on the PVC metadata. Standard chart labels are added
+          automatically.
+        examples:
+          - {team: platform, storage-tier: ssd}

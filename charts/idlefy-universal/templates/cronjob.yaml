@@ -1,0 +1,81 @@
+{{- include "idlefy-universal.validate" . -}}
+{{- range $jobName, $jobConfig := .Values.cronJobs }}
+{{- $defaultedConfig := include "idlefy-universal.deploymentDefaults" (dict "deployment" $jobConfig "general" $.Values.deploymentsGeneral) | fromYaml }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $jobName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $jobName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ $jobConfig.schedule | quote }}
+  {{- if $jobConfig.timezone }}
+  timeZone: {{ $jobConfig.timezone }}
+  {{- end }}
+  {{- if $jobConfig.startingDeadlineSeconds }}
+  startingDeadlineSeconds: {{ $jobConfig.startingDeadlineSeconds }}
+  {{- end }}
+  {{- if hasKey $jobConfig "concurrencyPolicy" }}
+  concurrencyPolicy: {{ $jobConfig.concurrencyPolicy }}
+  {{- end }}
+  {{- if hasKey $jobConfig "failedJobsHistoryLimit" }}
+  failedJobsHistoryLimit: {{ $jobConfig.failedJobsHistoryLimit }}
+  {{- end }}
+  {{- if hasKey $jobConfig "successfulJobsHistoryLimit" }}
+  successfulJobsHistoryLimit: {{ $jobConfig.successfulJobsHistoryLimit }}
+  {{- end }}
+  {{- if hasKey $jobConfig "suspend" }}
+  suspend: {{ $jobConfig.suspend }}
+  {{- end }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $jobName) | nindent 8 }}
+        {{- $jobExtraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+        {{- if $jobExtraLabels }}
+        {{- $jobExtraLabels | nindent 8 }}
+        {{- end }}
+      {{- $jobMergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.annotations) }}
+      {{- if $jobMergedAnnotations }}
+      annotations:
+        {{- $jobMergedAnnotations | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if $defaultedConfig.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ $defaultedConfig.activeDeadlineSeconds }}
+      {{- end }}
+      {{- if $defaultedConfig.backoffLimit }}
+      backoffLimit: {{ $defaultedConfig.backoffLimit }}
+      {{- end }}
+      {{- if $defaultedConfig.parallelism }}
+      parallelism: {{ int $defaultedConfig.parallelism }}
+      {{- end }}
+      {{- if $defaultedConfig.completions }}
+      completions: {{ int $defaultedConfig.completions }}
+      {{- end }}
+      template:
+        metadata:
+          labels:
+            {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $jobName) | nindent 12 }}
+            {{- $podExtraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+            {{- if $podExtraLabels }}
+            {{- $podExtraLabels | nindent 12 }}
+            {{- end }}
+          {{- $podMergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.podAnnotations) }}
+          {{- if $podMergedAnnotations }}
+          annotations:
+            {{- $podMergedAnnotations | nindent 12 }}
+          {{- end }}
+        spec:
+          {{- include "idlefy-universal.podSpec" (dict "config" $defaultedConfig "resourceConfig" $jobConfig "kind" "CronJob" "Root" $ "name" $jobName "general" $.Values.deploymentsGeneral) | nindent 10 }}
+---
+{{- end }}

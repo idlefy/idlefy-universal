@@ -1,0 +1,33 @@
+statefulSets:
+  postgres:
+    serviceName: postgres-headless
+    replicas: 1
+    autoCreateService: true
+    autoCreatePdb: true
+    pdb:
+      minAvailable: 1
+    volumeClaimTemplates:
+      - metadata:
+          name: data
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 20Gi
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        partition: 0
+    persistentVolumeClaimRetentionPolicy:
+      whenDeleted: Retain
+      whenScaled: Retain
+    containers:
+      main:
+        image: postgres
+        imageTag: "16.2"
+        ports:
+          postgres:
+            containerPort: 5432
+        volumeMounts:
+          - name: data
+            mountPath: /var/lib/postgresql/data

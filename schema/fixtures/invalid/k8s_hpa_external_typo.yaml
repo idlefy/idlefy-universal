@@ -1,0 +1,21 @@
+# expected_error: Additional properties are not allowed
+deployments:
+  app:
+    autoCreateService: true
+    containers:
+      web:
+        image: nginx
+        imageTag: "1.27"
+        ports:
+          http: {containerPort: 80}
+    hpa:
+      minReplicas: 2
+      maxReplicas: 20
+      metrics:
+        - type: External
+          external:
+            metricX:                        # typo — should be 'metric'
+              name: queue_depth
+            target:
+              type: AverageValue
+              averageValue: "100"

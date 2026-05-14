@@ -1,0 +1,13 @@
+should create a job with specified configuration:
+  1: |
+    containers:
+      - command:
+          - /bin/sh
+          - -c
+          - migrate.sh
+        env:
+          - name: DB_URL
+            value: postgres://user:password@db:5432/app
+        image: migration-tool:1.0.0
+        name: migration
+    restartPolicy: Never

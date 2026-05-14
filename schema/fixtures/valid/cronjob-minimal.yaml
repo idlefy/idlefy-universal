@@ -1,0 +1,5 @@
+cronJobs:
+  nightly-backup:
+    schedule: "0 0 * * *"
+    containers:
+      main: {image: backup, imageTag: v1.0.0}

@@ -1,0 +1,2600 @@
+$defs:
+  k8s.io.api.apps.v1.DeploymentStrategy:
+    description: |
+      Controls how the Deployment controller replaces old Pods with new ones
+      during a rollout. The `type` field is the discriminator and accepts
+      either `RollingUpdate` (gradual, the default) or `Recreate` (terminate
+      every old Pod before any new Pod starts). Only when `type: RollingUpdate`
+      may you populate `rollingUpdate` with `maxSurge` and `maxUnavailable`;
+      the chart's `StrategySpec` wrapper enforces this pairing at template
+      time so a stray `rollingUpdate` block with `type: Recreate` is caught
+      before it reaches the cluster.
+    examples:
+      - type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 25%
+          maxUnavailable: 0
+      - type: Recreate
+    x-agent-when-to-use: |
+      Use `RollingUpdate` for stateless services that can tolerate two
+      versions running side-by-side; use `Recreate` only for singletons or
+      workloads that hold an exclusive resource lock. For StatefulSet-style
+      workloads prefer a real StatefulSet — Deployment with `Recreate` does
+      not give you stable identity.
+    x-agent-related-fields:
+      - strategy
+      - replicas
+      - minReadySeconds
+    x-agent-common-mistakes:
+      - "Setting `maxSurge: 0` together with `maxUnavailable: 0` — the rollout has no room to move and stalls indefinitely; at least one must be > 0."
+      - "Choosing `Recreate` for a workload that holds open connections — every Pod terminates before any new Pod is Ready, producing a full outage window equal to the startup time."
+      - "Populating `rollingUpdate` while leaving `type: Recreate` — the chart's StrategySpec rejects this, but raw Kubernetes silently ignores `rollingUpdate` in that case, masking the misconfiguration."
+  k8s.io.api.apps.v1.RollingUpdateDeployment:
+    description: |
+      Tuning knobs for the `RollingUpdate` Deployment strategy. `maxSurge`
+      caps how many Pods *above* the desired replica count the controller
+      may create while rolling out (extra capacity to absorb new traffic
+      before old Pods drain); `maxUnavailable` caps how many Pods *below*
+      desired may be unavailable at once. Both accept an absolute integer
+      or a percentage of `replicas` (e.g. `25%`). At least one must be
+      greater than zero — `maxSurge: 0` paired with `maxUnavailable: 0`
+      deadlocks the rollout. Only valid when `strategy.type: RollingUpdate`;
+      the chart's StrategySpec rejects this block under `Recreate`.
+    examples:
+      - maxSurge: 25%
+        maxUnavailable: 0
+      - maxSurge: 1
+        maxUnavailable: 1
+    x-agent-when-to-use: |
+      Tune when default rollout speed is wrong for the workload: raise
+      `maxSurge` to roll forward faster on large fleets; set
+      `maxUnavailable: 0` for zero-downtime rollouts. For singletons or
+      strict capacity caps prefer `strategy.type: Recreate` over forcing
+      these knobs to extremes.
+    x-agent-related-fields:
+      - strategy
+      - replicas
+      - minReadySeconds
+    x-agent-common-mistakes:
+      - "Setting both `maxSurge: 0` and `maxUnavailable: 0` — the rollout has no room to make progress and stalls forever; at least one must be > 0."
+      - "Using percentages on small replica counts without checking the rounding — `25%` of 2 replicas rounds to 1, which may not be what you wanted."
+      - "Leaving `rollingUpdate` populated while flipping `strategy.type` to `Recreate` — the chart rejects this; raw Kubernetes silently ignores the block and masks the misconfiguration."
+  k8s.io.api.autoscaling.v2.ContainerResourceMetricSource:
+    description: |
+      HPA metric source that reads CPU or memory for a single named container
+      inside each Pod, instead of summing across all containers as `Resource`
+      does. Useful when the Pod runs a heavy primary alongside a light sidecar
+      (Envoy, log shipper) and aggregating would smear the signal. `name`
+      picks the resource (`cpu` or `memory`), `container` names the target
+      exactly as it appears in `spec.containers[].name`, and `target` picks
+      the threshold style — `Utilization` (percentage of `requests`) or
+      `AverageValue` (absolute per-Pod value).
+    examples:
+      - name: cpu
+        container: app
+        target:
+          type: Utilization
+          averageUtilization: 70
+      - name: memory
+        container: app
+        target:
+          type: AverageValue
+          averageValue: 512Mi
+    x-agent-when-to-use: |
+      Use when the Pod has multiple containers and scaling should react only
+      to the main workload — sidecars like Envoy or fluent-bit otherwise
+      inflate the average and either trigger scale-up on idle pods or hide
+      real load behind sidecar capacity. For single-container Pods stick
+      with `Resource` for simpler config.
+    x-agent-related-fields:
+      - hpa.metrics
+      - containers
+      - target
+    x-agent-common-mistakes:
+      - "Typo in `container:` not matching any name in `spec.containers[].name` — the metric source becomes unresolvable, HPA reports `<unknown>`, and scaling stalls."
+      - "Using `type: Utilization` while the target container has no CPU/memory `requests` — utilization is `usage/requests`, with no denominator the ratio is undefined."
+      - "Choosing ContainerResource for a single-container Pod — adds boilerplate without benefit; use plain `Resource` instead."
+  k8s.io.api.autoscaling.v2.CrossVersionObjectReference:
+    description: |
+      Reference to another Kubernetes object by `apiVersion`, `kind`, and
+      `name`. Inside an HPA spec it picks the scale target (typically the
+      Deployment the HPA scales); inside an `Object` metric source it
+      identifies which object's metric to read. The chart wires
+      `scaleTargetRef` automatically from the parent Deployment name when
+      you declare `hpa:` under a deployment — you only need to supply this
+      reference manually for `Object` metric sources that point at a
+      different object (e.g. an Ingress for RPS).
+    examples:
+      - apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        name: my-ingress
+      - apiVersion: v1
+        kind: Service
+        name: my-service
+    x-agent-when-to-use: |
+      Use inside an `Object` metric source to point at the object carrying
+      the metric (Ingress for RPS, Service for connection count). You do
+      not need this for `scaleTargetRef` — the chart populates it from
+      the Deployment context.
+    x-agent-related-fields:
+      - object
+      - hpa.metrics
+      - describedObject
+    x-agent-common-mistakes:
+      - "Omitting `apiVersion` and relying on a default — the field is required by the API and the HPA spec is rejected at admission."
+      - "Pointing at an object in a different namespace — the reference is namespace-local; the metric lookup silently fails."
+      - "Using `kind: Deployment` here for the scale target manually when the chart already wires it — duplicates and can drift from the actual workload name."
+  k8s.io.api.autoscaling.v2.ExternalMetricSource:
+    description: |
+      HPA metric source for signals that live outside the cluster — queue
+      depth, cloud-provider metrics, third-party APIs. The metric is
+      identified by `metric.name` plus an optional `metric.selector`
+      (label-matched against the metric's dimensions in the external
+      adapter). `target` picks the threshold style — typically
+      `AverageValue` (the external value divided by current replica count
+      defines the target per Pod) or `Value` (absolute, ignoring replica
+      count). Requires a cluster-installed external-metrics adapter
+      (KEDA, cloud-provider metrics adapter); the bare cluster cannot
+      resolve external metrics.
+    examples:
+      - metric:
+          name: sqs_messages_visible
+          selector:
+            matchLabels:
+              queue: orders
+        target:
+          type: AverageValue
+          averageValue: "30"
+      - metric:
+          name: datadog.kubernetes_pod_cpu_user
+        target:
+          type: Value
+          value: "500"
+    x-agent-when-to-use: |
+      Use for autoscaling on signals that aren't pod or k8s-object metrics
+      — queue depth, request rate from a CDN, ML model load. Combines well
+      with KEDA, which exposes a wide catalog of external metrics. For
+      cluster-internal signals prefer `Pods` (per-Pod) or `Object`
+      (k8s-object) metrics.
+    x-agent-related-fields:
+      - hpa.metrics
+      - target
+      - metric
+    x-agent-common-mistakes:
+      - "Forgetting to install the external-metrics adapter — HPA shows `FailedGetExternalMetric` and scaling does not react."
+      - "Confusing `Value` and `AverageValue` — `Value` is absolute, `AverageValue` is divided by current replica count; the wrong choice produces order-of-magnitude scaling errors."
+      - "Setting `target.averageValue` as an integer rather than a quoted string when the value needs a non-default unit (e.g. `\"500m\"`) — YAML parses some values silently differently than expected."
+  k8s.io.api.autoscaling.v2.HPAScalingPolicy:
+    description: |
+      One rate-limit rule inside an HPAScalingRules block. `type` picks the
+      unit — `Pods` (absolute number of pods) or `Percent` (percent of
+      current replicas); `value` is the magnitude; `periodSeconds` is the
+      sliding window the policy applies over. Within an HPAScalingRules
+      block multiple policies are evaluated and the selectPolicy
+      (`Max`/`Min`/`Disabled`) picks which one wins for that direction.
+    examples:
+      - type: Percent
+        value: 100
+        periodSeconds: 60
+      - type: Pods
+        value: 4
+        periodSeconds: 30
+    x-agent-when-to-use: |
+      Use `Percent` to cap scaling proportional to fleet size (good for
+      large deployments where doubling fast is fine but +1000 is not). Use
+      `Pods` to cap the absolute step size (good for small fleets where a
+      percent of 2 rounds awkwardly). Combine multiple policies inside one
+      HPAScalingRules and rely on `selectPolicy: Min` for conservative
+      behavior.
+    x-agent-related-fields:
+      - hpa.behavior
+      - scaleUp
+      - scaleDown
+    x-agent-common-mistakes:
+      - "Setting `periodSeconds` longer than the HPA sync period (15s by default) without realizing the policy is evaluated only at sync ticks — short windows under 15s are effectively rounded up."
+      - "Using `type: Percent` on a 1-replica Deployment — `Percent` of 1 with `value: 100` permits +1 pod per period, which is fine, but `value: 50` rounds to 0 and effectively disables scale-up."
+      - "Defining a single policy and assuming `selectPolicy` doesn't matter — the default is `Max`, which picks the more aggressive policy across multiple entries; on `scaleDown` you usually want `Min` instead."
+  k8s.io.api.autoscaling.v2.HPAScalingRules:
+    description: |
+      Per-direction (scale-up or scale-down) rate-limit configuration.
+      `stabilizationWindowSeconds` is the lookback window — for scale-down
+      the controller takes the highest desired-replica count seen in the
+      window (slowing aggressive drops); the default is 300s for scale-down
+      and 0s for scale-up. `policies` lists HPAScalingPolicy entries that
+      cap step magnitude; `selectPolicy` (`Max`, `Min`, `Disabled`) picks
+      which policy applies when multiple match. `Disabled` freezes scaling
+      in that direction entirely — useful as a kill switch for scale-down
+      during incidents.
+    examples:
+      - stabilizationWindowSeconds: 300
+        selectPolicy: Min
+        policies:
+          - type: Percent
+            value: 10
+            periodSeconds: 60
+          - type: Pods
+            value: 1
+            periodSeconds: 60
+      - stabilizationWindowSeconds: 0
+        selectPolicy: Max
+        policies:
+          - type: Percent
+            value: 100
+            periodSeconds: 30
+    x-agent-when-to-use: |
+      Use under `behavior.scaleDown` to slow drops and avoid flapping
+      (longer stabilization window + `selectPolicy: Min`). Use under
+      `behavior.scaleUp` to allow fast bursts (`selectPolicy: Max`,
+      short window). Set `selectPolicy: Disabled` as an explicit "do not
+      scale this direction" — useful during planned events.
+    x-agent-related-fields:
+      - hpa.behavior
+      - scaleUp
+      - scaleDown
+      - policies
+    x-agent-common-mistakes:
+      - "Setting a tiny `stabilizationWindowSeconds` on `scaleDown` (e.g. 30) — pods flap as load oscillates; the default 300s exists for good reason."
+      - "Combining `selectPolicy: Max` with conservative-looking policies and being surprised by rapid scaling — `Max` picks the *most* aggressive applicable policy; switch to `Min` if you wanted the conservative one to bind."
+      - "Forgetting `policies` is required — an empty HPAScalingRules block is rejected by the API."
+  k8s.io.api.autoscaling.v2.HorizontalPodAutoscalerBehavior:
+    description: |
+      Wrapper that bundles separate `scaleUp` and `scaleDown` HPAScalingRules
+      blocks. Sits under `hpa.behavior` and lets you shape each direction
+      independently — typically aggressive `scaleUp` to absorb traffic spikes
+      and conservative `scaleDown` (long stabilization window, `selectPolicy:
+      Min`) to avoid pod-flapping. Omit a direction's block to use the API
+      defaults (0s window + 100% step for scale-up; 300s window + 100% step
+      for scale-down).
+    examples:
+      - scaleUp:
+          stabilizationWindowSeconds: 0
+          policies:
+            - type: Percent
+              value: 100
+              periodSeconds: 30
+        scaleDown:
+          stabilizationWindowSeconds: 600
+          policies:
+            - type: Pods
+              value: 1
+              periodSeconds: 120
+      - scaleDown:
+          selectPolicy: Disabled
+    x-agent-when-to-use: |
+      Set this whenever you care about *how* the HPA reacts, not just *when*.
+      The default scale-up is already fast; tuning `scaleDown` is usually
+      where teams add value — a longer stabilization window prevents the
+      "scale up, scale down, scale up" cycle around midday/evening traffic
+      transitions.
+    x-agent-related-fields:
+      - hpa.behavior
+      - scaleUp
+      - scaleDown
+    x-agent-common-mistakes:
+      - "Setting only one direction (e.g. only `scaleUp`) and assuming the other inherits — it does, but only from API defaults, which may not match your intent."
+      - "Using `scaleDown: { selectPolicy: Disabled }` permanently — replicas can only grow, eventually consuming budget; this should be a temporary kill switch, not the steady state."
+      - "Putting policies directly under `behavior` — the API expects `scaleUp` / `scaleDown` wrappers; flat layouts are rejected."
+  k8s.io.api.autoscaling.v2.MetricIdentifier:
+    description: |
+      Name + optional `selector` pair that picks out one metric from the
+      metrics adapter. The `name` is the metric's identifier as exposed by
+      the adapter (the custom-metrics or external-metrics API); `selector` is
+      a `LabelSelector` against the metric's labels and is needed only when
+      the same metric name exists with multiple dimensions (e.g. one
+      `queue_depth` per queue name).
+    examples:
+      - name: http_requests_per_second
+      - name: sqs_messages_visible
+        selector:
+          matchLabels:
+            queue: orders
+    x-agent-when-to-use: |
+      Use a bare `name` when the metric is unique. Add a `selector` only
+      when you need to disambiguate which dimensional slice of the metric
+      to read — for example, picking one queue out of many.
+    x-agent-related-fields:
+      - metric
+      - pods
+      - object
+      - external
+    x-agent-common-mistakes:
+      - "Misspelling `name:` — the metric is `<unknown>` and the HPA never reacts; the typo is silent at admission time."
+      - "Using a `selector` with labels the metrics adapter doesn't expose on this metric — match returns zero series, the metric is unresolvable."
+      - "Forgetting that some adapters require the metric name to be lowercase/normalized — e.g. Prometheus adapter strips characters and rewrites names by rule."
+  k8s.io.api.autoscaling.v2.MetricSpec:
+    description: |
+      One entry in the HPA's `metrics[]` list, used by the chart inside
+      `hpa.metrics`. The `type` field is the discriminator and must match the
+      populated sibling block: `Resource` → `resource`, `ContainerResource` →
+      `containerResource`, `Pods` → `pods`, `Object` → `object`, `External`
+      → `external`. Multiple MetricSpec entries are evaluated independently
+      and the HPA picks the highest desired replica count across them, so
+      adding a metric never lowers the floor — it can only raise the ceiling.
+    examples:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 70
+      - type: External
+        external:
+          metric:
+            name: sqs_messages_visible
+            selector:
+              matchLabels:
+                queue: orders
+          target:
+            type: AverageValue
+            averageValue: "30"
+    x-agent-when-to-use: |
+      Use `Resource` for CPU/memory utilization (the common case); use
+      `Pods` for application-reported per-Pod metrics; use `Object` when the
+      signal lives on another Kubernetes object (e.g. Ingress RPS); use
+      `External` for off-cluster signals (queue depth, cloud metrics).
+      Prefer the v2 autoscaling API over the legacy v1 `targetCPUUtilization`
+      single-metric shortcut.
+    x-agent-related-fields:
+      - hpa.metrics
+      - hpa.minReplicas
+      - hpa.maxReplicas
+      - hpa.behavior
+    x-agent-common-mistakes:
+      - "Setting `type: Resource` but omitting the `resource:` block (or filling `pods:` instead) — the HPA controller logs a validation error and the autoscaler stops reconciling that target."
+      - "Mixing the legacy v1 `targetCPUUtilizationPercentage` shorthand with a v2 `metrics[]` list — the controller honors `metrics[]` and silently ignores the shorthand, which often looks like the threshold is wrong."
+      - "Using `target.type: Utilization` against a container without a CPU `requests` value — utilization is computed as usage/request, so missing requests make the ratio undefined and the HPA reports `<unknown>`."
+  k8s.io.api.autoscaling.v2.MetricTarget:
+    description: |
+      Threshold spec for an HPA metric source. `type` is the discriminator
+      and selects exactly one of `value` (absolute total), `averageValue`
+      (per-Pod total ÷ current replicas), or `averageUtilization` (percent
+      of `requests`, valid only for Resource/ContainerResource sources).
+      The HPA's desired replica count is computed so the observed metric
+      moves toward this target; the choice between `Value` and
+      `AverageValue` is the most common source of order-of-magnitude
+      scaling bugs.
+    examples:
+      - type: Utilization
+        averageUtilization: 70
+      - type: AverageValue
+        averageValue: "30"
+    x-agent-when-to-use: |
+      Use `Utilization` for CPU/memory resource metrics (the common case)
+      to express targets as % of requests. Use `AverageValue` when the
+      metric is a per-Pod count (queue messages, RPS-per-Pod). Use plain
+      `Value` only when the metric is intrinsically singular (a total
+      cluster-wide rate that the HPA should divide across replicas).
+    x-agent-related-fields:
+      - target
+      - hpa.metrics
+      - resources
+    x-agent-common-mistakes:
+      - "Mixing `type: Utilization` with a non-Resource metric source — utilization is only defined for built-in CPU/memory metrics; the API rejects it elsewhere."
+      - "Setting `averageUtilization: 70` without `requests` on the target container — utilization is `usage/requests`; with no denominator the HPA reports `<unknown>`."
+      - "Choosing `Value` when you meant `AverageValue` — `Value` is the total across all replicas; on a 10-replica fleet with `Value: 1000` the HPA tries to keep total at 1000, so each pod sees only ~100, which is rarely what you intended."
+  k8s.io.api.autoscaling.v2.ObjectMetricSource:
+    description: |
+      HPA metric source bound to a metric on a specific Kubernetes object —
+      typically RPS on an Ingress or connections-per-second on a Service.
+      `describedObject` (a CrossVersionObjectReference) points at the
+      object; `metric` (MetricIdentifier) names the metric; `target` is a
+      MetricTarget. Unlike `Pods`, the metric is read once for the object
+      (not averaged across replicas), so `target.type: Value` is the usual
+      choice and the HPA divides the target across the current replica
+      count internally.
+    examples:
+      - describedObject:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          name: my-ingress
+        metric:
+          name: requests_per_second
+        target:
+          type: Value
+          value: "1000"
+      - describedObject:
+          apiVersion: v1
+          kind: Service
+          name: my-service
+        metric:
+          name: connections_active
+        target:
+          type: AverageValue
+          averageValue: "100"
+    x-agent-when-to-use: |
+      Use when the signal lives on a k8s object (Ingress, Service,
+      GatewayAPI HTTPRoute) rather than on the Pods themselves. RPS
+      autoscaling against an Ingress is the canonical case — load
+      balancer metrics naturally aggregate at the Ingress, not the Pod.
+    x-agent-related-fields:
+      - object
+      - hpa.metrics
+      - describedObject
+    x-agent-common-mistakes:
+      - "Setting `target.type: Utilization` — only valid for Resource/ContainerResource sources; the API rejects it here."
+      - "Pointing `describedObject` at an object in a different namespace — the reference is namespace-local and the metric lookup silently fails."
+      - "Using `AverageValue` for a metric the adapter exposes only as a total — the math the HPA does (target × replicas vs raw value) ends up off by a factor of replica count."
+  k8s.io.api.autoscaling.v2.PodsMetricSource:
+    description: |
+      HPA metric source for per-Pod application metrics — anything an app
+      reports about itself, like in-flight requests, queue depth observed
+      per replica, or active goroutines. The metric (named by
+      MetricIdentifier) is read per matching Pod via the custom-metrics
+      API and averaged; `target.type` must be `AverageValue` (the only
+      value the API accepts here). Requires a custom-metrics adapter
+      (commonly the Prometheus adapter) running in the cluster.
+    examples:
+      - metric:
+          name: in_flight_requests
+        target:
+          type: AverageValue
+          averageValue: "30"
+      - metric:
+          name: queue_depth
+          selector:
+            matchLabels:
+              queue: orders
+        target:
+          type: AverageValue
+          averageValue: "10"
+    x-agent-when-to-use: |
+      Use when the autoscaling signal is a per-Pod application metric
+      reported via /metrics or similar. Pair with the Prometheus adapter
+      to expose Prometheus metrics through the custom-metrics API. For
+      built-in CPU/memory prefer `Resource`; for k8s-object metrics
+      prefer `Object`; for off-cluster signals prefer `External`.
+    x-agent-related-fields:
+      - hpa.metrics
+      - target
+      - metric
+    x-agent-common-mistakes:
+      - "Setting `target.type` to anything other than `AverageValue` — the API rejects `Value` and `Utilization` for Pods metric sources."
+      - "Forgetting to install/configure the custom-metrics adapter — HPA reports `FailedGetPodsMetric` and never scales."
+      - "Naming the metric inconsistently with the adapter's exposed name — e.g. Prometheus adapter rewrites `http_requests_total` per its rules; the HPA name must match the *exposed* name, not the raw Prometheus name."
+  k8s.io.api.autoscaling.v2.ResourceMetricSource:
+    description: |
+      The default HPA metric source for built-in Pod resources. `name`
+      picks `cpu` or `memory`; the value is *summed across all containers
+      in the Pod* and then averaged across Pods — this is the distinguishing
+      behavior from ContainerResource, which targets a single named
+      container. `target` is a MetricTarget; `Utilization` is the canonical
+      choice (percent of `requests`) but `AverageValue` is supported for
+      absolute thresholds. Requires the metrics-server (or an equivalent
+      metrics.k8s.io provider) running in the cluster.
+    examples:
+      - name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+      - name: memory
+        target:
+          type: AverageValue
+          averageValue: 512Mi
+    x-agent-when-to-use: |
+      Use this by default for CPU/memory autoscaling on single-container
+      workloads. For multi-container Pods where sidecar usage would
+      pollute the signal, switch to `ContainerResource`. For non-CPU/non-
+      memory signals, use `Pods` / `Object` / `External`.
+    x-agent-related-fields:
+      - resource
+      - hpa.metrics
+      - resources
+    x-agent-common-mistakes:
+      - "Using `type: Utilization` while the target container has no CPU/memory `requests` — utilization is `usage/requests`; with no denominator the HPA shows `<unknown>` and never reacts."
+      - "Picking `memory` without realizing Java/JVM apps rarely release heap — RSS plateaus and HPA never scales down; CPU is usually the better resource metric for JVM workloads."
+      - "Setting `averageUtilization` over 100 — technically allowed (lets pods exceed requests on average), but a value over ~90 leaves no headroom for traffic spikes between HPA reconciliations."
+  k8s.io.api.core.v1.AWSElasticBlockStoreVolumeSource:
+    description: |
+      Volume backed by an existing AWS EBS volume. Legacy in-tree driver; for
+      new workloads prefer the CSI ebs.csi.aws.com driver.
+    examples:
+      - {}
+  k8s.io.api.core.v1.Affinity:
+    description: |
+      Kubernetes Affinity combines three independent rule sets — nodeAffinity,
+      podAffinity, and podAntiAffinity — that influence where the scheduler
+      can place pods. Use it for anything beyond simple key=value node label
+      matching (which `nodeSelector` covers more concisely). The chart auto-
+      injects soft pod anti-affinity per topology zone when
+      `autoCreateSoftAntiAffinity: true`; any podAntiAffinity you define
+      here wins over the auto-injected rule (merge semantics — your rules
+      are appended).
+    examples:
+      - nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - {key: node-type, operator: In, values: [memory-optimized]}
+      - podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels: {app.kubernetes.io/name: my-app}
+                topologyKey: topology.kubernetes.io/zone
+    x-agent-when-to-use: |
+      Use for scheduling preferences beyond key=value node-label matching.
+      Simple "place pod on node with label X" → prefer `nodeSelector`. Spread
+      pods across zones → prefer `topologySpreadConstraints` (modern, more
+      predictable than weighted podAntiAffinity).
+    x-agent-related-fields:
+      - nodeSelector
+      - topologySpreadConstraints
+      - autoCreateSoftAntiAffinity
+    x-agent-common-mistakes:
+      - "Setting `requiredDuringSchedulingIgnoredDuringExecution` for soft preferences — that variant is HARD, pods stay Pending forever if no node matches. Use `preferredDuringSchedulingIgnoredDuringExecution` with a weight for soft."
+      - "Mixing nodeAffinity and nodeSelector for the same constraint — they AND together at scheduling time; pods need to satisfy both, which is rarely what you meant."
+      - "Forgetting `topologyKey` in podAffinityTerm — it has no default; the scheduler errors at admission time."
+  k8s.io.api.core.v1.AppArmorProfile:
+    description: |
+      AppArmor security profile applied to the container's processes
+      (Linux nodes only — most commonly Ubuntu/Debian; not available on
+      RHEL/Fedora which use SELinux instead). `type` is `RuntimeDefault`
+      (the container runtime's default profile), `Unconfined` (no
+      AppArmor mediation), or `Localhost` (a named profile pre-loaded
+      onto the node, identified by `localhostProfile: <profile-name>`).
+      Kubernetes 1.30+ uses this typed field; older clusters used the
+      `container.apparmor.security.beta.kubernetes.io/<container>`
+      annotation pattern which still works but is deprecated.
+    examples:
+      - type: RuntimeDefault
+      - type: Localhost
+        localhostProfile: my-app-profile
+    x-agent-when-to-use: |
+      Use `RuntimeDefault` on AppArmor-enabled distros for a sensible
+      baseline. Use `Localhost` only when you've loaded a custom profile
+      via DaemonSet or node provisioning. Don't bother setting it on
+      SELinux-only nodes (RHEL family) — AppArmor isn't active there
+      and the field becomes a no-op.
+    x-agent-related-fields:
+      - securityContext
+      - appArmorProfile
+      - seLinuxOptions
+    x-agent-common-mistakes:
+      - "Setting `type: Localhost` with a `localhostProfile` name that isn't loaded on every node — Pod fails on some nodes and works on others depending on scheduling."
+      - "Mixing the annotation-style API (`container.apparmor.security.beta...`) with the typed field — they conflict; pick one and stick to it (the typed field on 1.30+)."
+      - "Expecting AppArmor to be active on SELinux distros — it isn't; the field is silently ignored on RHEL/CentOS/Fedora-derived nodes."
+  k8s.io.api.core.v1.AzureDiskVolumeSource:
+    description: |
+      Volume backed by an existing Azure managed or unmanaged disk. Legacy
+      in-tree driver; prefer the disk.csi.azure.com CSI driver for new work.
+    examples:
+      - {}
+  k8s.io.api.core.v1.AzureFileVolumeSource:
+    description: |
+      Volume backed by an Azure Files share, mounted using a referenced Secret
+      with the storage account name and key.
+    examples:
+      - {}
+  k8s.io.api.core.v1.CSIVolumeSource:
+    description: |
+      Inline CSI volume — the kubelet asks a CSI driver to mount a volume
+      for this Pod directly, without going through a PVC. `driver` is the
+      CSI driver name (e.g. `secrets-store.csi.k8s.io`,
+      `disk.csi.azure.com`); `volumeAttributes` is a string map passed to
+      the driver's mount call (driver-specific keys); `nodePublishSecretRef`
+      points to a Secret with credentials the driver needs. Inline CSI is
+      most commonly used for *ephemeral* CSI volumes (the
+      secrets-store-csi-driver pattern); for durable storage prefer PVCs.
+      Not all CSI drivers support inline volumes — check the driver's
+      `Mode` field (`Ephemeral` or `Persistent`).
+    examples:
+      - driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: my-app-secrets
+      - driver: inline.csi.example.com
+        volumeAttributes:
+          size: "10Gi"
+          fsType: ext4
+        nodePublishSecretRef:
+          name: csi-driver-creds
+    x-agent-when-to-use: |
+      Use for ephemeral CSI volumes — most prominently
+      secrets-store-csi-driver mounts that bring cloud-provider secrets
+      into the Pod filesystem. For durable storage prefer a PVC pointing
+      at a CSI-backed StorageClass.
+    x-agent-related-fields:
+      - volumes
+      - driver
+      - volumeAttributes
+    x-agent-common-mistakes:
+      - "Using inline CSI with a driver that doesn't support ephemeral mode — the kubelet rejects the volume at Pod start; check the driver's CSIDriver resource for `Ephemeral` in `volumeLifecycleModes`."
+      - "Putting credential material directly in `volumeAttributes` — it's stored in plain text on the API server; use `nodePublishSecretRef` for sensitive material."
+      - "Trying to mount a multi-Pod shared CSI volume inline — inline CSI is per-Pod; for shared access use a PVC bound to a CSI driver that supports `ReadWriteMany`."
+  k8s.io.api.core.v1.Capabilities:
+    description: |
+      Linux kernel capabilities the container gets in addition to (or
+      removed from) the runtime's default capability set. `add[]` grants
+      caps; `drop[]` removes them; both accept canonical names without the
+      `CAP_` prefix (e.g. `NET_BIND_SERVICE`, not `CAP_NET_BIND_SERVICE`).
+      The Pod Security Standard `restricted` profile requires `drop:
+      [ALL]` and forbids any `add` other than `NET_BIND_SERVICE`. Only
+      valid inside container `securityContext`, not Pod-level
+      `securityContext`. The `ALL` token in `drop` is the runtime's full
+      set; combining `drop: [ALL]` with explicit `add` is the standard
+      least-privilege pattern.
+    examples:
+      - drop: [ALL]
+        add: [NET_BIND_SERVICE]
+      - drop: [ALL]
+    x-agent-when-to-use: |
+      Always pair `drop: [ALL]` with whatever capabilities the workload
+      actually needs (most need none). The most common single
+      capability is `NET_BIND_SERVICE` for binding to ports below 1024
+      without root. For workloads that don't bind privileged ports,
+      `drop: [ALL]` alone meets `restricted` PSS.
+    x-agent-related-fields:
+      - securityContext
+      - allowPrivilegeEscalation
+      - runAsNonRoot
+    x-agent-common-mistakes:
+      - "Using only `add` without `drop: [ALL]` — you keep the runtime's full default set and merely add to it, defeating least-privilege; almost always not what was intended."
+      - "Including the `CAP_` prefix in capability names (`CAP_NET_BIND_SERVICE`) — Kubernetes rejects this format; names must be unprefixed."
+      - "Granting capabilities like `SYS_ADMIN` instead of figuring out which specific capability is missing — `SYS_ADMIN` is broad enough that workloads often pass with it but the result is effectively as privileged as root."
+  k8s.io.api.core.v1.CephFSVolumeSource:
+    description: |
+      Volume backed by a CephFS mount. Lists monitors, the path, user, and an
+      authentication secret or keyring file.
+    examples:
+      - {}
+  k8s.io.api.core.v1.CinderVolumeSource:
+    description: |
+      Volume backed by an OpenStack Cinder block-storage volume. Legacy
+      in-tree driver; prefer the cinder.csi.openstack.org CSI driver.
+    examples:
+      - {}
+  k8s.io.api.core.v1.ClusterTrustBundleProjection:
+    description: |
+      Projected volume entry that exposes a ClusterTrustBundle's CA
+      certificates into the Pod's filesystem, selected by name or signer.
+    examples:
+      - {}
+  k8s.io.api.core.v1.ConfigMapKeySelector:
+    description: |
+      Pulls one key from a ConfigMap into an env var or other consumer.
+      `name` references the ConfigMap by name in the Pod's namespace;
+      `key` is the data key; `optional: true` lets the Pod start even if
+      the ConfigMap or key is missing (the env var is unset). Used inside
+      env-var `valueFrom.configMapKeyRef`. The chart provides this shape
+      via the typed `env[].valueFrom` field.
+    examples:
+      - name: app-config
+        key: log_level
+      - name: feature-flags
+        key: experiment_x
+        optional: true
+    x-agent-when-to-use: |
+      Use to inject a single ConfigMap value as an env var with a
+      different name than the key. For bulk injection of every key as
+      env vars with matching names, use `envFrom.configMapRef` (envFrom
+      doesn't let you rename).
+    x-agent-related-fields:
+      - env
+      - valueFrom
+      - configMapKeyRef
+    x-agent-common-mistakes:
+      - "Setting `optional: false` (the default) for a ConfigMap that might not exist — the Pod fails to start with `CreateContainerConfigError`."
+      - "Pointing at a ConfigMap in a different namespace — references are namespace-local; the env var resolves to empty and the Pod usually fails on the application side."
+      - "Treating the key as case-insensitive — ConfigMap data keys are case-sensitive; `LOG_LEVEL` and `log_level` are distinct."
+  k8s.io.api.core.v1.ConfigMapProjection:
+    description: |
+      One entry inside a ProjectedVolumeSource that pulls data from a
+      ConfigMap. Shape mirrors ConfigMapVolumeSource: `name` references
+      the ConfigMap, `items` optionally restricts to specific keys with
+      per-item paths and modes, `optional: true` makes the projection
+      non-blocking if the ConfigMap is absent. Lives inside a
+      VolumeProjection's `configMap` slot.
+    examples:
+      - name: app-config
+      - name: app-config
+        items:
+          - key: app.yaml
+            path: config/app.yaml
+        optional: true
+    x-agent-when-to-use: |
+      Use only inside a `projected` volume's `sources[]` when you're
+      combining ConfigMap data with other sources (secrets, downward
+      API, service-account tokens). For a standalone ConfigMap mount
+      use ConfigMapVolumeSource directly.
+    x-agent-related-fields:
+      - sources
+      - projected
+      - configMap
+    x-agent-common-mistakes:
+      - "Setting `optional: false` (the default) for a ConfigMap that may not exist yet — the whole projected volume fails to mount and the Pod stays Pending."
+      - "Overlapping `path` values across multiple projections in the same projected volume — later projections silently overwrite earlier ones."
+      - "Using this outside a projected volume — ConfigMapProjection is only valid as a VolumeProjection slot; standalone use is rejected."
+  k8s.io.api.core.v1.ConfigMapVolumeSource:
+    description: |
+      Volume that materializes a ConfigMap's data as files inside the Pod.
+      `name` references the ConfigMap by name in the Pod's namespace.
+      Without `items` every key in the ConfigMap becomes a file at the
+      mount path; with `items` only the listed keys are projected, each
+      with an optional `path` (relative to the mount path) and `mode`
+      (file-permission bits). `defaultMode` (e.g. `0644`) is applied to
+      all files not given a per-item mode. `optional: true` lets the Pod
+      start even if the ConfigMap is missing (the directory is empty);
+      `optional: false` (the default) keeps the Pod Pending until it
+      exists. ConfigMap updates propagate to mounted files atomically
+      within ~60s — but only when the whole volume is mounted, not when
+      individual keys are mounted via `subPath` in the container.
+    examples:
+      - name: app-config
+      - name: app-config
+        items:
+          - key: app.yaml
+            path: config/app.yaml
+            mode: 0440
+        defaultMode: 0444
+        optional: false
+    x-agent-when-to-use: |
+      Use for non-secret configuration files. For credentials use
+      `SecretVolumeSource`. For combining ConfigMap + Secret + downward
+      API into one mount, use a `ProjectedVolumeSource`. Avoid the
+      `subPath` mount style on container if you need updates to
+      propagate.
+    x-agent-related-fields:
+      - volumes
+      - volumeMounts
+      - configs
+    x-agent-common-mistakes:
+      - "Using `subPath: <key>` in the matching `volumeMounts[]` to land the file as a single entry — Kubernetes uses non-atomic rename for subPath mounts, so ConfigMap updates *never* propagate; the file is frozen at Pod start."
+      - "Setting `optional: false` (the default) for a ConfigMap that doesn't exist yet — Pod stays Pending; either create the ConfigMap first or set `optional: true`."
+      - "Setting `defaultMode` as decimal (e.g. `420` for 0644) and getting unexpected permissions — modes are octal; specify with leading zero or use the integer equivalent carefully."
+  k8s.io.api.core.v1.DownwardAPIProjection:
+    description: |
+      One entry inside a ProjectedVolumeSource that exposes Pod metadata or
+      container resource info as files. `items[]` is a list of
+      DownwardAPIVolumeFile entries — each writing one target `path` from
+      either `fieldRef` (Pod-level) or `resourceFieldRef` (container
+      resources). Identical content shape to DownwardAPIVolumeSource but
+      lives inside a VolumeProjection rather than as a standalone volume.
+    examples:
+      - items:
+          - path: pod-name
+            fieldRef:
+              fieldPath: metadata.name
+          - path: pod-namespace
+            fieldRef:
+              fieldPath: metadata.namespace
+      - items:
+          - path: cpu-request
+            resourceFieldRef:
+              containerName: app
+              resource: requests.cpu
+    x-agent-when-to-use: |
+      Use inside a projected volume to surface pod identity (name,
+      namespace, labels, annotations, UID) or container resource
+      requests/limits alongside other projected sources. For standalone
+      use prefer DownwardAPIVolumeSource.
+    x-agent-related-fields:
+      - sources
+      - projected
+      - downwardAPI
+    x-agent-common-mistakes:
+      - "Using a `fieldPath` not allowed in volumes (e.g. `status.podIP`) — works in env vars but rejected in volume sources by the API."
+      - "Omitting `containerName` on `resourceFieldRef` — required for resource selectors; without it the projection fails validation."
+      - "Overlapping paths across projections — last one wins silently."
+  k8s.io.api.core.v1.DownwardAPIVolumeFile:
+    description: |
+      One file entry inside a DownwardAPIVolumeSource or DownwardAPIProjection.
+      `path` is the target filename (relative, no `..`, no leading `/`).
+      Populate exactly one of `fieldRef` (for Pod-level fields like
+      `metadata.name`, `metadata.namespace`, `metadata.labels`,
+      `metadata.annotations`, `spec.nodeName`, `spec.serviceAccountName`)
+      or `resourceFieldRef` (for container resource requests/limits with a
+      `containerName` + `resource` + optional `divisor`). Optional `mode`
+      overrides the volume's `defaultMode` for this file.
+    examples:
+      - path: pod-name
+        fieldRef:
+          fieldPath: metadata.name
+      - path: cpu-limit
+        resourceFieldRef:
+          containerName: app
+          resource: limits.cpu
+          divisor: "1m"
+    x-agent-when-to-use: |
+      Use as the entries of a downward API volume's `items[]`. Allowed
+      `fieldRef` values are a *restricted* subset compared to env-var
+      downward API (e.g. `status.podIP` works only as an env var, not in
+      volumes); pick env vars for runtime status, volumes for identity
+      and resources.
+    x-agent-related-fields:
+      - items
+      - downwardAPI
+      - fieldRef
+      - resourceFieldRef
+    x-agent-common-mistakes:
+      - "Using `status.podIP` or `status.hostIP` in `fieldRef.fieldPath` — these are env-var-only; the volume rejects them at admission."
+      - "Omitting `containerName` on `resourceFieldRef` — required; the field doesn't have a sensible default since each container has its own resources."
+      - "Specifying both `fieldRef` and `resourceFieldRef` in the same entry — exactly one must be set; the API rejects entries with both or neither."
+  k8s.io.api.core.v1.DownwardAPIVolumeSource:
+    description: |
+      Volume that exposes Pod metadata and container resource info as files
+      inside the Pod, without requiring the workload to call the API server.
+      `items[]` is a list of DownwardAPIVolumeFile entries — each one
+      writes a target `path` (relative to the mount path) with content
+      taken either from `fieldRef` (Pod-level fields like `metadata.name`,
+      `metadata.labels`, `spec.nodeName`) or `resourceFieldRef` (container
+      resource requests/limits). `defaultMode` applies to files without
+      per-item modes. Useful for shipping pod identity to a workload that
+      needs to log it but shouldn't have API server access.
+    examples:
+      - items:
+          - path: pod-name
+            fieldRef:
+              fieldPath: metadata.name
+          - path: labels
+            fieldRef:
+              fieldPath: metadata.labels
+      - items:
+          - path: cpu-limit
+            resourceFieldRef:
+              containerName: app
+              resource: limits.cpu
+              divisor: "1m"
+        defaultMode: 0444
+    x-agent-when-to-use: |
+      Use to expose pod identity (name, namespace, labels), node name, or
+      container resource requests/limits as files. For env-variable
+      access to the same data, use `valueFrom.fieldRef` /
+      `valueFrom.resourceFieldRef` on container env — simpler when you
+      only need one or two values.
+    x-agent-related-fields:
+      - volumes
+      - fieldRef
+      - resourceFieldRef
+    x-agent-common-mistakes:
+      - "Using a `fieldPath` Kubernetes doesn't allow (e.g. `status.podIP` works only in env vars, not in volumes — the API rejects it)."
+      - "Forgetting `containerName` on `resourceFieldRef` — the field is required for resource selectors; without it the volume fails validation."
+      - "Mounting via `subPath` and expecting label updates to propagate — like ConfigMap/Secret mounts, subPath bypasses atomic update, so label changes never appear."
+  k8s.io.api.core.v1.EmptyDirVolumeSource:
+    description: |
+      Empty scratch volume created when the Pod is assigned to a node and
+      destroyed when the Pod is removed from that node — so it persists
+      across container restarts inside the same Pod, but *not* across
+      rescheduling. `medium: ""` (the default) backs it with the node's
+      default filesystem (typically a directory under
+      `/var/lib/kubelet/pods/`); `medium: Memory` backs it with tmpfs,
+      which is fast but counts against the Pod's memory limit and reduces
+      schedulable memory. `sizeLimit` caps total usage and kicks in at
+      eviction time — workloads exceeding the cap are evicted, not blocked
+      at write time.
+    examples:
+      - {}
+      - medium: Memory
+        sizeLimit: 256Mi
+    x-agent-when-to-use: |
+      Use for scratch space that lives with the Pod — caches, temporary
+      output, shared file between init and main containers. For data
+      that must survive Pod rescheduling use a PVC. For tmpfs-backed
+      scratch (faster, sized in RAM) set `medium: Memory`; remember the
+      memory counts against the container limit.
+    x-agent-related-fields:
+      - volumes
+      - volumeMounts
+      - readOnlyRootFilesystem
+    x-agent-common-mistakes:
+      - "Using emptyDir for data that must survive Pod rescheduling — rescheduling to another node returns an empty directory. Use a PVC."
+      - "Setting `medium: Memory` without raising the container `memory` limit — tmpfs writes count against the limit; the Pod OOM-kills as the volume fills."
+      - "Forgetting `sizeLimit` on a shared write target — runaway writes can fill the node's ephemeral storage and impact other Pods on the same node."
+  k8s.io.api.core.v1.EphemeralVolumeSource:
+    description: |
+      Inline PVC creation — the kubelet materializes a per-Pod
+      PersistentVolumeClaim from `volumeClaimTemplate` at Pod creation,
+      and deletes it when the Pod is deleted. The generated PVC's name is
+      `<pod-name>-<volume-name>` and it inherits the Pod's namespace.
+      Behaves like an EmptyDir bound to durable storage: data does *not*
+      survive Pod rescheduling (a new Pod gets a fresh PVC) but does
+      survive container restarts inside the same Pod. Requires a
+      dynamic provisioner (CSI driver with a StorageClass) for the
+      claim to bind; static PV provisioning is incompatible with
+      ephemeral volumes.
+    examples:
+      - volumeClaimTemplate:
+          spec:
+            accessModes: [ReadWriteOnce]
+            storageClassName: standard
+            resources:
+              requests:
+                storage: 10Gi
+      - volumeClaimTemplate:
+          metadata:
+            labels:
+              app: my-app
+          spec:
+            accessModes: [ReadWriteOnce]
+            resources:
+              requests:
+                storage: 1Gi
+    x-agent-when-to-use: |
+      Use when each Pod replica needs its own durable scratch volume that
+      should disappear with the Pod — large workspace dirs, per-Pod
+      caches that benefit from real storage rather than tmpfs/emptyDir.
+      For shared durable storage across replicas, use a regular
+      PersistentVolumeClaim with `ReadWriteMany`. For shared scratch, use
+      `EmptyDirVolumeSource`.
+    x-agent-related-fields:
+      - persistentVolumeClaim
+      - volumes
+      - volumeClaimTemplate
+    x-agent-common-mistakes:
+      - "Forgetting that the PVC is *deleted with the Pod* — assuming data persists across Deployment rollouts is wrong; rollouts replace Pods, which destroys ephemeral PVCs."
+      - "Using `accessModes: [ReadWriteMany]` on a provider that doesn't support it — the PVC stays Pending and the Pod never starts."
+      - "Setting `storageClassName: \"\"` (empty string) intending to use the cluster default — empty string means \"no storage class\" (use static binding), which usually breaks dynamic provisioning. Omit the field entirely to use the default class."
+  k8s.io.api.core.v1.ExecAction:
+    description: |
+      Probe / lifecycle-hook action that runs a command inside the container
+      using the kubelet's `exec` (essentially `kubectl exec` semantics).
+      `command` is the argv list — no shell, so `["sh", "-c", "..."]` is
+      needed for shell features. The command runs with the container's
+      working directory and user; exit code 0 is success, anything else
+      is failure. Exec probes are the most expensive probe type (fork +
+      process spawn per probe interval); for HTTP services prefer
+      `httpGet`, for raw TCP listeners prefer `tcpSocket`.
+    examples:
+      - command:
+          - cat
+          - /tmp/healthy
+      - command:
+          - sh
+          - -c
+          - pg_isready -U postgres
+    x-agent-when-to-use: |
+      Use when the workload can't expose an HTTP or TCP health endpoint —
+      e.g. CLI tools, databases probed via their native client
+      (`pg_isready`, `redis-cli ping`), or workloads that signal health by
+      writing a sentinel file. For HTTP services use `httpGet` instead;
+      for TCP listeners use `tcpSocket`. Both are dramatically cheaper.
+    x-agent-related-fields:
+      - livenessProbe
+      - readinessProbe
+      - exec
+    x-agent-common-mistakes:
+      - "Writing `command: [\"pg_isready -U postgres\"]` (one string) instead of `[\"pg_isready\", \"-U\", \"postgres\"]` — the kubelet does no shell parsing; the single string is treated as the executable name and `exec` fails."
+      - "Running expensive checks (full DB queries, full cache walks) on every probe — exec probes execute per interval; this becomes a measurable load source."
+      - "Probing a process started via initContainer side effects — initContainers run before the main container, but exec probes only target the main container."
+  k8s.io.api.core.v1.FCVolumeSource:
+    description: |
+      Volume backed by a Fibre Channel LUN. Specifies target WWNs (or WWIDs)
+      and the LUN number to attach.
+    examples:
+      - {}
+  k8s.io.api.core.v1.FlexVolumeSource:
+    description: |
+      Volume served by a FlexVolume out-of-tree driver. Deprecated in favor of
+      CSI; retained for backwards compatibility only.
+    examples:
+      - {}
+  k8s.io.api.core.v1.FlockerVolumeSource:
+    description: |
+      Volume backed by Flocker (ClusterHQ). Largely defunct upstream;
+      retained as an in-tree volume source for historical clusters.
+    examples:
+      - {}
+  k8s.io.api.core.v1.GCEPersistentDiskVolumeSource:
+    description: |
+      Volume backed by an existing GCE Persistent Disk. Legacy in-tree driver;
+      prefer the pd.csi.storage.gke.io CSI driver for new workloads.
+    examples:
+      - {}
+  k8s.io.api.core.v1.GitRepoVolumeSource:
+    description: |
+      Deprecated volume type that clones a Git repository into an EmptyDir at
+      Pod startup. Use an initContainer with git clone instead.
+    examples:
+      - {}
+  k8s.io.api.core.v1.GlusterfsVolumeSource:
+    description: |
+      Volume backed by a Glusterfs mount. References a known endpoints object,
+      a volume path, and an optional read-only flag.
+    examples:
+      - {}
+  k8s.io.api.core.v1.HTTPGetAction:
+    description: |
+      Probe / lifecycle-hook action that issues an HTTP(S) GET to the
+      container. `port` is a port number or named port from
+      `containers[].ports[]`; `path` is the request path (default `/`);
+      `host` is rarely set (defaults to the Pod IP) and is only useful
+      when probing through a specific Host header; `scheme` is `HTTP`
+      (default) or `HTTPS` (no TLS validation — the kubelet does not
+      verify server certs); `httpHeaders[]` adds headers, typically for
+      Authorization or to override Host. Status codes 200–399 are
+      success; 4xx/5xx are failure; the kubelet does not follow redirects.
+    examples:
+      - path: /healthz
+        port: http
+        scheme: HTTP
+      - path: /readyz
+        port: 8080
+        scheme: HTTPS
+        httpHeaders:
+          - name: Authorization
+            value: Bearer probe-token
+    x-agent-when-to-use: |
+      Use for any HTTP service — preferred over `tcpSocket` because a
+      passing HTTP GET proves the app actually responds, not just that
+      the TCP listener is up. Reserve a dedicated lightweight health
+      endpoint (don't probe `/`) to avoid load. Use `tcpSocket` only for
+      non-HTTP services or where adding HTTP is impractical.
+    x-agent-related-fields:
+      - livenessProbe
+      - readinessProbe
+      - startupProbe
+      - httpGet
+    x-agent-common-mistakes:
+      - "Pointing the probe at the main business path (e.g. `/`) and seeing probe traffic mask real metrics or load latency-sensitive code — always use a dedicated probe path that is cheap and side-effect-free."
+      - "Using `scheme: HTTPS` against a self-signed cert and assuming the kubelet validates it — it doesn't, but external monitoring will, so don't conflate the two."
+      - "Mixing up readiness and liveness probes — readiness controls Service endpoints; liveness restarts containers. Pointing both at the same heavy path can cascade restarts during transient load."
+  k8s.io.api.core.v1.HTTPHeader:
+    description: |
+      One `{name, value}` header pair attached to an HTTPGetAction's
+      `httpHeaders[]`. Used to override the implicit Host header (kubelet
+      sets it to the Pod IP by default), inject an Authorization token
+      for protected health endpoints, or pass any other header the
+      health endpoint requires. Header names follow HTTP rules — case-
+      insensitive at the protocol level, but most apps treat them as
+      lowercased internally.
+    examples:
+      - name: Authorization
+        value: Bearer probe-token
+      - name: Host
+        value: my-app.local
+    x-agent-when-to-use: |
+      Use to send auth tokens to protected probes, or to send a specific
+      Host header when virtual hosting is involved. For probes that
+      should bypass auth entirely, expose a dedicated unauthenticated
+      `/healthz` endpoint inside the pod instead of injecting tokens.
+    x-agent-related-fields:
+      - httpGet
+      - httpHeaders
+    x-agent-common-mistakes:
+      - "Hardcoding a token in the manifest — it lives in the API server in plain text; for real auth tokens, prefer an unauthenticated internal health endpoint."
+      - "Using `Host` header to probe a different service — the request still goes to the configured `port` on the configured `host` (or Pod IP); the header doesn't redirect."
+      - "Spelling header names inconsistently with what the server expects when the server is case-sensitive about names (against the HTTP spec, but real apps do this)."
+  k8s.io.api.core.v1.HostPathVolumeSource:
+    description: |
+      Mounts a file or directory from the underlying node's filesystem
+      directly into the Pod. `path` is the node-local path; `type`
+      validates how that path must exist (`Directory`, `File`,
+      `DirectoryOrCreate`, `FileOrCreate`, `Socket`, `CharDevice`,
+      `BlockDevice`, or `""` for no validation). HostPath couples the Pod
+      to a specific node (it has access to that node's filesystem) and is
+      a frequent source of security and portability problems — most
+      Pod Security Standards `baseline` and above forbid it outright. Use
+      only for genuine node-level work (DaemonSet log collectors,
+      monitoring agents reading `/proc`, CSI driver pods).
+    examples:
+      - path: /var/log
+        type: Directory
+      - path: /var/run/docker.sock
+        type: Socket
+    x-agent-when-to-use: |
+      Reserve for node-level infrastructure (log shippers, node exporters,
+      CSI plugins). For application data prefer a PVC; for scratch use an
+      EmptyDir; for shared cluster state use a ConfigMap/Secret. If you
+      think a normal application needs HostPath, you almost certainly
+      want a different volume type.
+    x-agent-related-fields:
+      - volumes
+      - securityContext
+      - hostNetwork
+    x-agent-common-mistakes:
+      - "Using HostPath for application data and being surprised by data loss when the Pod reschedules — Pods are not pinned to nodes by default, so the new node has empty (or different) host data."
+      - "Setting `type: \"\"` (no validation) and getting a silent EmptyDir-like behavior when the path doesn't exist (with `DirectoryOrCreate`/`FileOrCreate` the kubelet creates it; with `Directory` it errors out)."
+      - "Mounting `/` or `/etc` and tripping Pod Security policies — `restricted` and `baseline` profiles forbid HostPath; the Pod is rejected at admission."
+  k8s.io.api.core.v1.ISCSIVolumeSource:
+    description: |
+      Volume backed by an iSCSI LUN. Configures target portal, IQN, LUN, and
+      optional CHAP authentication via a referenced Secret.
+    examples:
+      - {}
+  k8s.io.api.core.v1.ImageVolumeSource:
+    description: |
+      Volume populated from an OCI image artifact. The image content is
+      exposed as a read-only filesystem inside the Pod.
+    examples:
+      - {}
+  k8s.io.api.core.v1.KeyToPath:
+    description: |
+      One per-key mapping inside a ConfigMapVolumeSource, SecretVolumeSource,
+      ConfigMapProjection, or SecretProjection's `items[]` list. `key`
+      picks the source key from the ConfigMap/Secret, `path` is the
+      target filename relative to the volume mount path (must not be
+      absolute or contain `..`), and optional `mode` overrides the volume's
+      `defaultMode` for this single file. Listing items at all *restricts*
+      the volume to only those keys; omit `items` to project every key.
+    examples:
+      - key: app.yaml
+        path: config/app.yaml
+      - key: tls.key
+        path: tls/tls.key
+        mode: 0400
+    x-agent-when-to-use: |
+      Use when you only need a subset of keys from a ConfigMap/Secret, or
+      when you want to rename keys at mount time, or when a single file
+      needs stricter permissions than the volume's `defaultMode`. To
+      project everything as-is, omit `items` entirely.
+    x-agent-related-fields:
+      - items
+      - configMap
+      - secret
+    x-agent-common-mistakes:
+      - "Using an absolute path or `..` in `path` — the kubelet rejects the mount at admission; paths must be relative and stay inside the volume."
+      - "Listing `items` and then forgetting one of the source keys — that key is silently absent from the volume; listing items means opt-in, not append."
+      - "Specifying `mode` as decimal (e.g. `420` for 0644) — modes are octal in YAML; the parser converts decimal correctly only when written as `0644`."
+  k8s.io.api.core.v1.Lifecycle:
+    description: |
+      Per-container hooks the kubelet invokes around the container's lifetime.
+      `postStart` fires immediately after the container is created (no
+      guarantee it runs before the entrypoint, and a slow hook delays the
+      container reaching the Running state). `preStop` is by far the more
+      common use: it runs synchronously when a Pod is asked to terminate and
+      the container stays in Terminating until the hook returns or the Pod's
+      `terminationGracePeriodSeconds` elapses, whichever comes first — once
+      the grace period is exhausted the kubelet sends SIGKILL regardless.
+      Use preStop to drain in-flight requests, deregister from a service
+      registry, or sleep long enough for endpoints removal to propagate.
+    examples:
+      - preStop:
+          exec:
+            command: ["/bin/sh", "-c", "sleep 15"]
+      - postStart:
+          httpGet:
+            path: /warmup
+            port: 8080
+        preStop:
+          httpGet:
+            path: /shutdown
+            port: 8080
+    x-agent-when-to-use: |
+      Use `preStop` whenever the workload accepts external traffic — the
+      `sleep N` pattern bridges the gap between SIGTERM and endpoint
+      removal. Use `postStart` only for genuinely fast initialization that
+      cannot live in an init container; init containers are the correct
+      tool for warm-up work that must complete before main traffic.
+    x-agent-related-fields:
+      - terminationGracePeriodSeconds
+      - readinessProbe
+      - initContainers
+    x-agent-common-mistakes:
+      - "preStop sleep or work that exceeds `terminationGracePeriodSeconds` — the kubelet sends SIGKILL on expiry, the hook's effect is lost, and in-flight requests fail. Always keep preStop duration < grace period."
+      - "Using `httpGet` for preStop against an endpoint the readiness probe has already taken out of rotation — the hook can still hit it locally, but pairing httpGet with a slow upstream chain can stall the entire grace period."
+      - "Relying on `postStart` ordering vs the entrypoint — Kubernetes does not guarantee postStart runs before the container's main process, so the hook cannot safely assume the app is initialized."
+  k8s.io.api.core.v1.LifecycleHandler:
+    description: |
+      Action shape for `postStart` and `preStop` lifecycle hooks. Populate
+      exactly one of `exec`, `httpGet`, or `sleep` (the latter added in
+      Kubernetes 1.29 as a simpler way to express the "wait N seconds"
+      pattern that used to require `exec: ["sleep", "N"]`). `tcpSocket`
+      is *not* available here — lifecycle hooks support a strict subset
+      of probe actions. Hook failures are logged but don't restart the
+      container directly; `preStop` blocking past
+      `terminationGracePeriodSeconds` causes SIGKILL.
+    examples:
+      - sleep:
+          seconds: 15
+      - httpGet:
+          path: /shutdown
+          port: 8080
+    x-agent-when-to-use: |
+      Use `sleep` for the canonical "wait for endpoint removal to
+      propagate" preStop hook (Kubernetes 1.29+). On older clusters use
+      `exec: ["sleep", "15"]` instead. Use `httpGet` to ping a graceful-
+      shutdown endpoint inside the workload; use `exec` for non-HTTP
+      apps that drain via CLI.
+    x-agent-related-fields:
+      - lifecycle
+      - preStop
+      - postStart
+    x-agent-common-mistakes:
+      - "Trying to use `tcpSocket` here — not supported in LifecycleHandler; only `exec`, `httpGet`, and `sleep` (1.29+) are valid."
+      - "Letting `preStop` work exceed `terminationGracePeriodSeconds` — the kubelet SIGKILLs at expiry regardless of hook progress; tune grace period accordingly."
+      - "Setting `postStart` to `httpGet` against the workload's own port and racing the entrypoint — there is no ordering guarantee between postStart and entrypoint; the GET may hit a not-yet-listening port."
+  k8s.io.api.core.v1.LocalObjectReference:
+    description: |
+      Name-only reference to another object in the same namespace. Just a
+      single `name` field — there is no kind/apiVersion because the
+      consumer site already implies them. The most common use is
+      `imagePullSecrets` on a PodSpec (refers to a Secret), but the shape
+      reappears in many places (env-var `valueFrom.configMapRef`,
+      `envFrom.secretRef`, several volume types, etc.).
+    examples:
+      - name: my-registry-secret
+      - name: docker-hub-credentials
+    x-agent-when-to-use: |
+      Use wherever the API asks for a LocalObjectReference. The chart
+      surfaces `imagePullSecrets:` at the deployment level, which expects
+      a list of these. For Secrets referenced by env-from, use the
+      envFrom shape; for ConfigMaps similarly.
+    x-agent-related-fields:
+      - imagePullSecrets
+      - envFrom
+      - secretRef
+      - configMapRef
+    x-agent-common-mistakes:
+      - "Pointing at an object in another namespace — LocalObjectReference is namespace-local; the API silently won't find the cross-namespace object."
+      - "Adding `kind` or `apiVersion` thinking the reference needs them — these fields don't exist on LocalObjectReference; the consumer site already knows the type."
+      - "Forgetting `name` (writing `{}`) — most schema validators reject this, but raw Kubernetes treats an empty reference as 'no reference' silently."
+  k8s.io.api.core.v1.NFSVolumeSource:
+    description: |
+      Volume backed by an NFS export. Specifies server address, exported path,
+      and an optional read-only flag.
+    examples:
+      - {}
+  k8s.io.api.core.v1.NodeAffinity:
+    description: |
+      Scheduling rules expressed over node labels. Two independent fields:
+      `requiredDuringSchedulingIgnoredDuringExecution` (a hard NodeSelector
+      — pods stay Pending unless at least one term matches) and
+      `preferredDuringSchedulingIgnoredDuringExecution` (a list of weighted
+      preferences — the scheduler biases placement but does not block).
+      Both `IgnoredDuringExecution` suffixes mean Kubernetes does NOT
+      reschedule running pods when node labels change after placement;
+      there is no `RequiredDuringExecution` variant in mainline Kubernetes.
+      For simple key=value matching prefer `nodeSelector` for brevity.
+    examples:
+      - requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-type
+                  operator: In
+                  values: [gpu]
+      - preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            preference:
+              matchExpressions:
+                - key: topology.kubernetes.io/zone
+                  operator: In
+                  values: [us-east-1a]
+    x-agent-when-to-use: |
+      Use `required...` when scheduling onto the wrong nodes is unsafe (GPU
+      workloads, license-constrained nodes, dedicated tiers). Use
+      `preferred...` for soft preferences with fallback. For the simple
+      `key=value` case `nodeSelector` is shorter and equivalent.
+    x-agent-related-fields:
+      - nodeSelector
+      - affinity
+      - topologySpreadConstraints
+    x-agent-common-mistakes:
+      - "Using `required...` for what should be a preference — pods stay Pending forever if no node matches; switch to `preferred...` with a `weight`."
+      - "Combining nodeSelector and a NodeAffinity term for the same constraint — they AND together at scheduling time; pods must satisfy both."
+      - "Forgetting that `IgnoredDuringExecution` means running pods are not evicted when labels change — relabeling a node won't move existing workloads."
+  k8s.io.api.core.v1.NodeSelector:
+    description: |
+      Disjunctive (OR) collection of NodeSelectorTerms. Wraps the hard
+      `requiredDuringSchedulingIgnoredDuringExecution` rule in NodeAffinity:
+      a node satisfies the selector when *at least one* term matches. Each
+      term is itself a conjunction (AND) of `matchExpressions` and
+      optional `matchFields`. This is a different shape from the flat
+      `nodeSelector` map on PodSpec — that one is map-style key=value AND;
+      this one is list-style OR of ANDs and is much more expressive.
+    examples:
+      - nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-type
+                  operator: In
+                  values: [gpu, tpu]
+      - nodeSelectorTerms:
+            - matchExpressions:
+                - {key: zone, operator: In, values: [us-east-1a]}
+                - {key: instance-type, operator: In, values: [m5.large]}
+            - matchExpressions:
+                - {key: zone, operator: In, values: [us-east-1b]}
+                - {key: instance-type, operator: In, values: [m5.large]}
+    x-agent-when-to-use: |
+      Use inside `nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution`
+      whenever the hard rule can't be expressed as a single AND of
+      key=value pairs — e.g. "us-east-1a with m5.large OR us-east-1b
+      with m5.large". For pure AND of key=value, `nodeSelector` on the
+      PodSpec is shorter.
+    x-agent-related-fields:
+      - nodeAffinity
+      - nodeSelectorTerms
+      - matchExpressions
+    x-agent-common-mistakes:
+      - "Confusing semantics: a single term with multiple `matchExpressions` is AND, but multiple terms in `nodeSelectorTerms` are OR. Beginners often flip this and produce a rule that's much narrower or broader than intended."
+      - "Omitting `nodeSelectorTerms` entirely — an empty NodeSelector matches *no* nodes; the pod is Pending forever."
+      - "Using `In: []` with an empty values list — rejected by the API, but with `NotIn: []` Kubernetes treats it as 'never matches' which is often surprising."
+  k8s.io.api.core.v1.NodeSelectorRequirement:
+    description: |
+      One match expression against a node label. `key` is the label name,
+      `operator` is one of `In`, `NotIn`, `Exists`, `DoesNotExist`, `Gt`,
+      `Lt`, and `values` is a list whose meaning depends on the operator:
+      with `In`/`NotIn` it must be non-empty; with `Exists`/`DoesNotExist`
+      it must be empty; with `Gt`/`Lt` it must be exactly one integer
+      string. `Gt`/`Lt` compare numeric labels only — labels are strings
+      in Kubernetes and the comparator parses them as integers, so
+      decimal/non-numeric values fail validation.
+    examples:
+      - key: node-type
+        operator: In
+        values: [gpu, tpu]
+      - key: failure-domain.beta.kubernetes.io/zone
+        operator: Exists
+    x-agent-when-to-use: |
+      Use as a leaf inside a NodeSelectorTerm's `matchExpressions` (or
+      `matchFields`) — list as many requirements as needed; all of them
+      AND together within the term. For simple equality across the whole
+      PodSpec, prefer `nodeSelector` for brevity.
+    x-agent-related-fields:
+      - nodeSelectorTerms
+      - matchExpressions
+      - matchFields
+    x-agent-common-mistakes:
+      - "Using `In` without a non-empty `values` list (or `Exists` with a `values` list) — the API validates this and rejects the pod."
+      - "Using `Gt`/`Lt` against a label that isn't strictly integer-valued — comparison is numeric, non-numeric labels never satisfy the expression."
+      - "Forgetting `NotIn` matches nodes that *also* lack the label — set theory: 'not in {x,y}' includes 'has no value at all'. If you want 'has the label but not these values', combine `Exists` AND `NotIn`."
+  k8s.io.api.core.v1.NodeSelectorTerm:
+    description: |
+      One AND-conjunction of node requirements. Pairs `matchExpressions`
+      (against node labels — the common case) with optional `matchFields`
+      (against node field paths like `metadata.name`). All entries in
+      both lists must hold for the term to match. Multiple terms inside
+      a NodeSelector are OR-combined, so the typical pattern is "many
+      small terms = OR alternatives" while "one term with many entries
+      = AND constraints".
+    examples:
+      - matchExpressions:
+          - key: node-type
+            operator: In
+            values: [memory-optimized]
+          - key: topology.kubernetes.io/zone
+            operator: In
+            values: [us-east-1a, us-east-1b]
+      - matchFields:
+          - key: metadata.name
+            operator: In
+            values: [worker-1, worker-2]
+    x-agent-when-to-use: |
+      Use as elements of `nodeSelectorTerms` or inside
+      `preferredDuringSchedulingIgnoredDuringExecution[].preference`.
+      Prefer multiple terms (OR semantics) over inflating one term with
+      conditional logic — the OR-of-ANDs shape is the standard mental
+      model for node selection.
+    x-agent-related-fields:
+      - nodeSelectorTerms
+      - matchExpressions
+      - matchFields
+    x-agent-common-mistakes:
+      - "Mixing what should be OR alternatives into a single term's `matchExpressions` and ending up with a term that can never match (e.g. `zone In [a]` AND `zone In [b]`)."
+      - "Using `matchFields` for label data — `matchFields` targets API field paths, not labels; the lookup silently returns empty."
+      - "Empty matchExpressions AND empty matchFields — the term has no requirements and is treated as 'match all', which is rarely the intent inside a hard rule."
+  k8s.io.api.core.v1.ObjectFieldSelector:
+    description: |
+      Downward API selector that exposes a single Pod field. `fieldPath`
+      is the dotted JSONPath into the Pod object — common values:
+      `metadata.name`, `metadata.namespace`, `metadata.uid`,
+      `metadata.labels['<key>']`, `metadata.annotations['<key>']`,
+      `spec.nodeName`, `spec.serviceAccountName`. Status fields like
+      `status.podIP`, `status.hostIP`, `status.podIPs[0].ip` work *only*
+      as env-var downward API (`valueFrom.fieldRef`), not in volume
+      projections. `apiVersion` is optional and defaults to `v1`.
+    examples:
+      - fieldPath: metadata.name
+      - fieldPath: status.podIP
+        apiVersion: v1
+    x-agent-when-to-use: |
+      Use to read Pod identity into env vars or files without granting
+      API server access. The chart auto-injects `POD_NAME`, `POD_NAMESPACE`,
+      `POD_IP`, `NODE_NAME` env vars by default — write this manually
+      only when you need a field the chart doesn't auto-expose, or a
+      different env-var name.
+    x-agent-related-fields:
+      - valueFrom
+      - fieldRef
+      - downwardAPI
+    x-agent-common-mistakes:
+      - "Using `status.podIP` in a volume projection — only valid in env vars; the volume rejects it at admission."
+      - "Quoting paths incorrectly for keyed fields — `metadata.labels['app.kubernetes.io/name']` is correct; `metadata.labels.app.kubernetes.io/name` is not."
+      - "Reading the IP before Pod IP is assigned — when the env var is consumed at container init, `status.podIP` is already set, but very early Pod hooks may see empty."
+  k8s.io.api.core.v1.PersistentVolumeClaimSpec:
+    description: |
+      Desired state of a PersistentVolumeClaim. `accessModes` is the list of
+      mount modes the bound PV must support (`ReadWriteOnce`,
+      `ReadOnlyMany`, `ReadWriteMany`, `ReadWriteOncePod`); `resources`
+      is a VolumeResourceRequirements with `requests.storage` setting the
+      minimum size; `storageClassName` picks the StorageClass for dynamic
+      provisioning (omit for the cluster default, `""` explicit for static
+      binding only); `volumeMode` is `Filesystem` (default) or `Block`;
+      `dataSource`/`dataSourceRef` clones from a snapshot or PVC. After
+      creation, most fields are immutable — `resources.requests.storage`
+      is the only one that can be grown (and only if the StorageClass has
+      `allowVolumeExpansion: true`).
+    examples:
+      - accessModes: [ReadWriteOnce]
+        storageClassName: standard
+        resources:
+          requests:
+            storage: 10Gi
+      - accessModes: [ReadWriteMany]
+        resources:
+          requests:
+            storage: 100Gi
+        volumeMode: Filesystem
+    x-agent-when-to-use: |
+      Use as the `spec` of a top-level PVC or inside an
+      `EphemeralVolumeSource.volumeClaimTemplate`. Always specify
+      `accessModes` (no sensible default) and `resources.requests.storage`
+      (required). Omit `storageClassName` to use the cluster default;
+      set it explicitly for tiered storage (e.g. `gp3` vs `io2`).
+    x-agent-related-fields:
+      - persistentVolumeClaims
+      - storageClassName
+      - accessModes
+    x-agent-common-mistakes:
+      - "Setting `storageClassName: \"\"` (empty string) intending to use the cluster default — `\"\"` explicitly means 'no class, static binding only'; omit the field entirely for default."
+      - "Specifying `accessModes: [ReadWriteMany]` on a provider that doesn't support it (most block-storage providers don't) — the PVC stays Pending forever."
+      - "Trying to shrink storage by re-applying with a smaller `requests.storage` — shrinking is not supported; the apply is rejected or silently ignored depending on driver."
+  k8s.io.api.core.v1.PersistentVolumeClaimTemplate:
+    description: |
+      Embedded PVC template used inside `EphemeralVolumeSource` to
+      materialize a per-Pod PVC bound to the Pod's lifecycle. Two fields:
+      `metadata` (labels and annotations applied to the generated PVC —
+      `name` is server-set as `<pod-name>-<volume-name>` and any name in
+      the template is rejected) and `spec` (a PersistentVolumeClaimSpec
+      describing the storage to provision). The kubelet creates the PVC
+      when the Pod is admitted and deletes it when the Pod is deleted —
+      it does NOT survive Pod rescheduling or Deployment rollouts.
+    examples:
+      - spec:
+          accessModes: [ReadWriteOnce]
+          storageClassName: standard
+          resources:
+            requests:
+              storage: 1Gi
+      - metadata:
+          labels:
+            app.kubernetes.io/name: my-app
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 10Gi
+    x-agent-when-to-use: |
+      Use only inside `EphemeralVolumeSource.volumeClaimTemplate` — that
+      is its sole valid home. For shared durable storage, use a top-level
+      PVC and reference it via PersistentVolumeClaimVolumeSource. For
+      StatefulSet-style per-pod-stable PVCs, use the StatefulSet's
+      `volumeClaimTemplates` (different API shape, similar concept).
+    x-agent-related-fields:
+      - volumeClaimTemplate
+      - persistentVolumeClaim
+      - persistentVolumeClaims
+    x-agent-common-mistakes:
+      - "Setting `metadata.name` in the template — Kubernetes rejects the Pod; the name is server-generated."
+      - "Forgetting that the generated PVC is deleted with the Pod — Deployment rollouts kill old Pods which destroys their ephemeral PVCs, so data does not survive rollouts."
+      - "Requesting `ReadWriteMany` in a single-pod ephemeral template — supported but pointless; only one Pod ever attaches an ephemeral PVC, so RWO is correct."
+  k8s.io.api.core.v1.PersistentVolumeClaimVolumeSource:
+    description: |
+      Mounts an existing PersistentVolumeClaim by name. `claimName`
+      references a PVC in the same namespace as the Pod; the PVC's bound
+      PersistentVolume is what actually mounts. `readOnly: true` forces a
+      read-only mount even if the PVC's access mode would allow writes
+      (rare — typically controlled via `volumeMounts[].readOnly`). The
+      PVC's `accessModes` determine whether multiple Pods can attach
+      concurrently — `ReadWriteOnce` means one node at a time (multiple
+      Pods on the same node may share), `ReadWriteMany` means multiple
+      nodes, `ReadOnlyMany` means multiple read-only mounts. Some
+      providers also support `ReadWriteOncePod` (Kubernetes 1.27+) for
+      strict single-Pod attachment.
+    examples:
+      - claimName: app-data
+      - claimName: shared-content
+        readOnly: true
+    x-agent-when-to-use: |
+      Use for durable storage that must survive Pod restarts or
+      rescheduling. The chart's `persistentVolumeClaims:` top-level field
+      lets you declare PVCs alongside the Deployment; this volume source
+      then references them by name. For per-Pod ephemeral PVCs (created
+      and destroyed with the Pod), use an `EphemeralVolumeSource` instead.
+    x-agent-related-fields:
+      - persistentVolumeClaims
+      - volumes
+      - volumeMounts
+    x-agent-common-mistakes:
+      - "Pointing `claimName` at a PVC in another namespace — silently fails; PVCs are namespace-local."
+      - "Attaching a `ReadWriteOnce` PVC to a multi-replica Deployment without per-replica affinity — every replica fights for the same volume, only one starts, the rest are Pending."
+      - "Setting `readOnly: true` here while the PVC's `accessModes` doesn't include `ReadOnlyMany` and the workload expects write access — the mount succeeds read-only and writes fail at runtime with EROFS."
+  k8s.io.api.core.v1.PhotonPersistentDiskVolumeSource:
+    description: |
+      Volume backed by a VMware Photon Controller persistent disk. Legacy
+      vendor-specific in-tree driver retained for compatibility.
+    examples:
+      - {}
+  k8s.io.api.core.v1.PodAffinity:
+    description: |
+      Co-location rules — schedule this Pod *near* other Pods matching a
+      label selector inside the same topology domain. Two flavors:
+      `requiredDuringSchedulingIgnoredDuringExecution` (hard — Pending if
+      no matching domain exists) and
+      `preferredDuringSchedulingIgnoredDuringExecution` (soft, weighted
+      preference). PodAffinity is expensive at scale: the scheduler
+      enumerates every Pod in the cluster (or in `namespaces`) to evaluate
+      the selector, which becomes a bottleneck above a few thousand pods.
+      Use `topologySpreadConstraints` for general spreading and reserve
+      PodAffinity for cases that genuinely need co-location (cache locality
+      with a specific peer service).
+    examples:
+      - preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: redis
+              topologyKey: kubernetes.io/hostname
+      - requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels: {tier: cache}
+            topologyKey: topology.kubernetes.io/zone
+    x-agent-when-to-use: |
+      Use only when co-location is a real performance win — e.g. an app
+      Pod that benefits from same-host caching alongside a cache Pod.
+      For "spread my pods evenly" prefer `topologySpreadConstraints`;
+      for "don't put two of my pods on the same host" use `podAntiAffinity`.
+    x-agent-related-fields:
+      - podAntiAffinity
+      - topologySpreadConstraints
+      - affinity
+    x-agent-common-mistakes:
+      - "Forgetting `topologyKey` — it has no default and the scheduler rejects the Pod at admission."
+      - "Using `required...` PodAffinity in a multi-zone cluster while the target service runs in a single zone — pods become Pending in other zones with no recovery."
+      - "Setting PodAffinity at large scale and seeing scheduler latency spike — the selector evaluates against every Pod in scope; constrain via `namespaces` or `namespaceSelector` or move to topologySpread."
+  k8s.io.api.core.v1.PodAffinityTerm:
+    description: |
+      A single pod-affinity / pod-anti-affinity rule. `labelSelector` picks
+      target Pods; `topologyKey` is the node label that defines the
+      topology domain (`kubernetes.io/hostname` for "same node",
+      `topology.kubernetes.io/zone` for "same zone"); `namespaces` /
+      `namespaceSelector` scope which namespaces the selector evaluates
+      against (default: this Pod's namespace only). `matchLabelKeys` /
+      `mismatchLabelKeys` (Kubernetes 1.29+) compute per-Pod label values
+      and AND them into the selector — useful for "co-locate with Pods of
+      the same revision" without templating the label values.
+    examples:
+      - labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: my-app
+        topologyKey: kubernetes.io/hostname
+      - labelSelector:
+          matchExpressions:
+            - {key: tier, operator: In, values: [cache]}
+        topologyKey: topology.kubernetes.io/zone
+        namespaceSelector:
+          matchLabels:
+            environment: prod
+    x-agent-when-to-use: |
+      Use inside PodAffinity / PodAntiAffinity entries. For "spread N copies
+      across zones evenly" the modern alternative is
+      `topologySpreadConstraints` — easier to reason about than weighted
+      anti-affinity. Explicitly set `namespaces` or `namespaceSelector`
+      when you intentionally want cross-namespace matching.
+    x-agent-related-fields:
+      - podAffinity
+      - podAntiAffinity
+      - topologyKey
+      - topologySpreadConstraints
+    x-agent-common-mistakes:
+      - "Omitting `topologyKey` — the scheduler rejects the Pod at admission with `topologyKey is required`."
+      - "Using `topologyKey: kubernetes.io/hostname` with `requiredDuringScheduling...` and `replicas` > number of nodes — the surplus replicas become Pending forever."
+      - "Forgetting that the default namespace scope is *this Pod's namespace only* — selectors against a Service in another namespace silently match nothing."
+  k8s.io.api.core.v1.PodAntiAffinity:
+    description: |
+      Anti-co-location rules — keep this Pod *away from* other Pods matching
+      a label selector within the same topology domain. Two flavors,
+      `requiredDuringSchedulingIgnoredDuringExecution` (hard — Pending if
+      no domain free of conflicting Pods exists) and
+      `preferredDuringSchedulingIgnoredDuringExecution` (weighted soft
+      preference). The chart's `autoCreateSoftAntiAffinity: true` injects
+      a soft `kubernetes.io/hostname` anti-affinity term automatically;
+      anything you set here is appended rather than overriding the chart's
+      injection. Like PodAffinity, evaluation is expensive at scale —
+      `topologySpreadConstraints` is the modern, more predictable
+      alternative for general spread.
+    examples:
+      - preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels: {app.kubernetes.io/name: my-app}
+              topologyKey: kubernetes.io/hostname
+      - requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels: {app.kubernetes.io/name: my-app}
+            topologyKey: topology.kubernetes.io/zone
+    x-agent-when-to-use: |
+      Use `required...` only when colocation is *unsafe* (singleton
+      enforcement, license capping). For general HA spreading
+      `topologySpreadConstraints` is clearer and the scheduler is faster.
+      The chart's `autoCreateSoftAntiAffinity` covers the common
+      per-host soft spread without writing this block.
+    x-agent-related-fields:
+      - podAffinity
+      - topologySpreadConstraints
+      - autoCreateSoftAntiAffinity
+    x-agent-common-mistakes:
+      - "Required hostname anti-affinity with `replicas` > number of nodes — surplus replicas stay Pending; switch to preferred or use topologySpread."
+      - "Setting hostname anti-affinity while the workload is itself a DaemonSet candidate — DaemonSet semantics already enforce one per node and the affinity is redundant."
+      - "Combining this with the chart's `autoCreateSoftAntiAffinity` and being surprised at duplicated rules — both are applied; remove `autoCreateSoftAntiAffinity` if you're writing the affinity by hand."
+  k8s.io.api.core.v1.PodCertificateProjection:
+    description: |
+      Projected volume entry that obtains a short-lived X.509 certificate
+      bound to the Pod identity and writes it to a path.
+    examples:
+      - {}
+  k8s.io.api.core.v1.PodDNSConfig:
+    description: |
+      Custom resolver configuration applied to the Pod's `/etc/resolv.conf`,
+      composed of `nameservers`, `searches`, and `options` lists. The exact
+      merge behavior is governed by the Pod's `dnsPolicy`: with
+      `ClusterFirst` (the default) the cluster nameservers come first and
+      this block appends; with `dnsPolicy: None` this block is the entire
+      configuration and at least one nameserver is required. The chart does
+      not currently auto-set `dnsPolicy: None`, so setting `dnsConfig`
+      alone produces an additive override rather than a full replacement.
+      Kubernetes enforces hard limits — a maximum of 3 nameservers and 6
+      search domains — and rejects the Pod at admission if exceeded.
+    examples:
+      - nameservers:
+          - 1.1.1.1
+          - 8.8.8.8
+        options:
+          - name: ndots
+            value: "2"
+          - name: timeout
+            value: "1"
+      - searches:
+          - svc.cluster.local
+          - example.internal
+        options:
+          - name: single-request-reopen
+    x-agent-when-to-use: |
+      Use to tighten `ndots`, shorten `timeout`, or add a corporate search
+      domain. For complete control over resolution (e.g. bypassing cluster
+      DNS entirely) pair this with `dnsPolicy: None`. If you only need to
+      keep the host's resolver, prefer `dnsPolicy: Default` over carrying a
+      handcrafted dnsConfig.
+    x-agent-related-fields:
+      - dnsPolicy
+      - hostNetwork
+      - hostAliases
+    x-agent-common-mistakes:
+      - "Listing more than 3 `nameservers` (or more than 6 `searches`) — Kubernetes rejects the Pod at admission time with a validation error, the workload never starts."
+      - "Writing `search:` (singular) instead of `searches:` — the field is silently ignored, no extra search domains are applied, and the misconfiguration is invisible until you `kubectl exec` and inspect `/etc/resolv.conf`."
+      - "Setting `dnsConfig` while leaving `dnsPolicy: ClusterFirst` and expecting cluster DNS to be replaced — it isn't, the entries are merely appended; full replacement requires `dnsPolicy: None`."
+  k8s.io.api.core.v1.PodDNSConfigOption:
+    description: |
+      One `/etc/resolv.conf` option entry. `name` is the option name
+      (`ndots`, `timeout`, `attempts`, `single-request-reopen`,
+      `rotate`, etc.); `value` is the option's value as a string —
+      options like `single-request-reopen` that take no value should
+      omit `value`. Multiple entries combine into resolv.conf's
+      `options ndots:2 timeout:1` line. Used inside
+      `PodDNSConfig.options`.
+    examples:
+      - name: ndots
+        value: "2"
+      - name: single-request-reopen
+    x-agent-when-to-use: |
+      The most common tuning is lowering `ndots` from the cluster default
+      of 5 to 2 — at 5, every short hostname triggers multiple cluster-
+      DNS lookups via the search domain expansion, which is a measurable
+      latency source on chatty workloads. Set `timeout: "1"` to fail
+      faster on slow DNS.
+    x-agent-related-fields:
+      - dnsConfig
+      - options
+      - dnsPolicy
+    x-agent-common-mistakes:
+      - "Omitting the quotes on numeric values (`value: 2`) — YAML parses it as an integer; resolv.conf expects strings and most kubelets reject the int variant."
+      - "Setting `ndots: \"1\"` while heavily using short cluster-DNS names — `ndots:1` skips search-domain expansion for any name with a dot, breaking common short references like `service.namespace`."
+      - "Setting options that don't take a value (`single-request-reopen`) with `value: \"\"` — works on some Kubernetes versions, is rejected on others; safest to omit `value` entirely."
+  k8s.io.api.core.v1.PodSecurityContext:
+    description: |
+      Pod-level security settings that apply to every container in the Pod
+      unless a container's own `securityContext` overrides them. Covers
+      `runAsUser`, `runAsGroup`, `runAsNonRoot`, `fsGroup`,
+      `supplementalGroups`, `sysctls`, `seLinuxOptions`, the `seccompProfile`,
+      and Linux/Windows-specific options. Note that this chart does NOT
+      default `runAsNonRoot: true` — if your image is built to run as a
+      non-root user you must set it explicitly here (or at the container
+      level) to keep the kubelet from starting a process as UID 0. The
+      `fsGroup` setting recursively chowns the contents of every volume
+      mounted into the Pod at startup, which can be very expensive on large
+      PersistentVolumes; pair with `fsGroupChangePolicy: OnRootMismatch` to
+      avoid the per-pod-start scan.
+    examples:
+      - runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      - sysctls:
+          - name: net.ipv4.tcp_keepalive_time
+            value: "60"
+        supplementalGroups: [4000]
+    x-agent-when-to-use: |
+      Use this Pod-level block for settings that apply to all containers
+      (UID/GID, volume `fsGroup`, sysctls). For container-specific knobs
+      like `readOnlyRootFilesystem`, `capabilities`, or `privileged`, use
+      the per-container `securityContext` instead — those fields do not
+      exist at the Pod level.
+    x-agent-related-fields:
+      - securityContext
+      - containers[].securityContext
+      - volumes
+    x-agent-common-mistakes:
+      - "Setting `fsGroup` on a Pod whose container also has `readOnlyRootFilesystem: true` while expecting the chown to succeed on the root FS — the chown only touches mounted volumes, but operators routinely confuse the two and wonder why write fails."
+      - "Putting `readOnlyRootFilesystem` or `capabilities` here — those are container-level only; placed at the Pod level they are silently dropped (or rejected, depending on the validator)."
+      - "Setting `runAsUser: 0` (root) together with a `RuntimeDefault` seccomp profile and hoping the profile contains root — `runAsNonRoot: true` would have caught the slip; without it the Pod runs as root and gets through."
+  k8s.io.api.core.v1.PortworxVolumeSource:
+    description: |
+      Volume backed by a Portworx-managed block volume, identified by volume
+      ID with optional fsType and read-only flag.
+    examples:
+      - {}
+  k8s.io.api.core.v1.PreferredSchedulingTerm:
+    description: |
+      Weighted soft node-affinity entry — pairs a `weight` (1–100) with a
+      `preference` (one NodeSelectorTerm). The scheduler ranks candidate
+      nodes by summing weights of every matching preferred term, and picks
+      the highest-scoring node. Used inside
+      `nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[]`.
+      Weight is *additive across terms*: two non-overlapping preferred
+      terms with weights 30 and 50 contribute 80 to nodes matching both.
+    examples:
+      - weight: 80
+        preference:
+          matchExpressions:
+            - key: instance-type
+              operator: In
+              values: [c5.large, c5.xlarge]
+      - weight: 20
+        preference:
+          matchExpressions:
+            - key: topology.kubernetes.io/zone
+              operator: In
+              values: [us-east-1a]
+    x-agent-when-to-use: |
+      Use to express "I'd like X if available, but it's not a hard
+      requirement." Pair multiple terms with different weights to encode
+      tiers of preference (e.g. zone-local > region-local > anywhere).
+      For a hard rule, use NodeSelector inside `requiredDuringScheduling...`.
+    x-agent-related-fields:
+      - nodeAffinity
+      - preferredDuringSchedulingIgnoredDuringExecution
+      - preference
+    x-agent-common-mistakes:
+      - "Setting `weight: 0` — silently dropped; the scheduler treats it as no preference. Weight must be 1–100."
+      - "Inflating weights to dominate other affinity considerations — weights from PodAffinity and NodeAffinity sum together, but a single weight > 100 is rejected by the API."
+      - "Forgetting that preferred terms are *soft* — the scheduler will place the Pod elsewhere if all preferred nodes are full or tainted, which can be surprising."
+  k8s.io.api.core.v1.ProjectedVolumeSource:
+    description: |
+      Combines several source types into a single mount. `sources[]` lists
+      VolumeProjection entries — each one a `configMap`, `secret`,
+      `downwardAPI`, `serviceAccountToken`, `clusterTrustBundle`, or
+      `podCertificate` projection. All entries are laid out under the
+      single mount path, with each projection writing its files relative
+      to that path. `defaultMode` applies to files without per-item
+      modes. The big use case: bound (audience-scoped, expiring) service
+      account tokens via `serviceAccountToken` projections — the kubelet
+      refreshes them automatically. The legacy `secretName-only`
+      ServiceAccount token mount is being phased out in favor of this
+      shape.
+    examples:
+      - sources:
+          - serviceAccountToken:
+              audience: vault
+              expirationSeconds: 3600
+              path: vault-token
+          - configMap:
+              name: app-config
+              items:
+                - key: app.yaml
+                  path: config/app.yaml
+      - sources:
+          - secret:
+              name: tls-cert
+              items:
+                - key: tls.crt
+                  path: tls/tls.crt
+          - downwardAPI:
+              items:
+                - path: labels
+                  fieldRef:
+                    fieldPath: metadata.labels
+        defaultMode: 0440
+    x-agent-when-to-use: |
+      Use when you need to expose configuration *and* secrets *and*
+      identity at the same mount path (e.g. the standard layout expected
+      by SPIRE/SPIFFE workloads, or a sidecar that reads multiple
+      categories of data from one directory). Avoid for simple
+      single-source cases; the dedicated `configMap`/`secret` volume
+      sources are simpler.
+    x-agent-related-fields:
+      - sources
+      - volumes
+      - serviceAccountToken
+    x-agent-common-mistakes:
+      - "Two projections writing files to the same target path inside the volume — the second silently overwrites the first; ensure `path:` values are unique within `sources`."
+      - "Forgetting that the audience-bound token expires (`expirationSeconds` default ~1h) — the application must reload the token from disk; the kubelet rewrites the file but processes that read it once at startup won't pick up the refresh."
+      - "Putting only one source in `sources[]` — works, but adds boilerplate; use the dedicated volume source (ConfigMapVolumeSource, SecretVolumeSource) for single-source cases."
+  k8s.io.api.core.v1.QuobyteVolumeSource:
+    description: |
+      Volume backed by a Quobyte distributed-filesystem registry. Specifies
+      registry endpoints, volume name, user/group, and optional tenant.
+    examples:
+      - {}
+  k8s.io.api.core.v1.RBDVolumeSource:
+    description: |
+      Volume backed by a Ceph RBD image. Configures monitors, image name,
+      pool, user, keyring or auth secret, and fsType.
+    examples:
+      - {}
+  k8s.io.api.core.v1.ResourceFieldSelector:
+    description: |
+      Downward API selector for container resource requests/limits.
+      `containerName` picks which container in the Pod to read; `resource`
+      is one of `limits.cpu`, `limits.memory`, `limits.ephemeral-storage`,
+      `requests.cpu`, `requests.memory`, `requests.ephemeral-storage`;
+      `divisor` is a Quantity used to scale the value (e.g. `1m` for CPU
+      to get milli-CPU, `1Mi` for memory to get MiB). Without `divisor`,
+      cpu defaults to whole-core units (1) and memory to bytes (1).
+      Useful for telling a JVM (or a pre-fork worker pool) how much
+      CPU/memory it actually has to work with.
+    examples:
+      - containerName: app
+        resource: limits.cpu
+        divisor: "1m"
+      - containerName: app
+        resource: requests.memory
+        divisor: "1Mi"
+    x-agent-when-to-use: |
+      Use to inject the container's own resource caps as env vars — the
+      canonical use is `JAVA_TOOL_OPTIONS=-Xmx<limit>` patterns where the
+      JVM heap is sized from the downward API. For Pod identity (name,
+      namespace), use `fieldRef` (ObjectFieldSelector) instead.
+    x-agent-related-fields:
+      - valueFrom
+      - resourceFieldRef
+      - resources
+    x-agent-common-mistakes:
+      - "Forgetting `containerName` — the field is required because each container has its own resources; without it the API rejects the env var."
+      - "Reading `limits.cpu` from a container without limits set — the downward API returns the node allocatable CPU, which is almost certainly not what the workload wants."
+      - "Using `divisor: 1m` with `limits.memory` and confusing milli-units with mebibytes — only CPU is measured in milli-units; for memory use `1Mi` or `1Gi`."
+  k8s.io.api.core.v1.SELinuxOptions:
+    description: |
+      SELinux process labels for the container — `user`, `role`, `type`,
+      `level`. Active only on SELinux-enabled nodes (RHEL/CentOS/Fedora,
+      typically with `selinux=enforcing`). The label drives mandatory
+      access control: which files the process may touch, which sockets
+      it may bind, which other processes it may signal. Most workloads
+      don't need to set this — the container runtime assigns sensible
+      defaults (`container_t` type with a unique MCS category per
+      container). Override only when integrating with an existing SELinux
+      policy that expects specific labels (databases, system tooling).
+    examples:
+      - level: "s0:c123,c456"
+      - type: spc_t
+        level: s0
+    x-agent-when-to-use: |
+      Use only when integrating with a specific SELinux policy on RHEL-
+      family nodes. On AppArmor-only distros (Ubuntu) these fields are
+      silently ignored. For workloads that need to bypass SELinux entirely,
+      `spc_t` is the "super-privileged container" type — equivalent to
+      `--privileged` for SELinux purposes.
+    x-agent-related-fields:
+      - securityContext
+      - seLinuxOptions
+      - appArmorProfile
+    x-agent-common-mistakes:
+      - "Setting `type: spc_t` to make a permission denial go away — this bypasses SELinux entirely and is essentially equivalent to privileged; investigate the missing access first."
+      - "Setting SELinux labels on Ubuntu/Debian nodes — silently ignored; if you needed mandatory access control on these nodes, configure AppArmor instead."
+      - "Using an invalid MCS level like `s0:c9999` outside the cluster's configured range — labeling fails, container start fails."
+  k8s.io.api.core.v1.ScaleIOVolumeSource:
+    description: |
+      Volume backed by a Dell EMC ScaleIO storage system. Legacy in-tree
+      driver retained for backwards compatibility.
+    examples:
+      - {}
+  k8s.io.api.core.v1.SeccompProfile:
+    description: |
+      Seccomp (secure computing) filter applied to the container's syscalls.
+      `type` is the discriminator: `RuntimeDefault` uses the container
+      runtime's curated default profile (the recommended baseline);
+      `Unconfined` disables seccomp entirely (only safe for trusted
+      workloads); `Localhost` uses a profile file at
+      `<seccompProfileRoot>/<localhostProfile>` on the node (path must be
+      pre-deployed by the node operator). Pod Security Standard
+      `restricted` requires `RuntimeDefault` or `Localhost`; `Unconfined`
+      is allowed only by `privileged`. Can be set at Pod level (applies
+      to every container) or per-container.
+    examples:
+      - type: RuntimeDefault
+      - type: Localhost
+        localhostProfile: profiles/my-app.json
+    x-agent-when-to-use: |
+      Use `RuntimeDefault` for nearly every workload — it blocks the
+      historically-exploited syscalls without breaking common apps. Use
+      `Localhost` only when you've authored a custom profile (audit a
+      run, capture syscalls, generate). Reserve `Unconfined` for
+      genuinely privileged workloads (debugging tools, runtimes-in-runtime).
+    x-agent-related-fields:
+      - securityContext
+      - seccompProfile
+      - allowPrivilegeEscalation
+    x-agent-common-mistakes:
+      - "Setting `type: Localhost` without `localhostProfile` (or pointing at a path the node doesn't have) — Pod fails to start with `CreateContainerError`."
+      - "Setting `Unconfined` to work around a permission denial without identifying the missing syscall — better to use `audit2allow`-style tooling against a `Localhost` profile."
+      - "Setting seccomp at the Pod level and a stricter profile on one container, expecting them to compose — the container-level wins; the Pod-level setting is replaced entirely for that container."
+  k8s.io.api.core.v1.SecretKeySelector:
+    description: |
+      Pulls one key from a Secret into an env var. `name` references the
+      Secret by name in the Pod's namespace; `key` is the data key (the
+      value is base64-decoded by the kubelet before being set as the env
+      var); `optional: true` lets the Pod start even if the Secret or
+      key is missing. Used inside env-var `valueFrom.secretKeyRef` — the
+      same shape that this chart's typed `env[].valueFrom` produces.
+    examples:
+      - name: db-credentials
+        key: password
+      - name: feature-tokens
+        key: launch_darkly
+        optional: true
+    x-agent-when-to-use: |
+      Use to inject a single secret value as a named env var. For bulk
+      injection of every Secret key as env vars, use `envFrom.secretRef`
+      (no renaming). For mounting credentials as files (TLS keys, SSH
+      keys), prefer SecretVolumeSource — env vars are visible in
+      `/proc/<pid>/environ`, less secure than files with restricted
+      modes.
+    x-agent-related-fields:
+      - env
+      - valueFrom
+      - secretKeyRef
+      - secretRefs
+    x-agent-common-mistakes:
+      - "`optional: false` (default) on a Secret that doesn't exist yet — Pod fails to start with `CreateContainerConfigError`; the chart's `secretRefs` validation catches the common case at template time, but raw use does not."
+      - "Putting large/binary values into env vars — env-var size limits are OS-dependent (~128KB total typically); for binary or large secrets, mount as files."
+      - "Cross-namespace reference — Secrets are namespace-local; the lookup silently returns no value."
+  k8s.io.api.core.v1.SecretProjection:
+    description: |
+      One entry inside a ProjectedVolumeSource that pulls data from a
+      Secret. Shape mirrors SecretVolumeSource: `name` references the
+      Secret, `items` optionally restricts to specific keys with per-item
+      paths and modes, `optional: true` makes the projection non-blocking
+      if the Secret is absent. Note that here the field is `name` (not
+      `secretName` as in the standalone SecretVolumeSource) — a subtle
+      inconsistency in the upstream API.
+    examples:
+      - name: tls-cert
+        items:
+          - key: tls.crt
+            path: tls/tls.crt
+          - key: tls.key
+            path: tls/tls.key
+      - name: shared-token
+        optional: true
+    x-agent-when-to-use: |
+      Use inside a `projected` volume's `sources[]` to combine Secret data
+      with other sources (ConfigMap, downward API, service-account token).
+      For standalone secret mounts use SecretVolumeSource directly.
+    x-agent-related-fields:
+      - sources
+      - projected
+      - secret
+    x-agent-common-mistakes:
+      - "Confusing `name` here with the standalone SecretVolumeSource's `secretName` — the API field names differ between the two; copy-pasting between them silently breaks."
+      - "Leaving `optional: false` (the default) for a Secret that doesn't exist yet — the entire projected volume fails to mount and the Pod is Pending."
+      - "Sharing target paths across multiple projections — the last writer silently wins."
+  k8s.io.api.core.v1.SecretVolumeSource:
+    description: |
+      Volume that materializes a Secret's data as files inside the Pod.
+      Uses `secretName` (not `name` — a small but easily-missed difference
+      vs. ConfigMapVolumeSource) to reference the Secret by name in the
+      Pod's namespace. Without `items` every key in the Secret becomes a
+      file under the mount path; with `items` only listed keys are
+      projected. `defaultMode` typically defaults to `0644` — for sensitive
+      material override to `0400`. Backing storage is tmpfs (memory),
+      so contents are never written to node disk. Like ConfigMap mounts,
+      atomic updates propagate within ~60s for whole-volume mounts but
+      *not* for `subPath` mounts.
+    examples:
+      - secretName: db-credentials
+      - secretName: tls-certs
+        items:
+          - key: tls.crt
+            path: tls/tls.crt
+          - key: tls.key
+            path: tls/tls.key
+            mode: 0400
+        defaultMode: 0400
+    x-agent-when-to-use: |
+      Use for credentials, TLS materials, and tokens. For non-secret
+      files use `ConfigMapVolumeSource`. For combining several sources
+      use `ProjectedVolumeSource`. Reference Secret material in env
+      variables via `secretRefs` / `valueFrom.secretKeyRef` instead of
+      volume mounts when only one or two values are needed.
+    x-agent-related-fields:
+      - volumes
+      - volumeMounts
+      - secretRefs
+    x-agent-common-mistakes:
+      - "Confusing `secretName` (this resource) with `name` (ConfigMapVolumeSource) — typos in the key produce silent zero-data mounts."
+      - "Mounting a Secret with `subPath` and then updating the Secret expecting the file to change — subPath mounts are frozen at Pod start; the new value never appears until the Pod restarts."
+      - "Leaving `defaultMode` at the API default of 0644 for material like SSH private keys — many tools refuse to use keys with 644 permissions; set 0400 explicitly."
+  k8s.io.api.core.v1.SecurityContext:
+    description: |
+      Container-level security settings. Covers `runAsUser`, `runAsGroup`,
+      `runAsNonRoot`, `capabilities` (add/drop), `privileged`,
+      `readOnlyRootFilesystem`, `allowPrivilegeEscalation`, `seccompProfile`,
+      `appArmorProfile`, `seLinuxOptions`, and `procMount`. For fields that
+      also exist at the Pod level (`runAsUser`, `runAsGroup`, `runAsNonRoot`,
+      seccomp/AppArmor/SELinux profiles), the container-level setting wins.
+      Fields that only exist here (`capabilities`, `privileged`,
+      `readOnlyRootFilesystem`, `allowPrivilegeEscalation`) cannot be set
+      at the Pod level. The chart wires this through unchanged — set it on
+      each container that needs hardening.
+    examples:
+      - readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        capabilities:
+          drop: [ALL]
+      - capabilities:
+          add: [NET_BIND_SERVICE]
+          drop: [ALL]
+        runAsUser: 0
+    x-agent-when-to-use: |
+      Use here for container-only knobs (`capabilities`, `privileged`,
+      `readOnlyRootFilesystem`, `allowPrivilegeEscalation`) and for any
+      shared field where you want to override the Pod-level default for
+      one container. For settings that should cover every container in the
+      Pod (UID/GID, volume fsGroup, sysctls), prefer the Pod-level
+      `securityContext` to avoid duplication.
+    x-agent-related-fields:
+      - securityContext
+      - containers
+      - volumes
+    x-agent-common-mistakes:
+      - "Setting `readOnlyRootFilesystem: true` without mounting an `emptyDir` at `/tmp` (and other write paths your app uses) — the container starts but the first write fails with EROFS, often inside a library you don't control."
+      - "Using `capabilities: { add: [...] }` without an explicit `drop: [ALL]` — you keep the full default capability set and merely add to it, which defeats the purpose of granting a single capability."
+      - "Granting `privileged: true` to work around a missing capability — almost always wrong; the right answer is `capabilities.add: [SPECIFIC_CAP]` so the rest of the kernel surface stays restricted."
+  k8s.io.api.core.v1.ServiceAccountTokenProjection:
+    description: |
+      Requests a *bound* (audience-scoped, time-bound, automatically
+      rotated) ServiceAccount token and writes it to a file. `audience` is
+      the intended recipient (e.g. `vault`, `https://kubernetes.default.svc`);
+      `expirationSeconds` is the requested lifetime (default 1h, minimum
+      10 minutes — values below are clamped); `path` is the relative file
+      inside the projected volume. The kubelet rotates the token in place
+      well before expiry, so consumers must re-read the file periodically.
+      This is the modern replacement for the legacy automount-token Secret
+      pattern — bound tokens are audience-validated, can't be reused
+      against unintended services, and don't sit in etcd long-term.
+    examples:
+      - audience: vault
+        expirationSeconds: 3600
+        path: vault-token
+      - audience: https://kubernetes.default.svc
+        expirationSeconds: 7200
+        path: api-token
+    x-agent-when-to-use: |
+      Use whenever a workload authenticates to an external service that
+      verifies the token's audience (Vault, AWS IAM-OIDC, custom OIDC
+      verifiers). Audience must match what the verifier expects;
+      omitting it issues a default-audience token that most external
+      verifiers will reject.
+    x-agent-related-fields:
+      - sources
+      - projected
+      - serviceAccountToken
+    x-agent-common-mistakes:
+      - "Caching the token in application memory and never re-reading from disk — the kubelet rotates the file before expiry, but the in-memory copy stops being valid silently."
+      - "Setting `expirationSeconds` below 600 — the API server enforces a 10-minute minimum and rounds up, the configured value is misleading."
+      - "Forgetting that `audience` is required — without it the token is issued with the API server's default audience, which external verifiers reject."
+  k8s.io.api.core.v1.SleepAction:
+    description: |
+      LifecycleHandler action that pauses for `seconds` seconds. Added in
+      Kubernetes 1.29 (beta in 1.30, GA in 1.32) as a cleaner expression
+      of the long-standing "preStop: exec sleep N" pattern — no shell, no
+      process spawn, no path to a sleep binary. The pause is implemented
+      kubelet-side as a timer, not a sleep process. Only valid inside
+      `lifecycle.preStop` or `lifecycle.postStart`; not a probe action.
+    examples:
+      - seconds: 15
+      - seconds: 30
+    x-agent-when-to-use: |
+      Use as the canonical preStop hook to give the kube-proxy /
+      service-mesh / ingress controller time to remove this Pod from
+      endpoint lists before the container receives SIGTERM. 10–30 seconds
+      is typical; tune to your endpoint-removal propagation. Ensure
+      `terminationGracePeriodSeconds` is at least `seconds + app shutdown
+      time` or SIGKILL preempts the work.
+    x-agent-related-fields:
+      - lifecycle
+      - preStop
+      - terminationGracePeriodSeconds
+    x-agent-common-mistakes:
+      - "Sleeping longer than `terminationGracePeriodSeconds` — the kubelet SIGKILLs at expiry, the sleep is interrupted, in-flight work is lost. Always: sleep < grace period."
+      - "Using `SleepAction` on Kubernetes < 1.29 — the field doesn't exist in older clusters; fall back to `exec: { command: [sleep, \"15\"] }`."
+      - "Adding both a `sleep` preStop and a separate graceful-shutdown signal in the app — the app receives SIGTERM only *after* the sleep completes; double-sleep accidentally adds wait time."
+  k8s.io.api.core.v1.StorageOSVolumeSource:
+    description: |
+      Volume backed by StorageOS. Identifies the volume by name and namespace
+      with optional fsType, read-only flag, and credentials secret.
+    examples:
+      - {}
+  k8s.io.api.core.v1.Sysctl:
+    description: |
+      One sysctl `{name, value}` pair applied to the Pod by the kubelet at
+      container start. Only valid inside `PodSecurityContext.sysctls`.
+      Kubernetes splits sysctls into two categories: *safe* (namespaced,
+      cannot affect other Pods or the host — e.g. `net.ipv4.ip_local_port_range`,
+      `kernel.shm_rmid_forced`, a small whitelist) which work everywhere,
+      and *unsafe* (everything else — `net.core.somaxconn`,
+      `net.ipv4.tcp_keepalive_time`) which require the kubelet to be
+      started with `--allowed-unsafe-sysctls=<glob,glob>`. Setting an
+      unsafe sysctl on a cluster that hasn't been configured for it
+      keeps the Pod Pending forever.
+    examples:
+      - name: net.ipv4.ip_local_port_range
+        value: "1024 65535"
+      - name: net.ipv4.tcp_keepalive_time
+        value: "60"
+    x-agent-when-to-use: |
+      Use for connection-tuning sysctls (port range, keepalive, somaxconn)
+      on high-throughput network workloads. Confirm in advance whether
+      the target sysctl is on the safe list or requires kubelet
+      `--allowed-unsafe-sysctls`. For host-level sysctls (anything not
+      Pod-namespaced) — use a privileged DaemonSet, not Pod sysctls.
+    x-agent-related-fields:
+      - securityContext
+      - sysctls
+    x-agent-common-mistakes:
+      - "Setting an unsafe sysctl on a cluster without `--allowed-unsafe-sysctls` — Pod stays Pending with `ForbiddenSysctl`; the failure is at admission time but easy to miss."
+      - "Trying to set a host-level (non-Pod-namespaced) sysctl — silently ignored or rejected; these need to be applied node-side via DaemonSet or kubelet config."
+      - "Quoting numeric values wrong — sysctl values are strings; `value: 60` parses as integer in YAML, which most kubelets reject. Always quote: `value: \"60\"`."
+  k8s.io.api.core.v1.TCPSocketAction:
+    description: |
+      Probe action that opens a TCP connection to `port` and treats a
+      successful connect as success — no data is exchanged after the
+      handshake. `host` defaults to the Pod IP and is rarely set.
+      Lightweight and fast, but only proves the listening socket is up;
+      it does not verify the application behind the socket is healthy.
+      An app that is wedged but still bound to its port passes a TCP
+      probe.
+    examples:
+      - port: 5432
+      - port: tcp
+    x-agent-when-to-use: |
+      Use for non-HTTP services where you can't exec a CLI check (raw
+      TCP servers, gRPC services where you don't want to enable the
+      gRPC health-checking protocol). For HTTP services, `httpGet` is
+      strictly better — it also exercises the application stack.
+      Kubernetes 1.24+ has a dedicated `grpc` probe action for gRPC
+      health checking; prefer that over TCP for gRPC.
+    x-agent-related-fields:
+      - livenessProbe
+      - readinessProbe
+      - tcpSocket
+    x-agent-common-mistakes:
+      - "Using `tcpSocket` as a liveness probe and seeing wedged-but-listening containers never restart — the probe passes, the workload is stuck."
+      - "Probing a named port that isn't declared in `containers[].ports[]` — resolution fails and the probe is treated as failed every interval."
+      - "Treating a passing TCP probe as 'app is ready to serve traffic' — it isn't; readiness needs HTTP or app-level confirmation for anything beyond pure TCP servers."
+  k8s.io.api.core.v1.Toleration:
+    description: |
+      Lets a Pod be scheduled onto (or remain on) a node that carries a
+      matching taint. Each entry pairs a `key` and `effect` with an
+      `operator` of either `Equal` (must also supply `value`) or `Exists`
+      (matches any value, and an empty `key` matches every taint). The
+      `effect` must match the node taint's effect exactly — `NoSchedule`,
+      `PreferNoSchedule`, or `NoExecute`; an empty `effect` matches all
+      three. `tolerationSeconds` only applies to `NoExecute` and controls
+      how long the Pod survives after the taint is added. The chart
+      exposes this list through `tolerations:` on Deployment and Job
+      workloads and passes it through unchanged.
+    examples:
+      - key: dedicated
+        operator: Equal
+        value: gpu
+        effect: NoSchedule
+      - key: node.kubernetes.io/not-ready
+        operator: Exists
+        effect: NoExecute
+        tolerationSeconds: 300
+    x-agent-when-to-use: |
+      Use to schedule onto tainted node pools (GPU, spot, dedicated tiers)
+      or to extend the eviction window for transient node conditions. If
+      you instead want to *prefer* certain nodes without requiring them,
+      use `nodeAffinity` (with the preferred variant) — tolerations only
+      remove a scheduling block, they don't attract pods.
+    x-agent-related-fields:
+      - tolerations
+      - nodeSelector
+      - affinity
+    x-agent-common-mistakes:
+      - "Forgetting the `effect:` field with the intent of matching all effects but the cluster's taint only carries one — the toleration silently fails to match and the pod cannot schedule onto the tainted node."
+      - "Using `operator: Equal` without populating `value:` — Kubernetes validates this and rejects the Pod; switch to `operator: Exists` if you want a value-agnostic match."
+      - "Omitting `tolerationSeconds` for `effect: NoExecute` — the default is to tolerate forever, which usually defeats the point of the `NoExecute` eviction and keeps pods on misbehaving nodes."
+  k8s.io.api.core.v1.TopologySpreadConstraint:
+    description: |
+      Declarative rule that bounds the difference (`maxSkew`) in matching-Pod
+      count across a topology domain selected by `topologyKey` (typically
+      `topology.kubernetes.io/zone` or `kubernetes.io/hostname`). When the
+      scheduler would otherwise create a placement that violates the skew, it
+      either refuses (`whenUnsatisfiable: DoNotSchedule`, hard) or falls back
+      to the best placement available (`whenUnsatisfiable: ScheduleAnyway`,
+      soft). This is the modern, predictable replacement for weighted pod
+      anti-affinity for zone/host spreading; the chart's
+      `autoCreateSoftAntiAffinity` provides a coarse soft alternative when
+      you don't want to write a full constraint by hand.
+    examples:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: my-app
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: my-app
+    x-agent-when-to-use: |
+      Use whenever you need predictable spread across zones or hosts. Prefer
+      this over weighted `podAntiAffinity` — the scheduler reasons about
+      skew directly, instead of summing weights, so behavior is easier to
+      reason about. For "best effort" rough zone spread on a small chart
+      footprint, the chart's `autoCreateSoftAntiAffinity` is simpler.
+    x-agent-related-fields:
+      - topologySpreadConstraints
+      - affinity
+      - autoCreateSoftAntiAffinity
+    x-agent-common-mistakes:
+      - "Defaulting `whenUnsatisfiable` to `ScheduleAnyway` when you actually want hard spread — the field's API default is `ScheduleAnyway`, so omitting it gives soft semantics; spelling out `DoNotSchedule` is required for a hard guarantee."
+      - "Setting `maxSkew` to a number larger than `replicas` — the constraint is mathematically always satisfied and provides no spread, but reads like real protection on review."
+      - "Pointing the `labelSelector` at labels the workload doesn't actually set (typos, wrong `app.kubernetes.io/instance`) — the constraint matches zero Pods, skew is always 0, and spread appears to work in tests but does nothing in production."
+  k8s.io.api.core.v1.TypedLocalObjectReference:
+    description: |
+      Reference to an object in the same namespace, typed by apiGroup and
+      kind. Used by features like PVC dataSource.
+    examples:
+      - {}
+  k8s.io.api.core.v1.TypedObjectReference:
+    description: |
+      Reference to an object that may live in another namespace, typed by
+      apiGroup, kind, name, and optional namespace.
+    examples:
+      - {}
+  k8s.io.api.core.v1.Volume:
+    description: |
+      A single entry in the Pod's `volumes[]` list. Each volume pairs a
+      unique `name` with exactly one volume source — `configMap`, `secret`,
+      `emptyDir`, `persistentVolumeClaim`, `projected`, `hostPath`, and many
+      more. Containers reference the volume by `name` from
+      `volumeMounts[].name`; the name is the only link, so a typo on either
+      side produces a silent "volume not mounted" condition the Pod still
+      starts with. The chart surfaces this list verbatim through the
+      Deployment/Job `volumes:` field; the matching `volumeMounts:` lives on
+      each container.
+    examples:
+      - name: config
+        configMap:
+          name: app-config
+          items:
+            - key: app.yaml
+              path: app.yaml
+      - name: data
+        persistentVolumeClaim:
+          claimName: app-data
+    x-agent-when-to-use: |
+      Use `configMap` or `secret` for non-binary configuration/credentials;
+      use `emptyDir` for scratch space that lives with the Pod; use
+      `persistentVolumeClaim` for durable storage that survives Pod restarts.
+      For projecting a service-account token or trust bundle alongside other
+      sources, prefer a `projected` volume over multiple separate volumes.
+    x-agent-related-fields:
+      - volumes
+      - volumeMounts
+      - persistentVolumeClaim
+    x-agent-common-mistakes:
+      - "Mismatched `name` between `volumes[].name` and `volumeMounts[].name` — Kubernetes does not error; the mount simply doesn't happen, and the app starts without its config or data."
+      - "Mounting a `secret` or `configMap` with `subPath: <key>` to land it as a single file — the kubelet's atomic update mechanism is bypassed for subPath mounts, so updates to the Secret/ConfigMap never propagate into the Pod."
+      - "Using `emptyDir` for data that must survive Pod rescheduling — emptyDir lives with the Pod's lifecycle; rescheduling to another node returns an empty directory."
+  k8s.io.api.core.v1.VolumeProjection:
+    description: |
+      One entry inside a ProjectedVolumeSource's `sources[]` list — wraps
+      exactly one source type. Populate exactly one of `configMap`,
+      `secret`, `downwardAPI`, `serviceAccountToken`, `clusterTrustBundle`,
+      or `podCertificate` per entry. Each source writes its files relative
+      to the projected volume's mount path; combine multiple
+      VolumeProjection entries inside one `sources[]` to layer
+      configuration, credentials, downward API, and bound tokens at the
+      same mount point.
+    examples:
+      - serviceAccountToken:
+          audience: vault
+          expirationSeconds: 3600
+          path: token
+      - configMap:
+          name: app-config
+          items:
+            - key: app.yaml
+              path: config/app.yaml
+    x-agent-when-to-use: |
+      Use as the elements of `projected.sources[]`. Pick exactly one of
+      the source slots per entry; populating two is rejected. For a
+      single-source mount the standalone volume types (ConfigMapVolumeSource
+      etc.) are simpler than wrapping in a projected volume.
+    x-agent-related-fields:
+      - sources
+      - projected
+      - configMap
+      - secret
+      - serviceAccountToken
+    x-agent-common-mistakes:
+      - "Populating two source slots in one VolumeProjection — the API rejects this; split into two separate entries in `sources[]`."
+      - "Forgetting that all sources share the same target mount path — collisions in `items[].path` cause silent overwrites."
+      - "Using VolumeProjection as a top-level volume — it must live inside `projected.sources[]`, not directly under the Pod's `volumes[]`."
+  k8s.io.api.core.v1.VolumeResourceRequirements:
+    description: |
+      Storage capacity request/limit for a PVC. `requests.storage` is the
+      minimum capacity the PV must satisfy — Kubernetes binds the smallest
+      matching PV that meets or exceeds the request. `limits.storage` is
+      rarely useful and mostly ignored by drivers. Values use Quantity
+      syntax (`100Mi`, `10Gi`, `1Ti`). After binding,
+      `requests.storage` is the only field that can be increased — and
+      only when the StorageClass has `allowVolumeExpansion: true`;
+      shrinking is never supported.
+    examples:
+      - requests:
+          storage: 10Gi
+      - requests:
+          storage: 100Gi
+        limits:
+          storage: 200Gi
+    x-agent-when-to-use: |
+      Use inside PersistentVolumeClaimSpec to size the volume. Pick the
+      request based on actual data + headroom; if the underlying class
+      supports expansion, you can grow later without downtime on most
+      drivers.
+    x-agent-related-fields:
+      - resources
+      - persistentVolumeClaim
+      - storageClassName
+    x-agent-common-mistakes:
+      - "Using lowercase suffixes — Kubernetes Quantity requires case-sensitive units (`Gi` not `gi`, `Mi` not `mi`)."
+      - "Setting `requests.storage` below what the StorageClass minimums allow — many cloud-provider classes round up to a minimum (e.g. 1 GiB for AWS gp3); the bound PV may exceed the request."
+      - "Trying to shrink — applies are silently rejected by most drivers; the only way to shrink is to back up, recreate the PVC, and restore."
+  k8s.io.api.core.v1.VsphereVirtualDiskVolumeSource:
+    description: |
+      Volume backed by a vSphere VMDK. Legacy in-tree driver; for new
+      workloads prefer the csi.vsphere.vmware.com CSI driver.
+    examples:
+      - {}
+  k8s.io.api.core.v1.WeightedPodAffinityTerm:
+    description: |
+      Soft pod-affinity / pod-anti-affinity entry — pairs a `weight` (1–100)
+      with a `podAffinityTerm` (one PodAffinityTerm). Used inside
+      `preferredDuringSchedulingIgnoredDuringExecution[]` for both
+      PodAffinity and PodAntiAffinity. The scheduler ranks candidate nodes
+      by summing weights of matching terms, choosing the highest score.
+      The chart's `autoCreateSoftAntiAffinity` emits a `weight: 100` entry
+      with the workload's own labels and `topologyKey:
+      kubernetes.io/hostname` — that's the typical shape for soft
+      hostname spread.
+    examples:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: my-app
+          topologyKey: kubernetes.io/hostname
+      - weight: 30
+        podAffinityTerm:
+          labelSelector:
+            matchLabels: {tier: cache}
+          topologyKey: topology.kubernetes.io/zone
+    x-agent-when-to-use: |
+      Use to bias placement without forcing it — pods still schedule when
+      the preferred placement isn't available. For a hard guarantee use
+      `required...` with a plain PodAffinityTerm. For evenly-spread
+      replicas across zones/hosts, `topologySpreadConstraints` is more
+      predictable.
+    x-agent-related-fields:
+      - podAffinity
+      - podAntiAffinity
+      - autoCreateSoftAntiAffinity
+      - preferredDuringSchedulingIgnoredDuringExecution
+    x-agent-common-mistakes:
+      - "Setting `weight: 0` — rejected by the API; weight must be 1–100."
+      - "Pairing soft anti-affinity with a `topologyKey` that doesn't match real cluster topology (e.g. a label only the cloud provider sets but the nodes lack) — the scheduler treats every node as a distinct domain, defeating the spread intent."
+      - "Manually adding this on top of the chart's `autoCreateSoftAntiAffinity` injection — both apply and you may double-count weight, biasing harder than you intended."
+  k8s.io.api.core.v1.WindowsSecurityContextOptions:
+    description: |
+      Windows-specific security context — gMSA credential spec, runAsUserName,
+      and hostProcess flag for Pods running on Windows nodes.
+    examples:
+      - {}
+  k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector:
+    description: |
+      Label-based selector with two forms that AND together: `matchLabels`
+      is a `{key: value}` map (every entry must match), `matchExpressions`
+      is a list of LabelSelectorRequirement entries (set-based `In`/`NotIn`
+      with values, presence-based `Exists`/`DoesNotExist`). An empty
+      LabelSelector (no matchLabels and no matchExpressions) matches *all*
+      objects in scope — different from `null`, which matches none. This
+      shape is reused everywhere a Kubernetes resource picks Pods,
+      ConfigMaps, Services, or other API objects: Deployment `selector`,
+      Service `selector`, ServiceMonitor `selector`, NetworkPolicy
+      `podSelector`, and PodAffinity rules.
+    examples:
+      - matchLabels:
+          app.kubernetes.io/name: my-app
+          tier: backend
+      - matchExpressions:
+          - key: environment
+            operator: In
+            values: [prod, staging]
+          - key: deprecated
+            operator: DoesNotExist
+    x-agent-when-to-use: |
+      Prefer `matchLabels` for simple equality (most selectors). Use
+      `matchExpressions` when you need set operations (`In` with multiple
+      values, `NotIn`, presence checks). Be careful with the empty case:
+      `selector: {}` matches everything in scope; either populate it or
+      omit the field entirely.
+    x-agent-related-fields:
+      - matchLabels
+      - matchExpressions
+      - selector
+    x-agent-common-mistakes:
+      - "Setting an empty LabelSelector (`{}`) and being surprised by overly broad matches — NetworkPolicy with `podSelector: {}` targets every Pod in the namespace, ServiceMonitor with `selector: {}` scrapes every Service."
+      - "Changing Deployment `selector.matchLabels` on an existing Deployment — the field is immutable; the apply fails with a clear error, but the fix is to delete and recreate, which is disruptive."
+      - "Forgetting that selectors are case-sensitive — `App: foo` and `app: foo` are different keys."
+  k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelectorRequirement:
+    description: |
+      One set-based selector entry. `key` is the label name, `operator`
+      is `In`, `NotIn`, `Exists`, or `DoesNotExist`, and `values` is a
+      list whose meaning depends on the operator. With `In`/`NotIn`,
+      `values` must be non-empty; with `Exists`/`DoesNotExist`, `values`
+      must be empty. Multiple LabelSelectorRequirement entries inside a
+      LabelSelector's `matchExpressions` AND together — and they also AND
+      with `matchLabels`.
+    examples:
+      - key: environment
+        operator: In
+        values: [prod, staging]
+      - key: deprecated
+        operator: DoesNotExist
+    x-agent-when-to-use: |
+      Use inside `matchExpressions` when set semantics are needed: matching
+      one of several values (`In`), excluding a set (`NotIn`), or just
+      checking label presence (`Exists`/`DoesNotExist`). For plain `key:
+      value` equality, `matchLabels` is shorter and clearer.
+    x-agent-related-fields:
+      - matchExpressions
+      - matchLabels
+      - selector
+    x-agent-common-mistakes:
+      - "Using `In` with an empty values list (or `Exists` with values) — the API validates this and rejects the parent resource."
+      - "Forgetting that `NotIn` matches objects that *also* have no value for the label — set-theoretic 'not in {x,y}' includes 'absent'; pair with `Exists` if you want 'has the label but not these values'."
+      - "Confusing this with NodeSelectorRequirement — the shape is the same but NodeSelectorRequirement also supports `Gt`/`Lt`; LabelSelectorRequirement does not."
+  k8s.io.apimachinery.pkg.apis.meta.v1.ManagedFieldsEntry:
+    description: |
+      Server-populated record of which manager (kubectl client, controller,
+      operator) owns which fields of an object. Driven by the server-side
+      apply mechanism: each apply submits a `fieldManager` name, and the
+      API server tracks ownership at field granularity in
+      `metadata.managedFields[]`. Users almost never write this directly —
+      it appears in API responses and matters mainly when debugging
+      "why is my controller fighting another controller for this field"
+      conflicts. The chart never sets this; it surfaces here only because
+      it appears in vendored ObjectMeta.
+    examples:
+      - manager: kubectl-client-side-apply
+        operation: Update
+        apiVersion: apps/v1
+        time: "2026-01-15T10:30:00Z"
+        fieldsType: FieldsV1
+        fieldsV1:
+          {f:metadata: {f:labels: {.: {}, f:app: {}}}}
+      - manager: kube-controller-manager
+        operation: Update
+        apiVersion: apps/v1
+        subresource: status
+    x-agent-when-to-use: |
+      You generally do not write this; the API server populates it. When
+      debugging field-ownership conflicts, inspect this list to see which
+      `manager` owns the disputed field — that's the actor whose value is
+      preserved during apply. Use `kubectl apply --field-manager=<name>`
+      to set the manager name on your applies.
+    x-agent-related-fields:
+      - metadata
+      - managedFields
+      - fieldManager
+    x-agent-common-mistakes:
+      - "Writing this field in a manifest — the API server overwrites it; whatever you put gets discarded."
+      - "Two controllers using the same `fieldManager` name and fighting silently over a field — each apply takes ownership; pick distinct names for distinct actors."
+      - "Stripping `managedFields` from a GET response and reapplying without `--field-manager=<name>` — the resulting object's ownership map is wiped, which can produce surprises on the next apply."
+  k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta:
+    description: |
+      The standard `metadata` block carried by every Kubernetes object.
+      `name` and `namespace` are identity; `labels` and `annotations` are
+      string maps with strict format rules (labels are filterable and
+      indexed, annotations are arbitrary metadata not used by selectors).
+      `ownerReferences`, `finalizers`, `managedFields`, `resourceVersion`,
+      `uid`, `generation`, `creationTimestamp`, and `deletionTimestamp`
+      are populated by the server. In this chart you generally do not
+      write ObjectMeta directly — the templates assemble it from
+      `metadata`, `labels`, `annotations`, `podLabels`, `podAnnotations`,
+      and chart-internal labels.
+    examples:
+      - name: my-app
+        namespace: default
+        labels:
+          app.kubernetes.io/name: my-app
+          app.kubernetes.io/version: "1.0.0"
+        annotations:
+          deployment.kubernetes.io/revision: "1"
+      - name: api
+        namespace: production
+        labels: {tier: backend}
+        finalizers:
+          - example.com/cleanup
+    x-agent-when-to-use: |
+      In this chart you set the *parts* (labels, annotations, name) via
+      typed fields; the full ObjectMeta is assembled for you. Direct use
+      matters when you're authoring raw manifests outside the chart, or
+      reading API responses to debug.
+    x-agent-related-fields:
+      - metadata
+      - labels
+      - annotations
+      - podLabels
+      - podAnnotations
+    x-agent-common-mistakes:
+      - "Setting `resourceVersion` in an apply manifest — the field is server-managed and an explicit value triggers conflict errors on every apply."
+      - "Putting selector-relevant data in `annotations` instead of `labels` — annotations are *not* matched by Service/Selector/NetworkPolicy selectors; only labels are."
+      - "Using a `name` longer than 63 characters (or violating DNS-1123 for namespaces/services) — the API rejects the object at admission with a non-obvious error path."
+  k8s.io.apimachinery.pkg.apis.meta.v1.OwnerReference:
+    description: |
+      Server-populated link from a child object to a parent — drives
+      Kubernetes garbage collection. When all owners are deleted, the
+      child is garbage-collected (unless `blockOwnerDeletion: true` is set
+      on the reference, in which case the parent stays in Terminating
+      until the child is gone). `controller: true` marks one owner as the
+      *managing* controller — only one such entry per child; field
+      managers and HPA scale targets typically check it. The chart never
+      writes OwnerReferences; Kubernetes adds them automatically when a
+      controller (Deployment → ReplicaSet → Pod) creates child resources.
+    examples:
+      - apiVersion: apps/v1
+        kind: Deployment
+        name: my-app
+        uid: "12345678-1234-1234-1234-123456789abc"
+        controller: true
+        blockOwnerDeletion: true
+      - apiVersion: apps/v1
+        kind: ReplicaSet
+        name: my-app-7d4f8c
+        uid: "abcdef12-3456-7890-abcd-ef1234567890"
+    x-agent-when-to-use: |
+      You rarely write this in manifests. When implementing a controller,
+      set owner references on objects you create so they're garbage-
+      collected when the parent CR is deleted. Use `controller: true` on
+      exactly one reference and `blockOwnerDeletion: true` if the parent's
+      finalization needs to wait for children.
+    x-agent-related-fields:
+      - metadata
+      - ownerReferences
+      - finalizers
+    x-agent-common-mistakes:
+      - "Setting `controller: true` on multiple references — only one controller per object is allowed; the API rejects the second."
+      - "Forgetting `uid` — the field is required; without it the API rejects the reference. Pull the UID from the parent's `metadata.uid` at create time."
+      - "Cross-namespace ownerReferences — not supported; garbage collection only works within a single namespace (cluster-scoped owners are an exception). The reference is silently ignored."

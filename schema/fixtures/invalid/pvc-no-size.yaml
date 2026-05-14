@@ -1,0 +1,4 @@
+# expected_error: size
+persistentVolumeClaims:
+  bad:
+    accessModes: [ReadWriteOnce]

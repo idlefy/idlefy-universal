@@ -1,0 +1,17 @@
+deploymentsGeneral:
+  networkPolicy:
+    policyTypes: [Egress]
+    egress:
+      - to:
+          - namespaceSelector:
+              matchLabels: {kubernetes.io/metadata.name: kube-system}
+        ports:
+          - {protocol: UDP, port: 53}
+deployments:
+  api:
+    containers:
+      main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+    autoCreateNetworkPolicy: true
+    networkPolicy:
+      policyTypes: [Egress]
+      egress: []

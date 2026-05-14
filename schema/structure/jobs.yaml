@@ -1,0 +1,147 @@
+properties:
+  jobs:
+    type: object
+    additionalProperties:
+      $ref: "#/$defs/JobSpec"
+  cronJobs:
+    type: object
+    additionalProperties:
+      $ref: "#/$defs/CronJobSpec"
+
+$defs:
+  JobSpec:
+    type: object
+    additionalProperties: false
+    required: [containers]
+    properties:
+      parallelism: {type: integer, minimum: 1}
+      completions: {type: integer, minimum: 1}
+      backoffLimit: {type: integer, minimum: 0}
+      activeDeadlineSeconds: {type: integer, minimum: 1}
+      ttlSecondsAfterFinished: {type: integer, minimum: 0}
+      restartPolicy:
+        type: string
+        enum: [OnFailure, Never]
+      priorityClassName: {type: string}
+      serviceAccountName: {type: string}
+      namespace: {type: string}
+      containers:
+        type: object
+        additionalProperties:
+          $ref: "#/$defs/ContainerSpec"
+      volumes:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Volume"}
+      nodeSelector:
+        type: object
+        additionalProperties: true
+      tolerations:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Toleration"}
+      affinity: {$ref: "#/$defs/k8s.io.api.core.v1.Affinity"}
+      securityContext: {$ref: "#/$defs/k8s.io.api.core.v1.PodSecurityContext"}
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+      podAnnotations:
+        type: object
+        additionalProperties: true
+      autoCreateNetworkPolicy:
+        type: boolean
+        default: false
+      autoCreateRbac:
+        type: boolean
+        default: false
+      networkPolicy:
+        $ref: "#/$defs/NetworkPolicySpec"
+      rbac:
+        $ref: "#/$defs/RbacSpec"
+    allOf:
+      - if:
+          properties:
+            autoCreateNetworkPolicy: {const: true}
+          required: [autoCreateNetworkPolicy]
+        then:
+          required: [networkPolicy]
+      - if:
+          properties:
+            autoCreateRbac: {const: true}
+          required: [autoCreateRbac]
+        then:
+          required: [rbac]
+
+  CronJobSpec:
+    type: object
+    additionalProperties: false
+    required: [schedule, containers]
+    properties:
+      schedule:
+        type: string
+        pattern: "^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\S+$"
+      timezone: {type: string}
+      concurrencyPolicy:
+        type: string
+        enum: [Allow, Forbid, Replace]
+        default: Allow
+      successfulJobsHistoryLimit: {type: integer, minimum: 0}
+      failedJobsHistoryLimit: {type: integer, minimum: 0}
+      startingDeadlineSeconds: {type: integer, minimum: 0}
+      suspend: {type: boolean}
+      activeDeadlineSeconds: {type: integer, minimum: 1}
+      backoffLimit: {type: integer, minimum: 0}
+      restartPolicy:
+        type: string
+        enum: [OnFailure, Never]
+      priorityClassName: {type: string}
+      serviceAccountName: {type: string}
+      namespace: {type: string}
+      containers:
+        type: object
+        additionalProperties:
+          $ref: "#/$defs/ContainerSpec"
+      volumes:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Volume"}
+      nodeSelector:
+        type: object
+        additionalProperties: true
+      tolerations:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Toleration"}
+      affinity: {$ref: "#/$defs/k8s.io.api.core.v1.Affinity"}
+      securityContext: {$ref: "#/$defs/k8s.io.api.core.v1.PodSecurityContext"}
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+      podAnnotations:
+        type: object
+        additionalProperties: true
+      autoCreateNetworkPolicy:
+        type: boolean
+        default: false
+      autoCreateRbac:
+        type: boolean
+        default: false
+      networkPolicy:
+        $ref: "#/$defs/NetworkPolicySpec"
+      rbac:
+        $ref: "#/$defs/RbacSpec"
+    allOf:
+      - if:
+          properties:
+            autoCreateNetworkPolicy: {const: true}
+          required: [autoCreateNetworkPolicy]
+        then:
+          required: [networkPolicy]
+      - if:
+          properties:
+            autoCreateRbac: {const: true}
+          required: [autoCreateRbac]
+        then:
+          required: [rbac]

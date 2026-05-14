@@ -1,0 +1,475 @@
+# Global deployment settings that will be inherited by all deployments unless overridden
+deploymentsGeneral:
+  # Deployment update strategy configuration
+  strategy:
+    type: RollingUpdate    # Strategy type: RollingUpdate or Recreate
+    rollingUpdate:         # Configuration for RollingUpdate strategy
+      maxSurge: 30%        # Maximum number of pods that can be created above desired number
+      maxUnavailable: 20%  # Maximum number of pods that can be unavailable during the update
+
+  # Pod security context settings
+  securityContext:
+    runAsNonRoot: true    # Force the container to run as non-root user
+    runAsUser: 1000       # Specify the user ID to run the container
+
+  # Priority class for pod scheduling (optional)
+  # priorityClassName: system-cluster-critical  # Use for critical system workloads
+
+  # Node selection criteria for pod scheduling
+  nodeSelector:
+    kubernetes.io/os: linux  # Schedule pods only on Linux nodes
+
+  # Default health check probe configurations for all containers
+  probes:
+    # Liveness probe - determines if the container is running properly
+    livenessProbe:
+      httpGet:
+        path: /health     # HTTP endpoint to check container health
+        port: http        # Port name defined in container ports
+      initialDelaySeconds: 30  # Time to wait before first probe
+      periodSeconds: 10        # How often to perform the probe
+
+    # Readiness probe - determines if the container is ready to serve traffic
+    readinessProbe:
+      httpGet:
+        path: /ready      # HTTP endpoint to check container readiness
+        port: http        # Port name defined in container ports
+      initialDelaySeconds: 5   # Time to wait before first probe
+      periodSeconds: 10        # How often to perform the probe
+
+  # Auto-creation settings applied to all deployments
+  autoCreateSoftAntiAffinity: true  # Automatically create soft anti-affinity rules
+
+# Generic configurations applied across all resource types
+generic:
+  # Global ServiceAccount name for all deployments, jobs, and cronjobs
+  # This will be used if no per-resource serviceAccountName is specified
+  # serviceAccountName: global-service-account
+
+  # Global ingress configurations
+  ingressesGeneral:
+    annotations:
+      nginx.ingress.kubernetes.io/enable-cors: "true"  # Enable CORS for all ingresses
+    domain: example.com   # Default domain for all ingresses
+
+  # Global ServiceMonitor configurations for Prometheus monitoring
+  serviceMonitorGeneral:
+    labels:
+      prometheus: kube-prometheus  # Labels for ServiceMonitor discovery
+    interval: 30s        # How often to scrape metrics
+    scrapeTimeout: 10s   # Maximum time for each scrape operation
+
+  # Additional image pull secrets for private registries
+  # Used by all deployments, jobs, and cronjobs
+  extraImagePullSecrets:
+    - name: registry-secret  # Name of the Kubernetes secret containing registry credentials
+
+# Configuration and Secret management
+configs:
+  # Application configuration as ConfigMap
+  app-config:
+    type: configMap     # Type can be 'configMap' or 'secret'
+    data:
+      config.yaml: |    # Configuration file content
+        environment: production
+        log_level: info
+        features:
+          feature1: true
+          feature2: false
+      app.properties: |
+        property1=value1
+        property2=value2
+      API_ENDPOINT: "https://api.example.com"
+    # Optional: binary data (base64 encoded)
+    binaryData:
+      logo.png: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+
+  # Application secrets
+  app-secrets:
+    type: secret       # Creates a Kubernetes Secret
+    data:
+      API_KEY: "your-api-key"           # Will be base64 encoded automatically
+      DB_PASSWORD: "your-db-password"    # Will be base64 encoded automatically
+      # Multi-line secret
+      private-key.pem: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7...
+        -----END PRIVATE KEY-----
+    # Optional: binary data for secrets (base64 encoded)
+    binaryData:
+      certificate.p12: "MIIKCAIBAzCCCcMGCSqGSIb3DQEHAaCCCbQEggmwMIIJrDCCBX..."
+
+# Secret reference groups for reuse across deployments
+secretRefs:
+  # Shared secrets group
+  shared-secrets:
+    - name: S3_SECRET    # Environment variable name
+      secretKeyRef:
+        name: passwords  # Kubernetes Secret name
+        key: s3-secret-key  # Key in the Secret
+    - name: OPENSEARCH_PASSWORD
+      secretKeyRef:
+        name: passwords
+        key: opensearch-password
+
+  # Database-specific secrets
+  db-secrets:
+    - name: DB_PASSWORD
+      secretKeyRef:
+        name: database-creds
+        key: password
+    - name: DB_USER
+      secretKeyRef:
+        name: database-creds
+        key: username
+        
+# Main application deployments
+deployments:
+  # Backend API service configuration
+  backend-api:
+    strategy:
+      type: Recreate    # Use Recreate strategy instead of default RollingUpdate
+
+    replicas: 3         # Number of pod replicas to maintain
+
+    # Override global priority class for this critical service
+    priorityClassName: high-priority
+
+    # Custom ServiceAccount name for this deployment (overrides global generic.serviceAccountName)
+    # serviceAccountName: backend-api-sa
+    
+    # Enable automatic resource creation
+    autoCreateService: true           # Create a Service automatically
+    autoCreateIngress: true          # Create an Ingress automatically
+    autoCreateCertificate: true      # Create a Certificate automatically
+    autoCreateServiceMonitor: true   # Create a ServiceMonitor for Prometheus
+    autoCreatePdb: true             # Create a PodDisruptionBudget
+    
+    # PDB (Pod Disruption Budget) configuration
+    pdb:
+      minAvailable: 2   # Minimum number of pods that must be available
+
+    # SSL/TLS certificate configuration
+    certificate:
+      clusterIssuer: letsencrypt-prod  # cert-manager cluster issuer
+
+    # Database migrations configuration
+    migrations:
+      enabled: true                    # Enable database migrations
+      backoffLimit: 1                  # Number of retries before considering failed
+      args: ["migrate", "up"]          # Migration command arguments
+
+    # Container specifications
+    containers:
+      main:
+        image: backend-api          # Container image name
+        imageTag: v1.0.0           # Container image tag
+        
+        # Port definitions
+        ports:
+          http:
+            containerPort: 8080    # Main application port
+            servicePort: 80        # Service port (different from container port)
+            protocol: TCP         # Protocol (TCP/UDP)
+          http-metrics:
+            containerPort: 9090   # Prometheus metrics port
+            servicePort: 9090     # Service port for metrics
+
+        # Environment variables
+        env:
+          - name: CONFIG_PATH
+            value: /config/config.yaml
+          - name: API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: app-secrets
+                key: API_KEY
+
+        # Load environment variables from ConfigMaps/Secrets
+        envFrom:
+          - type: configMap
+            configName: app-config
+
+        # Reference predefined secret groups
+        secretRefs:
+          - shared-secrets  # Use secrets from shared-secrets group
+          - db-secrets     # Use secrets from db-secrets group
+
+        # Mount volumes into container
+        volumeMounts:
+          - name: config-volume
+            mountPath: /config
+            readOnly: true
+
+        # Resource limits and requests
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+    # Pod volumes configuration
+    volumes:
+      - name: config-volume
+        configMap:
+          name: app-config
+
+    # Ingress configuration
+    ingress:
+      hosts:
+        - subdomain: api    # Will result in api.example.com
+          paths:
+            - path: /
+              pathType: Prefix
+
+    # Horizontal Pod Autoscaling configuration (embedded in deployment)
+    hpa:
+      minReplicas: 3        # Minimum number of replicas
+      maxReplicas: 10       # Maximum number of replicas
+      metrics:
+        - type: Resource    # Type of metric to scale on
+          resource:
+            name: cpu      # Scale based on CPU usage
+            target:
+              type: Utilization
+              averageUtilization: 80  # Target CPU utilization
+
+# Scheduled jobs (CronJobs)
+cronJobs:
+  backup:
+    schedule: "0 0 * * *"    # Run daily at midnight (cron format)
+    timezone: "America/New_York"  # Optional: timezone for schedule (requires Kubernetes 1.24+)
+
+    # Optional: Priority class for the backup job
+    # priorityClassName: low-priority
+
+    # Optional: CronJob specific settings
+    concurrencyPolicy: Forbid  # Forbid concurrent executions
+    failedJobsHistoryLimit: 1  # Keep only 1 failed job
+    successfulJobsHistoryLimit: 3  # Keep 3 successful jobs
+    
+    # Job template settings
+    activeDeadlineSeconds: 3600  # 1 hour deadline
+    backoffLimit: 2              # Retry twice on failure
+    
+    containers:
+      main:
+        image: backup-job
+        imageTag: v1.0.0
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        env:
+          - name: BACKUP_PATH
+            value: /backup
+        volumeMounts:
+          - name: backup-storage
+            mountPath: /backup
+    
+    # Pod configuration
+    volumes:
+      - name: backup-storage
+        persistentVolumeClaim:
+          claimName: backup-pvc
+    restartPolicy: OnFailure
+    
+    # Optional: annotations
+    annotations:
+      description: "Daily database backup"
+    podAnnotations:
+      backup.io/type: "database"
+
+# One-time jobs (Jobs)
+jobs:
+  db-migration:
+    # Job settings
+    parallelism: 1                   # How many pods to run in parallel
+    completions: 1                   # How many successful completions are needed
+    backoffLimit: 3                  # Number of retries before considering failed
+    activeDeadlineSeconds: 1800      # 30 minutes deadline
+    ttlSecondsAfterFinished: 600     # Clean up job 10 minutes after completion
+
+    # Optional: Priority class for the migration job
+    # priorityClassName: high-priority
+    
+    containers:
+      main:
+        image: migration-job
+        imageTag: v1.0.0
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        env:
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: app-secrets
+                key: DB_PASSWORD
+          - name: MIGRATION_TYPE
+            value: "schema"
+        volumeMounts:
+          - name: migration-scripts
+            mountPath: /scripts
+            readOnly: true
+    
+    # Pod configuration
+    volumes:
+      - name: migration-scripts
+        configMap:
+          name: migration-config
+    restartPolicy: OnFailure
+    
+    # Optional: annotations
+    annotations:
+      job.io/type: "database-migration"
+
+# Standalone services
+services:
+  external-service:
+    type: ClusterIP           # Service type (ClusterIP, NodePort, LoadBalancer)
+    ports:
+      - name: http
+        port: 80             # Port exposed by the service
+        targetPort: 8080     # Port to forward to in the pod
+
+# Persistent Volume Claims
+persistentVolumeClaims:
+  data-storage:
+    accessModes:
+      - ReadWriteOnce        # Access mode (ReadWriteOnce, ReadOnlyMany, ReadWriteMany)
+    storageClassName: standard  # Storage class to use
+    size: 10Gi              # Size of the volume
+  
+  # Backup storage for CronJob
+  backup-pvc:
+    accessModes:
+      - ReadWriteOnce
+    storageClassName: standard
+    size: 50Gi
+
+# Standalone ingresses
+ingresses:
+  api-gateway:
+    hosts:
+      - host: myapi.example.com
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            service: backend-api
+            portName: http
+      - subdomain: admin  # Will be admin.example.com if domain is set in generic.ingressesGeneral
+        paths:
+          - path: /admin
+            pathType: Prefix
+            service: admin-service
+            portName: http
+      - host: ""  # Will use domain from generic.ingressesGeneral
+        paths:
+          - path: /health
+            pathType: Exact
+            service: health-service
+            portName: http
+    tls:
+      - secretName: api-gateway-tls
+        hosts:
+          - myapi.example.com
+          - admin.example.com
+
+# =============================================
+# HTTPRoutes (Gateway API)
+# =============================================
+# Modern alternative to Ingress using Gateway API.
+# Requires a Gateway API controller (Cilium, Istio, Envoy Gateway, etc.)
+
+# Global HTTPRoute settings
+# generic:
+#   httpRoutesGeneral:
+#     parentRefs:
+#       - name: shared-gateway
+#         namespace: gateway-system
+#     annotations:
+#       example.com/managed-by: "platform-team"
+
+# Standalone HTTPRoute
+# httpRoutes:
+#   api-route:
+#     # parentRefs override global (optional)
+#     # parentRefs:
+#     #   - name: custom-gateway
+#     #     namespace: custom-ns
+#     hostnames:
+#       - subdomain: api          # Uses generic.ingressesGeneral.domain
+#       # - host: api.example.com  # Or explicit full domain
+#     rules:
+#       - matches:
+#           - path:
+#               type: PathPrefix   # PathPrefix | Exact | RegularExpression
+#               value: /
+#         backendRefs:
+#           - name: api-service
+#             port: 8080
+#
+#   # Traffic splitting (canary)
+#   canary-route:
+#     hostnames:
+#       - subdomain: app
+#     rules:
+#       - matches:
+#           - path:
+#               type: PathPrefix
+#               value: /
+#         backendRefs:
+#           - name: app-stable
+#             port: 8080
+#             weight: 90
+#           - name: app-canary
+#             port: 8080
+#             weight: 10
+#
+#   # Header-based routing
+#   header-route:
+#     hostnames:
+#       - subdomain: app
+#     rules:
+#       - matches:
+#           - path:
+#               type: PathPrefix
+#               value: /api
+#             headers:
+#               - name: x-env
+#                 value: staging
+#                 type: Exact
+#         backendRefs:
+#           - name: staging-backend
+#             port: 8080
+
+# Auto-create HTTPRoute from deployment:
+# deployments:
+#   my-app:
+#     autoCreateService: true
+#     autoCreateHttpRoute: true
+#     containers:
+#       main:
+#         image: my-app
+#         imageTag: v1.0.0
+#         ports:
+#           http:
+#             containerPort: 8080
+#     httpRoute:
+#       hostnames:
+#         - subdomain: my-app
+#       rules:
+#         - matches:
+#             - path:
+#                 type: PathPrefix
+#                 value: /

@@ -1,0 +1,122 @@
+suite: test cross-workload validation
+templates:
+  - deployment.yaml
+tests:
+  - it: should fail when a key appears in both deployments and statefulSets
+    set:
+      deployments:
+        shared:
+          containers:
+            main:
+              image: nginx
+              imageTag: "1.25"
+              ports:
+                http:
+                  containerPort: 80
+      statefulSets:
+        shared:
+          serviceName: shared-headless
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+    asserts:
+      - failedTemplate:
+          errorMessage: "Workload key 'shared' appears in multiple top-level keys: deployments, statefulSets. Same-named keys produce colliding component labels."
+
+  - it: should fail when a key appears in both deployments and daemonSets
+    set:
+      deployments:
+        agent:
+          containers:
+            main:
+              image: nginx
+              imageTag: "1.25"
+              ports:
+                http:
+                  containerPort: 80
+      daemonSets:
+        agent:
+          containers:
+            main:
+              image: agent
+              imageTag: "1.0"
+              ports:
+                http:
+                  containerPort: 8080
+    asserts:
+      - failedTemplate:
+          errorMessage: "Workload key 'agent' appears in multiple top-level keys: deployments, daemonSets. Same-named keys produce colliding component labels."
+
+  - it: should fail when a key appears in both statefulSets and daemonSets
+    set:
+      statefulSets:
+        clash:
+          serviceName: clash-headless
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+      daemonSets:
+        clash:
+          containers:
+            main:
+              image: agent
+              imageTag: "1.0"
+              ports:
+                http:
+                  containerPort: 8080
+    asserts:
+      - failedTemplate:
+          errorMessage: "Workload key 'clash' appears in multiple top-level keys: statefulSets, daemonSets. Same-named keys produce colliding component labels."
+
+  - it: should fail when a key appears in both deployments and jobs
+    set:
+      deployments:
+        worker:
+          containers:
+            main:
+              image: nginx
+              imageTag: "1.25"
+              ports:
+                http:
+                  containerPort: 80
+      jobs:
+        worker:
+          containers:
+            main:
+              image: busybox
+              imageTag: "1.36"
+              command: [sh, -c, "echo hi"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "Workload key 'worker' appears in multiple top-level keys: deployments, jobs. Same-named keys produce colliding component labels."
+
+  - it: should fail when a key appears in both deployments and cronJobs
+    set:
+      deployments:
+        sweeper:
+          containers:
+            main:
+              image: nginx
+              imageTag: "1.25"
+              ports:
+                http:
+                  containerPort: 80
+      cronJobs:
+        sweeper:
+          schedule: "*/5 * * * *"
+          containers:
+            main:
+              image: busybox
+              imageTag: "1.36"
+              command: [sh, -c, "echo tick"]
+    asserts:
+      - failedTemplate:
+          errorMessage: "Workload key 'sweeper' appears in multiple top-level keys: deployments, cronJobs. Same-named keys produce colliding component labels."

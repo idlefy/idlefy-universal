@@ -1,0 +1,32 @@
+should create a certificate when autoCreateCertificate is enabled:
+  1: |
+    dnsNames:
+      - test.example.org
+      - example.com
+    issuerRef:
+      kind: ClusterIssuer
+      name: letsencrypt-prod
+    secretName: test-app-tls
+  2: |
+    replicas: 1
+    selector:
+      matchLabels:
+        app.kubernetes.io/component: test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/name: test-app
+    template:
+      metadata:
+        labels:
+          app.kubernetes.io/component: test-app
+          app.kubernetes.io/instance: RELEASE-NAME
+          app.kubernetes.io/managed-by: Helm
+          app.kubernetes.io/name: test-app
+          helm.sh/chart: idlefy-universal-test-version
+      spec:
+        containers:
+          - image: nginx:latest
+            name: main
+            ports:
+              - containerPort: 80
+                name: http
+                protocol: TCP

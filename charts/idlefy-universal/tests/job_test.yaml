@@ -1,0 +1,92 @@
+suite: test job
+templates:
+  - job.yaml
+tests:
+  - it: should create a job with specified configuration
+    set:
+      jobs:
+        test-migration:
+          parallelism: 1
+          completions: 1
+          backoffLimit: 3
+          containers:
+            migration:
+              image: migration-tool
+              imageTag: "1.0.0"
+              command: 
+                - /bin/sh
+                - -c
+                - migrate.sh
+              env:
+                - name: DB_URL
+                  value: postgres://user:password@db:5432/app
+    asserts:
+      - isKind:
+          of: Job
+      - isAPIVersion:
+          of: batch/v1
+      - equal:
+          path: metadata.name
+          value: test-migration
+      - equal:
+          path: spec.parallelism
+          value: 1
+      - equal:
+          path: spec.completions
+          value: 1
+      - equal:
+          path: spec.backoffLimit
+          value: 3
+      - matchSnapshot:
+          path: spec.template.spec
+
+  - it: should use custom serviceAccountName when specified per-job
+    set:
+      jobs:
+        test-migration:
+          serviceAccountName: migration-sa
+          containers:
+            migration:
+              image: migration-tool
+              imageTag: "1.0.0"
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: migration-sa
+
+  - it: should use global serviceAccountName for job
+    set:
+      generic:
+        serviceAccountName: global-sa
+      jobs:
+        test-migration:
+          containers:
+            migration:
+              image: migration-tool
+              imageTag: "1.0.0"
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: global-sa
+
+  - it: should override global serviceAccountName with per-job serviceAccountName
+    set:
+      generic:
+        serviceAccountName: global-sa
+      jobs:
+        test-migration:
+          serviceAccountName: override-sa
+          containers:
+            migration:
+              image: migration-tool
+              imageTag: "1.0.0"
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: override-sa

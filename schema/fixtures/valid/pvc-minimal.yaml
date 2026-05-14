@@ -1,0 +1,5 @@
+persistentVolumeClaims:
+  data-storage:
+    accessModes: [ReadWriteOnce]
+    size: 10Gi
+    storageClassName: standard

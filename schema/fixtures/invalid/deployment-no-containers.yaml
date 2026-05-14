@@ -1,0 +1,4 @@
+# expected_error: containers
+deployments:
+  app:
+    replicas: 2

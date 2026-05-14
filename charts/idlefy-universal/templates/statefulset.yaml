@@ -1,0 +1,64 @@
+{{- include "idlefy-universal.validate" . -}}
+{{- if .Values.statefulSets }}
+{{- range $stsName, $stsConfig := .Values.statefulSets }}
+{{- $defaultedConfig := include "idlefy-universal.statefulSetDefaults" (dict "statefulSet" $stsConfig "general" $.Values.statefulSetsGeneral) | fromYaml }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $stsName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $stsName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  serviceName: {{ $defaultedConfig.serviceName }}
+  {{- if and (not $stsConfig.hpa) (hasKey $defaultedConfig "replicas") }}
+  replicas: {{ $defaultedConfig.replicas }}
+  {{- end }}
+  podManagementPolicy: {{ $defaultedConfig.podManagementPolicy | default "OrderedReady" }}
+  {{- if $defaultedConfig.updateStrategy }}
+  updateStrategy:
+    {{- toYaml $defaultedConfig.updateStrategy | nindent 4 }}
+  {{- end }}
+  {{- if hasKey $defaultedConfig "minReadySeconds" }}
+  minReadySeconds: {{ $defaultedConfig.minReadySeconds }}
+  {{- end }}
+  {{- if hasKey $defaultedConfig "revisionHistoryLimit" }}
+  revisionHistoryLimit: {{ $defaultedConfig.revisionHistoryLimit }}
+  {{- end }}
+  {{- if $defaultedConfig.persistentVolumeClaimRetentionPolicy }}
+  persistentVolumeClaimRetentionPolicy:
+    {{- toYaml $defaultedConfig.persistentVolumeClaimRetentionPolicy | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "idlefy-universal.componentLabels" (dict "name" $stsName "root" $) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $stsName) | nindent 8 }}
+        {{- $podExtraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+        {{- if $podExtraLabels }}
+        {{- $podExtraLabels | nindent 8 }}
+        {{- end }}
+      {{- $podMergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.podAnnotations) }}
+      {{- if $podMergedAnnotations }}
+      annotations:
+        {{- $podMergedAnnotations | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "idlefy-universal.podSpec" (dict "config" $defaultedConfig "resourceConfig" $stsConfig "kind" "StatefulSet" "Root" $ "name" $stsName "general" $.Values.statefulSetsGeneral) | nindent 6 }}
+  {{- if $defaultedConfig.volumeClaimTemplates }}
+  volumeClaimTemplates:
+    {{- toYaml $defaultedConfig.volumeClaimTemplates | nindent 4 }}
+  {{- end }}
+---
+{{- end }}
+{{- end }}

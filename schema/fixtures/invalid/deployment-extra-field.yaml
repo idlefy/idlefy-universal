@@ -1,0 +1,8 @@
+# expected_error: replcias
+deployments:
+  app:
+    replcias: 5
+    containers:
+      main:
+        image: my-app
+        imageTag: v1.0.0

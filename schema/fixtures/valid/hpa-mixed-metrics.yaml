@@ -1,0 +1,17 @@
+hpas:
+  multi-metric:
+    scaleTargetRef: {kind: Deployment, name: api}
+    minReplicas: 2
+    maxReplicas: 20
+    metrics:
+      - type: Resource
+        resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+      - type: Pods
+        pods:
+          metric: {name: requests_per_second}
+          target: {type: AverageValue, averageValue: "100"}
+      - type: Object
+        object:
+          metric: {name: queue_length}
+          describedObject: {apiVersion: v1, kind: Service, name: api}
+          target: {type: Value, value: "50"}

@@ -1,0 +1,12 @@
+# Expected to fail: serviceName is required.
+# expected_error: 'serviceName' is a required property
+statefulSets:
+  broken:
+    replicas: 1
+    containers:
+      main:
+        image: redis
+        imageTag: "7.2"
+        ports:
+          redis:
+            containerPort: 6379

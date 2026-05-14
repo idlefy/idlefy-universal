@@ -1,0 +1,8 @@
+# expected_error: is valid under each of
+deployments:
+  bad:
+    containers: {main: {image: x, imageTag: v1}}
+    autoCreatePdb: true
+    pdb:
+      minAvailable: 2
+      maxUnavailable: 1

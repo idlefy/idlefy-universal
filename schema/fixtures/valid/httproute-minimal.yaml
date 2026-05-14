@@ -1,0 +1,9 @@
+httpRoutes:
+  api-route:
+    parentRefs:
+      - {name: shared-gateway, namespace: gateway-system}
+    hostnames:
+      - {host: api.example.com}
+    rules:
+      - matches: [{path: {type: PathPrefix, value: /}}]
+        backendRefs: [{name: api, port: 8080}]

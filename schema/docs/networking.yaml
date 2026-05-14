@@ -1,0 +1,88 @@
+# Documentation mirror for structure/networking.yaml.
+# Filled progressively; build.py tolerates empty docs.
+$defs:
+  ServicePort:
+    description: One Service port mapping.
+    examples:
+      - {name: http, port: 80, targetPort: 8080}
+      - {name: metrics, port: 9090, targetPort: 9090}
+
+  StandaloneServiceSpec:
+    description: |
+      A standalone Service not tied to a chart Deployment. Useful for
+      external endpoints (ExternalName) or routing to pods not managed
+      by this chart (custom selector).
+    examples:
+      - type: ClusterIP
+        ports: [{name: http, port: 80, targetPort: 8080}]
+        selector: {app: external}
+    properties:
+      ports:
+        description: |
+          Service port mappings. At least one entry required. Each entry maps
+          an external port (port) to a target on the backend pod (targetPort —
+          integer or named container port).
+        examples:
+          - - {name: http, port: 80, targetPort: 8080}
+            - {name: metrics, port: 9090, targetPort: 9090}
+      selector:
+        description: |
+          Pod label selector that determines which pods this Service routes to.
+          Omit for headless Services with manually-managed Endpoints, or for
+          type=ExternalName.
+        examples:
+          - {app: external-redis}
+          - {"app.kubernetes.io/name": api, tier: backend}
+      annotations:
+        description: |
+          Annotations on the Service metadata. Common use: cloud-provider load
+          balancer tuning (AWS NLB attributes, GCP load balancer class),
+          ExternalDNS hints, or service-mesh opt-out.
+        examples:
+          - {"service.beta.kubernetes.io/aws-load-balancer-type": nlb}
+          - {"external-dns.alpha.kubernetes.io/hostname": api.example.com}
+      labels:
+        description: |
+          Extra labels on the Service metadata. Standard chart labels are
+          added automatically.
+        examples:
+          - {team: platform}
+
+properties:
+  services:
+    description: |
+      Map of standalone Service resources keyed by logical name. For per-deployment
+      Services, prefer `autoCreateService: true` on a deployment.
+    examples:
+      - external-redis:
+          type: ClusterIP
+          ports: [{name: redis, port: 6379, targetPort: 6379}]
+  ingresses:
+    description: |
+      Map of standalone Ingress resources keyed by logical name. Use this for
+      Ingresses that span multiple services (e.g. one shared external Ingress
+      with paths routing to different deployments).
+    examples:
+      - api-gateway:
+          hosts:
+            - subdomain: api
+              paths:
+                - {path: /v1, pathType: Prefix, service: backend-v1, portName: http}
+                - {path: /v2, pathType: Prefix, service: backend-v2, portName: http}
+    x-agent-when-to-use: |
+      Use when one Ingress must route to multiple backends. For 1-deployment
+      ingresses, prefer autoCreateIngress on the deployment.
+  httpRoutes:
+    description: |
+      Map of standalone HTTPRoute (Gateway API) resources keyed by name.
+    examples:
+      - canary-route:
+          hostnames: [{subdomain: app}]
+          rules:
+            - matches: [{path: {type: PathPrefix, value: /}}]
+              backendRefs:
+                - {name: app-stable, port: 8080, weight: 90}
+                - {name: app-canary, port: 8080, weight: 10}
+    x-agent-when-to-use: |
+      Use for traffic-splitting (canary), header-based routing, or any
+      Gateway API feature not covered by simple Ingress.

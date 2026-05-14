@@ -1,0 +1,12 @@
+deployments:
+  api:
+    containers:
+      main:
+        image: api
+        imageTag: "1.0"
+        ports:
+          http: {containerPort: 8080}
+    autoCreateNetworkPolicy: true
+    networkPolicy:
+      policyTypes: [Ingress]
+      ingress: []

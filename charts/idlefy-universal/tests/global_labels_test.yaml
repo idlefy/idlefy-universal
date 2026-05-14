@@ -1,0 +1,218 @@
+suite: test global labels and annotations
+templates:
+  - deployment.yaml
+  - service.yaml
+  - job.yaml
+  - cronjob.yaml
+tests:
+  - it: should apply global labels to deployment metadata
+    templates:
+      - deployment.yaml
+    set:
+      generic:
+        labels:
+          team: platform
+          environment: production
+        annotations:
+          owner: platform-team
+      deployments:
+        test-app:
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.labels.team
+          value: platform
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.annotations.owner
+          value: platform-team
+
+  - it: should apply global labels to deployment pod template
+    templates:
+      - deployment.yaml
+    set:
+      generic:
+        labels:
+          team: platform
+        annotations:
+          owner: platform-team
+      deployments:
+        test-app:
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: platform
+      - equal:
+          path: spec.template.metadata.annotations.owner
+          value: platform-team
+
+  - it: should allow resource-specific labels to override global
+    templates:
+      - deployment.yaml
+    set:
+      generic:
+        labels:
+          team: platform
+          environment: production
+        annotations:
+          owner: platform-team
+      deployments:
+        test-app:
+          labels:
+            team: backend
+          annotations:
+            owner: backend-team
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+    asserts:
+      - equal:
+          path: metadata.labels.team
+          value: backend
+      - equal:
+          path: metadata.labels.environment
+          value: production
+      - equal:
+          path: metadata.annotations.owner
+          value: backend-team
+
+  - it: should apply deploymentsGeneral labels with correct priority
+    templates:
+      - deployment.yaml
+    set:
+      generic:
+        labels:
+          team: platform
+      deploymentsGeneral:
+        labels:
+          tier: frontend
+      deployments:
+        test-app:
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+    asserts:
+      - equal:
+          path: metadata.labels.team
+          value: platform
+      - equal:
+          path: metadata.labels.tier
+          value: frontend
+
+  - it: should apply global labels to service
+    templates:
+      - service.yaml
+    set:
+      generic:
+        labels:
+          team: platform
+        annotations:
+          owner: platform-team
+      services:
+        test-service:
+          ports:
+            - name: http
+              port: 80
+              targetPort: 8080
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.labels.team
+          value: platform
+      - equal:
+          path: metadata.annotations.owner
+          value: platform-team
+
+  - it: should apply global labels to job
+    templates:
+      - job.yaml
+    set:
+      generic:
+        labels:
+          team: platform
+        annotations:
+          owner: platform-team
+      jobs:
+        test-job:
+          containers:
+            main:
+              image: busybox
+              imageTag: latest
+              command: ["echo", "hello"]
+    asserts:
+      - isKind:
+          of: Job
+      - equal:
+          path: metadata.labels.team
+          value: platform
+      - equal:
+          path: metadata.annotations.owner
+          value: platform-team
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: platform
+
+  - it: should apply global labels to cronjob
+    templates:
+      - cronjob.yaml
+    set:
+      generic:
+        labels:
+          team: platform
+        annotations:
+          owner: platform-team
+      cronJobs:
+        test-cronjob:
+          schedule: "0 * * * *"
+          containers:
+            main:
+              image: busybox
+              imageTag: latest
+              command: ["echo", "hello"]
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: metadata.labels.team
+          value: platform
+      - equal:
+          path: metadata.annotations.owner
+          value: platform-team
+      - equal:
+          path: spec.jobTemplate.metadata.labels.team
+          value: platform
+      - equal:
+          path: spec.jobTemplate.spec.template.metadata.labels.team
+          value: platform
+
+  - it: should not add labels/annotations section when generic is empty
+    templates:
+      - deployment.yaml
+    set:
+      deployments:
+        test-app:
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+    asserts:
+      - isKind:
+          of: Deployment
+      - isNull:
+          path: metadata.annotations

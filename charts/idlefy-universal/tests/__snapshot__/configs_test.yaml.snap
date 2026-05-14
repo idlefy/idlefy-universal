@@ -1,0 +1,8 @@
+should create config maps and secrets:
+  1: |
+    app.properties: |
+      property1=value1
+      property2=value2
+    config.yaml: |
+      key1: value1
+      key2: value2

@@ -1,0 +1,40 @@
+deployments:
+  app:
+    autoCreateService: true
+    containers:
+      main:
+        image: nginx
+        imageTag: latest
+        ports:
+          http:
+            containerPort: 80
+            servicePort: 8080
+        env:
+          # Static variables work as usual
+          - name: STATIC_VAR
+            value: "hello world"
+          
+          # Go template support for dynamic values
+          - name: CURRENT_TIMESTAMP
+            value: '{{ now | unixEpoch }}'
+          
+          - name: RELEASE_NAME
+            value: '{{ .Release.Name }}'
+          
+          - name: CHART_VERSION
+            value: '{{ .Chart.Version }}'
+          
+          # Other Helm functions can be used
+          - name: RELEASE_NAMESPACE
+            value: '{{ .Release.Namespace }}'
+          
+          - name: BUILD_DATE
+            value: '{{ now | date "2006-01-02T15:04:05Z" }}'
+          
+          # Example using values from values.yaml
+          - name: APP_CONFIG
+            value: '{{ .Values.config.appName | default "myapp" }}'
+
+# Configuration variables for use in go templates
+config:
+  appName: "sample-application" 

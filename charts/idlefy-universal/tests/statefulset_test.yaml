@@ -1,0 +1,370 @@
+suite: test statefulset
+templates:
+  - statefulset.yaml
+  - service.yaml
+  - pdb.yaml
+  - servicemonitor.yaml
+  - serviceaccount.yaml
+tests:
+  - it: should render a minimal StatefulSet
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          replicas: 3
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: StatefulSet
+      - equal:
+          path: metadata.name
+          value: cache
+      - equal:
+          path: spec.serviceName
+          value: cache-headless
+      - equal:
+          path: spec.replicas
+          value: 3
+      - equal:
+          path: spec.podManagementPolicy
+          value: OrderedReady
+      - notExists:
+          path: spec.template.spec.restartPolicy
+
+  - it: should render volumeClaimTemplates
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        db:
+          serviceName: db-headless
+          containers:
+            main:
+              image: postgres
+              imageTag: "16.2"
+              ports:
+                pg:
+                  containerPort: 5432
+              volumeMounts:
+                - name: data
+                  mountPath: /var/lib/postgresql/data
+          volumeClaimTemplates:
+            - metadata:
+                name: data
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: 20Gi
+    asserts:
+      - equal:
+          path: spec.volumeClaimTemplates[0].metadata.name
+          value: data
+      - equal:
+          path: spec.volumeClaimTemplates[0].spec.resources.requests.storage
+          value: 20Gi
+
+  - it: should render updateStrategy with partition
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        kafka:
+          serviceName: kafka-headless
+          containers:
+            main:
+              image: kafka
+              imageTag: "3.7"
+              ports:
+                broker:
+                  containerPort: 9092
+          updateStrategy:
+            type: RollingUpdate
+            rollingUpdate:
+              partition: 1
+    asserts:
+      - equal:
+          path: spec.updateStrategy.type
+          value: RollingUpdate
+      - equal:
+          path: spec.updateStrategy.rollingUpdate.partition
+          value: 1
+
+  - it: should preserve explicit minReadySeconds=0
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          minReadySeconds: 0
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+    asserts:
+      - equal:
+          path: spec.minReadySeconds
+          value: 0
+
+  - it: should preserve explicit revisionHistoryLimit=0
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          revisionHistoryLimit: 0
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 0
+
+  - it: should render persistentVolumeClaimRetentionPolicy
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+          persistentVolumeClaimRetentionPolicy:
+            whenDeleted: Delete
+            whenScaled: Retain
+    asserts:
+      - equal:
+          path: spec.persistentVolumeClaimRetentionPolicy.whenDeleted
+          value: Delete
+      - equal:
+          path: spec.persistentVolumeClaimRetentionPolicy.whenScaled
+          value: Retain
+
+  - it: should autoCreate a headless Service for STS
+    templates:
+      - service.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          autoCreateService: true
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: cache-headless
+      - equal:
+          path: spec.clusterIP
+          value: None
+      - equal:
+          path: spec.publishNotReadyAddresses
+          value: true
+      - notExists:
+          path: spec.type
+
+  - it: should autoCreate a PDB for STS
+    templates:
+      - pdb.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          autoCreatePdb: true
+          pdb:
+            minAvailable: 2
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: PodDisruptionBudget
+      - equal:
+          path: metadata.name
+          value: cache
+      - equal:
+          path: spec.minAvailable
+          value: 2
+
+  - it: should autoCreate a ServiceMonitor for STS
+    templates:
+      - servicemonitor.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          autoCreateServiceMonitor: true
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                http-metrics:
+                  containerPort: 9090
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: ServiceMonitor
+      - equal:
+          path: metadata.name
+          value: cache
+
+  - it: should autoCreate a ServiceAccount for STS
+    templates:
+      - serviceaccount.yaml
+    set:
+      statefulSets:
+        cache:
+          serviceName: cache-headless
+          autoCreateServiceAccount: true
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: kind
+          value: ServiceAccount
+      - equal:
+          path: metadata.name
+          value: cache
+
+  - it: should fail when autoCreateService=true but serviceName is missing
+    # NOTE: values.schema.json requires statefulSets.<name>.serviceName unconditionally,
+    # so this scenario is rejected at schema validation before the template-level
+    # validateStatefulSet fires. The validation in _validation.tpl remains as
+    # defense-in-depth in case the schema is ever relaxed.
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        broken:
+          autoCreateService: true
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+    asserts:
+      - failedTemplate: {}
+
+  - it: should fail when autoCreateService=true but no container ports defined
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        broken:
+          serviceName: broken-headless
+          autoCreateService: true
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+    asserts:
+      - failedTemplate:
+          errorMessage: "StatefulSet broken: autoCreateService=true requires at least one container port"
+
+  - it: should fail when volumeClaimTemplates entry is missing metadata.name
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        broken:
+          serviceName: broken-headless
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+          volumes:
+            - name: data
+              emptyDir: {}
+          volumeClaimTemplates:
+            - spec:
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: 1Gi
+    asserts:
+      - failedTemplate:
+          errorMessage: "StatefulSet broken: volumeClaimTemplates entry is missing metadata.name (required by Kubernetes)"
+
+  - it: should fail when volumeClaimTemplates name collides with volumes name
+    templates:
+      - statefulset.yaml
+    set:
+      statefulSets:
+        broken:
+          serviceName: broken-headless
+          containers:
+            main:
+              image: redis
+              imageTag: "7.2"
+              ports:
+                redis:
+                  containerPort: 6379
+          volumes:
+            - name: data
+              emptyDir: {}
+          volumeClaimTemplates:
+            - metadata:
+                name: data
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: 1Gi
+    asserts:
+      - failedTemplate:
+          errorMessage: "StatefulSet broken: volumeClaimTemplates name 'data' collides with volumes name"

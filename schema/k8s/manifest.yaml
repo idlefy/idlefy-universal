@@ -1,0 +1,70 @@
+upstream:
+  source: https://github.com/yannh/kubernetes-json-schema
+  ref: 73ff6857b621480320a0ac5bdb01f6baa6a9d01d
+  k8s_version: v1.35.0
+  fetched_at: "2026-05-12"
+
+# Explicitly listed types. Transitive $ref closure is computed by the
+# extractor. Owned $defs (HostAlias, EnvVar, VolumeMount,
+# ResourceRequirements, ProbeSpec) are NOT vendored — see design spec.
+types:
+  # core/v1 — affinity & scheduling
+  - {upstream: io.k8s.api.core.v1.Affinity,                       local: k8s.io.api.core.v1.Affinity}
+  - {upstream: io.k8s.api.core.v1.NodeAffinity,                   local: k8s.io.api.core.v1.NodeAffinity}
+  - {upstream: io.k8s.api.core.v1.NodeSelector,                   local: k8s.io.api.core.v1.NodeSelector}
+  - {upstream: io.k8s.api.core.v1.NodeSelectorTerm,               local: k8s.io.api.core.v1.NodeSelectorTerm}
+  - {upstream: io.k8s.api.core.v1.NodeSelectorRequirement,        local: k8s.io.api.core.v1.NodeSelectorRequirement}
+  - {upstream: io.k8s.api.core.v1.PreferredSchedulingTerm,        local: k8s.io.api.core.v1.PreferredSchedulingTerm}
+  - {upstream: io.k8s.api.core.v1.PodAffinity,                    local: k8s.io.api.core.v1.PodAffinity}
+  - {upstream: io.k8s.api.core.v1.PodAntiAffinity,                local: k8s.io.api.core.v1.PodAntiAffinity}
+  - {upstream: io.k8s.api.core.v1.PodAffinityTerm,                local: k8s.io.api.core.v1.PodAffinityTerm}
+  - {upstream: io.k8s.api.core.v1.WeightedPodAffinityTerm,        local: k8s.io.api.core.v1.WeightedPodAffinityTerm}
+  - {upstream: io.k8s.api.core.v1.Toleration,                     local: k8s.io.api.core.v1.Toleration}
+  - {upstream: io.k8s.api.core.v1.TopologySpreadConstraint,       local: k8s.io.api.core.v1.TopologySpreadConstraint}
+
+  # core/v1 — volumes (Volume + every inline source variant)
+  - {upstream: io.k8s.api.core.v1.Volume,                         local: k8s.io.api.core.v1.Volume}
+
+  # core/v1 — security
+  - {upstream: io.k8s.api.core.v1.PodSecurityContext,             local: k8s.io.api.core.v1.PodSecurityContext}
+  - {upstream: io.k8s.api.core.v1.SecurityContext,                local: k8s.io.api.core.v1.SecurityContext}
+
+  # core/v1 — lifecycle
+  - {upstream: io.k8s.api.core.v1.Lifecycle,                      local: k8s.io.api.core.v1.Lifecycle}
+
+  # core/v1 — DNS
+  - {upstream: io.k8s.api.core.v1.PodDNSConfig,                   local: k8s.io.api.core.v1.PodDNSConfig}
+
+  # core/v1 — key selectors used in env value-from
+  - {upstream: io.k8s.api.core.v1.ConfigMapKeySelector,           local: k8s.io.api.core.v1.ConfigMapKeySelector}
+  - {upstream: io.k8s.api.core.v1.SecretKeySelector,              local: k8s.io.api.core.v1.SecretKeySelector}
+  - {upstream: io.k8s.api.core.v1.ObjectFieldSelector,            local: k8s.io.api.core.v1.ObjectFieldSelector}
+  - {upstream: io.k8s.api.core.v1.ResourceFieldSelector,          local: k8s.io.api.core.v1.ResourceFieldSelector}
+
+  # apps/v1 — strategy
+  - {upstream: io.k8s.api.apps.v1.DeploymentStrategy,             local: k8s.io.api.apps.v1.DeploymentStrategy}
+  - {upstream: io.k8s.api.apps.v1.RollingUpdateDeployment,        local: k8s.io.api.apps.v1.RollingUpdateDeployment}
+
+  # autoscaling/v2 — HPA metrics & behavior
+  - {upstream: io.k8s.api.autoscaling.v2.MetricSpec,              local: k8s.io.api.autoscaling.v2.MetricSpec}
+  - {upstream: io.k8s.api.autoscaling.v2.MetricTarget,            local: k8s.io.api.autoscaling.v2.MetricTarget}
+  - {upstream: io.k8s.api.autoscaling.v2.MetricIdentifier,        local: k8s.io.api.autoscaling.v2.MetricIdentifier}
+  - {upstream: io.k8s.api.autoscaling.v2.ResourceMetricSource,    local: k8s.io.api.autoscaling.v2.ResourceMetricSource}
+  - {upstream: io.k8s.api.autoscaling.v2.ContainerResourceMetricSource, local: k8s.io.api.autoscaling.v2.ContainerResourceMetricSource}
+  - {upstream: io.k8s.api.autoscaling.v2.PodsMetricSource,        local: k8s.io.api.autoscaling.v2.PodsMetricSource}
+  - {upstream: io.k8s.api.autoscaling.v2.ObjectMetricSource,      local: k8s.io.api.autoscaling.v2.ObjectMetricSource}
+  - {upstream: io.k8s.api.autoscaling.v2.ExternalMetricSource,    local: k8s.io.api.autoscaling.v2.ExternalMetricSource}
+  - {upstream: io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior, local: k8s.io.api.autoscaling.v2.HorizontalPodAutoscalerBehavior}
+  - {upstream: io.k8s.api.autoscaling.v2.HPAScalingRules,         local: k8s.io.api.autoscaling.v2.HPAScalingRules}
+  - {upstream: io.k8s.api.autoscaling.v2.HPAScalingPolicy,        local: k8s.io.api.autoscaling.v2.HPAScalingPolicy}
+
+  # networking/v1 — NetworkPolicy
+  - {upstream: io.k8s.api.networking.v1.NetworkPolicySpec,         local: k8s.io.api.networking.v1.NetworkPolicySpec}
+  - {upstream: io.k8s.api.networking.v1.NetworkPolicyIngressRule,  local: k8s.io.api.networking.v1.NetworkPolicyIngressRule}
+  - {upstream: io.k8s.api.networking.v1.NetworkPolicyEgressRule,   local: k8s.io.api.networking.v1.NetworkPolicyEgressRule}
+  - {upstream: io.k8s.api.networking.v1.NetworkPolicyPeer,         local: k8s.io.api.networking.v1.NetworkPolicyPeer}
+  - {upstream: io.k8s.api.networking.v1.NetworkPolicyPort,         local: k8s.io.api.networking.v1.NetworkPolicyPort}
+  - {upstream: io.k8s.api.networking.v1.IPBlock,                   local: k8s.io.api.networking.v1.IPBlock}
+
+  # rbac/v1 — namespaced primitives
+  - {upstream: io.k8s.api.rbac.v1.PolicyRule,                      local: k8s.io.api.rbac.v1.PolicyRule}

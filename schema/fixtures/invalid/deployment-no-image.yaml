@@ -1,0 +1,6 @@
+# expected_error: image
+deployments:
+  app:
+    containers:
+      main:
+        imageTag: v1.0.0

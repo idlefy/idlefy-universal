@@ -1,0 +1,48 @@
+suite: test env gotemplate support
+templates:
+  - deployment.yaml
+tests:
+  - it: should render env variables with gotemplate support
+    set:
+      deployments:
+        test-app:
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+              env:
+                - name: CURRENT_TIME
+                  value: '{{ now | unixEpoch }}'
+                - name: RELEASE_NAME
+                  value: '{{ .Release.Name }}'
+                - name: CHART_VERSION
+                  value: '{{ .Chart.Version }}'
+                - name: STATIC_VALUE
+                  value: "just a static string"
+    asserts:
+      - isKind:
+          of: Deployment
+      - exists:
+          path: spec.template.spec.containers[0].env
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: CURRENT_TIME
+      - isNotEmpty:
+          path: spec.template.spec.containers[0].env[0].value
+      - equal:
+          path: spec.template.spec.containers[0].env[1].name
+          value: RELEASE_NAME
+      - equal:
+          path: spec.template.spec.containers[0].env[1].value
+          value: RELEASE-NAME
+      - equal:
+          path: spec.template.spec.containers[0].env[2].name
+          value: CHART_VERSION
+      - isNotEmpty:
+          path: spec.template.spec.containers[0].env[2].value
+      - equal:
+          path: spec.template.spec.containers[0].env[3].name
+          value: STATIC_VALUE
+      - equal:
+          path: spec.template.spec.containers[0].env[3].value
+          value: "just a static string" 

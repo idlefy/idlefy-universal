@@ -1,0 +1,17 @@
+deploymentsGeneral:
+  securityContext: {runAsNonRoot: true, runAsUser: 1000}
+  autoCreateSoftAntiAffinity: true
+
+generic:
+  extraImagePullSecrets:
+    - {name: registry-secret}
+  ingressesGeneral:
+    domain: example.com
+    ingressClassName: nginx
+  serviceMonitorGeneral:
+    labels: {prometheus: kube-prometheus}
+    interval: 30s
+
+secretRefs:
+  shared:
+    - {name: API_KEY, secretKeyRef: {name: app, key: api}}

@@ -1,0 +1,67 @@
+{{- /* Standalone ingresses */ -}}
+{{- if .Values.ingresses }}
+{{- range $ingressName, $ingressConfig := .Values.ingresses }}
+{{- $defaultedIngress := include "idlefy-universal.ingressDefaults" (dict "ingress" $ingressConfig "general" $.Values.generic.ingressesGeneral) | fromYaml }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $ingressName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $ingressName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $ingressConfig.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedIngress.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $defaultedIngress.ingressClassName }}
+  ingressClassName: {{ $defaultedIngress.ingressClassName }}
+  {{- end }}
+  {{- with $defaultedIngress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+  {{- $globalDomain := "" }}
+  {{- if and $.Values.generic $.Values.generic.ingressesGeneral }}
+    {{- $globalDomain = $.Values.generic.ingressesGeneral.domain | default "" | trim }}
+  {{- end }}
+  {{- range $defaultedIngress.hosts }}
+    - host: {{ include "idlefy-universal.computedIngressHost" (dict "host" .host "subdomain" .subdomain "globalDomain" $globalDomain) | trim }}
+      http:
+        paths:
+        {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                {{- if .service }}
+                name: {{ .service }}
+                {{- else }}
+                name: {{ $ingressName }}
+                {{- end }}
+                port:
+                  {{- if .port }}
+                  number: {{ .port }}
+                  {{- else if .portName }}
+                  name: {{ .portName }}
+                  {{- else }}
+                  name: http
+                  {{- end }}
+        {{- end }}
+  {{- end }}
+---
+{{- end }}
+{{- end }}
+
+{{- /* Auto-created ingresses from deployments */ -}}
+{{- range $deploymentName, $deploymentConfig := .Values.deployments }}
+{{- if $deploymentConfig.autoCreateIngress }}
+{{- include "idlefy-universal.autoIngress" (dict "deploymentName" $deploymentName "deploymentConfig" $deploymentConfig "root" $) }}
+---
+{{- end }}
+{{- end }}

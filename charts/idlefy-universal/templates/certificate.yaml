@@ -1,0 +1,6 @@
+{{- range $deploymentName, $deploymentConfig := .Values.deployments }}
+{{- if $deploymentConfig.autoCreateCertificate }}
+{{- include "idlefy-universal.autoCertificate" (dict "deploymentName" $deploymentName "deploymentConfig" $deploymentConfig "root" $) }}
+---
+{{- end }}
+{{- end }}

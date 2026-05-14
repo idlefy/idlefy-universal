@@ -1,0 +1,6 @@
+deployments:
+  app:
+    containers:
+      main:
+        image: my-app
+        imageTag: v1.0.0

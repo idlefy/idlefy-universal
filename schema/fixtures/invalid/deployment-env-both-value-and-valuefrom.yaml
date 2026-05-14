@@ -1,0 +1,12 @@
+# expected_error: is valid under each of
+deployments:
+  app:
+    containers:
+      main:
+        image: my-app
+        imageTag: v1.0.0
+        env:
+          - name: BAD
+            value: literal
+            valueFrom:
+              secretKeyRef: {name: s, key: k}

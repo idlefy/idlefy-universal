@@ -1,0 +1,18 @@
+{{- range $deploymentName, $deploymentConfig := .Values.deployments }}
+{{- if $deploymentConfig.autoCreateServiceMonitor }}
+{{- include "idlefy-universal.serviceMonitor" (dict "deploymentName" $deploymentName "deploymentConfig" $deploymentConfig "root" $) }}
+---
+{{- end }}
+{{- end }}
+{{- range $stsName, $stsConfig := .Values.statefulSets }}
+{{- if $stsConfig.autoCreateServiceMonitor }}
+{{- include "idlefy-universal.serviceMonitor" (dict "deploymentName" $stsName "deploymentConfig" $stsConfig "root" $) }}
+---
+{{- end }}
+{{- end }}
+{{- range $dsName, $dsConfig := .Values.daemonSets }}
+{{- if $dsConfig.autoCreateServiceMonitor }}
+{{- include "idlefy-universal.serviceMonitor" (dict "deploymentName" $dsName "deploymentConfig" $dsConfig "root" $) }}
+---
+{{- end }}
+{{- end }}

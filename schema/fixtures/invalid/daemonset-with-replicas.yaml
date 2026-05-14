@@ -1,0 +1,12 @@
+# Expected to fail: replicas is not allowed on DaemonSetSpec.
+# expected_error: replicas
+daemonSets:
+  broken:
+    replicas: 3
+    containers:
+      main:
+        image: agent
+        imageTag: "1.0"
+        ports:
+          http:
+            containerPort: 8080

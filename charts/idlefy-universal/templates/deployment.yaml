@@ -1,0 +1,48 @@
+{{- include "idlefy-universal.validate" . -}}
+{{- if .Values.deployments }}
+{{- range $deploymentName, $deploymentConfig := .Values.deployments }}
+{{- $defaultedConfig := include "idlefy-universal.deploymentDefaults" (dict "deployment" $deploymentConfig "general" $.Values.deploymentsGeneral) | fromYaml }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $deploymentName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $deploymentName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if and (not $deploymentConfig.hpa) (hasKey $defaultedConfig "replicas") }}
+  replicas: {{ $defaultedConfig.replicas }}
+  {{- end }}
+  {{- if $defaultedConfig.strategy }}
+  strategy:
+    {{- toYaml $defaultedConfig.strategy | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "idlefy-universal.componentLabels" (dict "name" $deploymentName "root" $) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $deploymentName) | nindent 8 }}
+        {{- $podExtraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+        {{- if $podExtraLabels }}
+        {{- $podExtraLabels | nindent 8 }}
+        {{- end }}
+      {{- $podMergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.podAnnotations) }}
+      {{- if $podMergedAnnotations }}
+      annotations:
+        {{- $podMergedAnnotations | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "idlefy-universal.podSpec" (dict "config" $defaultedConfig "resourceConfig" $deploymentConfig "kind" "Deployment" "Root" $ "name" $deploymentName "general" $.Values.deploymentsGeneral) | nindent 6 }}
+---
+{{- end }}
+{{- end }}

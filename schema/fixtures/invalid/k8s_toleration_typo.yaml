@@ -1,0 +1,15 @@
+# expected_error: Additional properties are not allowed
+deployments:
+  app:
+    containers:
+      web:
+        image: nginx
+        imageTag: "1.27"
+        ports:
+          http: {containerPort: 80}
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: gpu
+        effect: NoSchedule
+        tolerationSecondsX: 300   # typo — additional property must fail

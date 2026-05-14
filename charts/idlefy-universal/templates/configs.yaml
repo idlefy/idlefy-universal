@@ -1,0 +1,38 @@
+{{- include "idlefy-universal.validate" . -}}
+{{- range $name, $config := .Values.configs }}
+apiVersion: v1
+kind: {{ if eq $config.type "secret" }}Secret{{ else }}ConfigMap{{ end }}
+metadata:
+  name: {{ include "idlefy-universal.configName" (dict "root" $ "name" $name) }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $name) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $config.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+    {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $config.annotations) }}
+    {{- if $mergedAnnotations }}
+    {{- $mergedAnnotations | nindent 4 }}
+    {{- end }}
+{{- if eq $config.type "secret" }}
+type: Opaque
+data:
+  {{- range $key, $value := $config.data }}
+  {{ $key }}: {{ $value | b64enc }}
+  {{- end }}
+{{- else }}
+data:
+  {{- range $key, $value := $config.data }}
+  {{- if contains "\n" ($value | toString) }}
+  {{ $key }}: |
+{{- $value | nindent 4 }}
+  {{- else }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}
+---
+{{- end }}

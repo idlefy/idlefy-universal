@@ -1,0 +1,7 @@
+hpas:
+  external-api-hpa:
+    scaleTargetRef: {kind: Deployment, name: external-api}
+    maxReplicas: 5
+    metrics:
+      - type: Resource
+        resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}

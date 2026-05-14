@@ -1,0 +1,19 @@
+suite: test configs
+templates:
+  - configs.yaml
+tests:
+  - it: should create config maps and secrets
+    set:
+      configs:
+        test-config:
+          type: configMap
+          data:
+            config.yaml: |
+              key1: value1
+              key2: value2
+            app.properties: |
+              property1=value1
+              property2=value2
+    asserts:
+      - matchSnapshot:
+          path: data 

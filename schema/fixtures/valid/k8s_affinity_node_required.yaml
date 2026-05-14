@@ -1,0 +1,14 @@
+deployments:
+  app:
+    containers:
+      web:
+        image: nginx
+        imageTag: "1.27"
+        ports:
+          http: {containerPort: 80}
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - {key: node-type, operator: In, values: [memory-optimized, compute-optimized]}

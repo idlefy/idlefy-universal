@@ -1,0 +1,77 @@
+name: schema
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "schema/**"
+      - "charts/idlefy-universal/values.schema.json"
+      - "charts/idlefy-universal/agent-index.json"
+      - "docs/values-reference.md"
+      - ".github/workflows/schema.yaml"
+  pull_request:
+    paths:
+      - "schema/**"
+      - "charts/idlefy-universal/values.schema.json"
+      - "charts/idlefy-universal/agent-index.json"
+      - "docs/values-reference.md"
+      - ".github/workflows/schema.yaml"
+
+jobs:
+  schema-source-of-truth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Python deps
+        run: pip install -r schema/requirements.txt pytest
+
+      - name: Lint schema sources
+        run: python -m schema.build lint
+
+      - name: Build schema (to temp)
+        run: python -m schema.build build --output /tmp/built.schema.json
+
+      - name: Check committed schema matches build output
+        run: |
+          python - <<'PY'
+          import json, sys, difflib
+          a = json.load(open("charts/idlefy-universal/values.schema.json"))
+          b = json.load(open("/tmp/built.schema.json"))
+          if a != b:
+              ta = json.dumps(a, indent=2, sort_keys=True).splitlines()
+              tb = json.dumps(b, indent=2, sort_keys=True).splitlines()
+              sys.stdout.write("\n".join(difflib.unified_diff(
+                  ta, tb,
+                  fromfile="charts/idlefy-universal/values.schema.json (committed)",
+                  tofile="/tmp/built.schema.json (rebuilt)",
+              )))
+              sys.exit("\nERROR: committed schema differs from rebuild. "
+                       "Run 'python -m schema.build build' and commit.")
+          PY
+
+      - name: Render docs (to temp)
+        run: python -m schema.build render-docs --output /tmp/values-reference.md
+
+      - name: Check committed docs match render output
+        run: |
+          diff -u docs/values-reference.md /tmp/values-reference.md \
+            || (echo "ERROR: docs/values-reference.md is stale. Run 'python -m schema.build render-docs' and commit." && exit 1)
+
+      - name: Build agent-index (to temp)
+        run: python -m schema.build agent-index --output /tmp/agent-index.json
+
+      - name: Check committed agent-index matches build output
+        run: |
+          diff -u charts/idlefy-universal/agent-index.json /tmp/agent-index.json \
+            || (echo "ERROR: charts/idlefy-universal/agent-index.json is stale. Run 'python -m schema.build agent-index' and commit." && exit 1)
+
+      - name: Validate fixtures
+        run: python -m schema.build validate-fixtures
+
+      - name: Run build tool tests
+        run: python -m pytest schema/tests/ -v

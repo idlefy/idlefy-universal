@@ -1,0 +1,5 @@
+# expected_error: schedule
+cronJobs:
+  bad:
+    containers:
+      main: {image: x, imageTag: v1}

@@ -1,0 +1,58 @@
+should create a service monitor when autoCreateServiceMonitor is enabled:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/component: test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: test-app
+        helm.sh/chart: idlefy-universal-test-version
+      name: test-app
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: test-app
+          app.kubernetes.io/instance: RELEASE-NAME
+          app.kubernetes.io/name: test-app
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: test-app
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: test-app
+            helm.sh/chart: idlefy-universal-test-version
+        spec:
+          containers:
+            - image: nginx:latest
+              name: main
+              ports:
+                - containerPort: 80
+                  name: http
+                  protocol: TCP
+                - containerPort: 8080
+                  name: http-metrics
+                  protocol: TCP
+  2: |
+    apiVersion: monitoring.coreos.com/v1
+    kind: ServiceMonitor
+    metadata:
+      labels:
+        app.kubernetes.io/component: test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: test-app
+        helm.sh/chart: idlefy-universal-test-version
+      name: test-app
+    spec:
+      endpoints:
+        - interval: 15s
+          path: /metrics
+          port: http-metrics
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: test-app
+          app.kubernetes.io/instance: RELEASE-NAME
+          app.kubernetes.io/name: test-app

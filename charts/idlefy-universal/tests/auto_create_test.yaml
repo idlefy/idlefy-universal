@@ -1,0 +1,49 @@
+suite: test auto create features
+templates:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - servicemonitor.yaml
+  - pdb.yaml
+  - serviceaccount.yaml
+tests:
+  - it: should create auto-created resources without certificate
+    set:
+      generic:
+        ingressesGeneral:
+          domain: "example.org"
+          ingressClassName: "nginx"
+      deployments:
+        test-app:
+          replicas: 2
+          autoCreateService: true
+          autoCreateIngress: true
+          autoCreateServiceMonitor: true
+          autoCreatePdb: true
+          autoCreateServiceAccount: true
+          autoCreateSoftAntiAffinity: true
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+              ports:
+                http:
+                  containerPort: 80
+                http-metrics:
+                  containerPort: 8080
+          ingress:
+            hosts:
+              - subdomain: "test"
+                paths:
+                  - path: "/"
+                    pathType: "Prefix"
+          serviceMonitor:
+            interval: "15s"
+            path: "/metrics"
+          pdb:
+            maxUnavailable: 1
+          serviceAccount:
+            annotations:
+              example.com/role: "webserver"
+    asserts:
+      - matchSnapshot: {} 

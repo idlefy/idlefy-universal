@@ -1,0 +1,13 @@
+should create a cron job with specified configuration:
+  1: |
+    containers:
+      - command:
+          - /bin/sh
+          - -c
+          - backup.sh
+        env:
+          - name: BACKUP_DIR
+            value: /backup
+        image: backup-tool:1.0.0
+        name: backup
+    restartPolicy: Never

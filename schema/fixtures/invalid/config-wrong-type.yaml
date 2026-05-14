@@ -1,0 +1,5 @@
+# expected_error: is not one of
+configs:
+  bad:
+    type: configmap
+    data: {x: y}

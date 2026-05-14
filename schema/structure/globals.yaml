@@ -1,0 +1,145 @@
+properties:
+  deploymentsGeneral:
+    $ref: "#/$defs/DeploymentDefaultsSpec"
+  statefulSetsGeneral:
+    type: object
+    additionalProperties: false
+    properties:
+      nodeSelector:
+        type: object
+        additionalProperties: true
+      tolerations:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Toleration"}
+      affinity: {$ref: "#/$defs/k8s.io.api.core.v1.Affinity"}
+      autoCreateSoftAntiAffinity:
+        type: boolean
+        default: false
+      securityContext: {$ref: "#/$defs/k8s.io.api.core.v1.PodSecurityContext"}
+      priorityClassName:
+        type: string
+      probes:
+        type: object
+        additionalProperties: false
+        properties:
+          livenessProbe: {$ref: "#/$defs/ProbeSpec"}
+          readinessProbe: {$ref: "#/$defs/ProbeSpec"}
+          startupProbe: {$ref: "#/$defs/ProbeSpec"}
+      networkPolicy:
+        $ref: "#/$defs/NetworkPolicySpec"
+  daemonSetsGeneral:
+    type: object
+    additionalProperties: false
+    properties:
+      nodeSelector:
+        type: object
+        additionalProperties: true
+      tolerations:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Toleration"}
+      affinity: {$ref: "#/$defs/k8s.io.api.core.v1.Affinity"}
+      securityContext: {$ref: "#/$defs/k8s.io.api.core.v1.PodSecurityContext"}
+      priorityClassName:
+        type: string
+      probes:
+        type: object
+        additionalProperties: false
+        properties:
+          livenessProbe: {$ref: "#/$defs/ProbeSpec"}
+          readinessProbe: {$ref: "#/$defs/ProbeSpec"}
+          startupProbe: {$ref: "#/$defs/ProbeSpec"}
+      networkPolicy:
+        $ref: "#/$defs/NetworkPolicySpec"
+  generic:
+    type: object
+    additionalProperties: false
+    properties:
+      extraImagePullSecrets:
+        type: array
+        items: {$ref: "#/$defs/ImagePullSecret"}
+      serviceAccountName:
+        type: string
+      ingressesGeneral: {$ref: "#/$defs/IngressesGeneralConfig"}
+      httpRoutesGeneral: {$ref: "#/$defs/HttpRoutesGeneralConfig"}
+      serviceMonitorGeneral: {$ref: "#/$defs/ServiceMonitorGeneralConfig"}
+      labels:
+        type: object
+        additionalProperties: true
+      annotations:
+        type: object
+        additionalProperties: true
+
+$defs:
+  DeploymentDefaultsSpec:
+    type: object
+    additionalProperties: false
+    properties:
+      replicas: {type: integer, minimum: 0}
+      namespace: {type: string}
+      containers:
+        type: object
+        additionalProperties:
+          $ref: "#/$defs/ContainerSpec"
+      strategy: {$ref: "#/$defs/StrategySpec"}
+      priorityClassName: {type: string}
+      serviceAccountName: {type: string}
+      nodeSelector: {type: object, additionalProperties: true}
+      tolerations:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Toleration"}
+      affinity: {$ref: "#/$defs/k8s.io.api.core.v1.Affinity"}
+      annotations: {type: object, additionalProperties: true}
+      labels: {type: object, additionalProperties: true}
+      podAnnotations: {type: object, additionalProperties: true}
+      podLabels: {type: object, additionalProperties: true}
+      securityContext: {$ref: "#/$defs/k8s.io.api.core.v1.PodSecurityContext"}
+      volumes:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Volume"}
+      initContainers:
+        type: object
+        additionalProperties:
+          $ref: "#/$defs/ContainerSpec"
+      hostAliases:
+        type: array
+        items: {$ref: "#/$defs/HostAlias"}
+      dnsConfig: {$ref: "#/$defs/k8s.io.api.core.v1.PodDNSConfig"}
+      terminationGracePeriodSeconds: {type: integer, minimum: 0}
+      topologySpreadConstraints:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.TopologySpreadConstraint"}
+      autoCreateService: {type: boolean}
+      autoCreateIngress: {type: boolean}
+      autoCreateHttpRoute: {type: boolean}
+      autoCreateCertificate: {type: boolean}
+      autoCreateServiceMonitor: {type: boolean}
+      autoCreatePdb: {type: boolean}
+      autoCreateServiceAccount: {type: boolean}
+      autoCreateSoftAntiAffinity: {type: boolean}
+      autoCreateNetworkPolicy: {type: boolean}
+      networkPolicy: {$ref: "#/$defs/NetworkPolicySpec"}
+      serviceType: {type: string, enum: [ClusterIP, NodePort, LoadBalancer]}
+      ingress: {$ref: "#/$defs/IngressConfig"}
+      httpRoute: {$ref: "#/$defs/HttpRouteConfig"}
+      certificate: {$ref: "#/$defs/CertificateConfig"}
+      serviceMonitor: {$ref: "#/$defs/ServiceMonitorConfig"}
+      pdb: {$ref: "#/$defs/PdbConfig"}
+      serviceAccount: {$ref: "#/$defs/ServiceAccountConfig"}
+      hpa: {$ref: "#/$defs/HpaInlineConfig"}
+      migrations: {$ref: "#/$defs/MigrationsConfig"}
+      probes:
+        type: object
+        additionalProperties: false
+        properties:
+          livenessProbe: {$ref: "#/$defs/ProbeSpec"}
+          readinessProbe: {$ref: "#/$defs/ProbeSpec"}
+          startupProbe: {$ref: "#/$defs/ProbeSpec"}
+    allOf:
+      - if:
+          properties:
+            autoCreateCertificate: {const: true}
+          required: [autoCreateCertificate]
+        then:
+          properties:
+            autoCreateIngress: {const: true}
+          required: [autoCreateIngress]

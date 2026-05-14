@@ -1,0 +1,101 @@
+should render a complete example web application:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/component: web-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: web-app
+        helm.sh/chart: idlefy-universal-test-version
+      name: web-app
+    spec:
+      replicas: 2
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: web-app
+          app.kubernetes.io/instance: RELEASE-NAME
+          app.kubernetes.io/name: web-app
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: web-app
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: web-app
+            helm.sh/chart: idlefy-universal-test-version
+        spec:
+          containers:
+            - image: nginx:1.21
+              livenessProbe:
+                httpGet:
+                  path: /health
+                  port: http
+                initialDelaySeconds: 10
+                periodSeconds: 30
+              name: main
+              ports:
+                - containerPort: 80
+                  name: http
+                  protocol: TCP
+              readinessProbe:
+                httpGet:
+                  path: /ready
+                  port: http
+                initialDelaySeconds: 5
+                periodSeconds: 10
+              resources:
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+  2: |
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      annotations:
+        nginx.ingress.kubernetes.io/proxy-body-size: 10m
+      labels:
+        app.kubernetes.io/component: web-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: web-app
+        helm.sh/chart: idlefy-universal-test-version
+      name: web-app
+    spec:
+      rules:
+        - host: myapp.example.com
+          http:
+            paths:
+              - backend:
+                  service:
+                    name: web-app
+                    port:
+                      name: http
+                path: /
+                pathType: Prefix
+  3: |
+    apiVersion: v1
+    kind: Service
+    metadata:
+      labels:
+        app.kubernetes.io/component: web-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: web-app
+        helm.sh/chart: idlefy-universal-test-version
+      name: web-app
+    spec:
+      ports:
+        - name: http
+          port: 80
+          protocol: TCP
+          targetPort: 80
+      selector:
+        app.kubernetes.io/component: web-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/name: web-app
+      type: ClusterIP

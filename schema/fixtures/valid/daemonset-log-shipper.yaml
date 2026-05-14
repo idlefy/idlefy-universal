@@ -1,0 +1,28 @@
+daemonSets:
+  log-shipper:
+    hostNetwork: true
+    autoCreateServiceMonitor: true
+    autoCreatePdb: true
+    pdb:
+      maxUnavailable: 1
+    tolerations:
+      - operator: Exists
+    updateStrategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxUnavailable: "10%"
+    containers:
+      main:
+        image: fluent/fluent-bit
+        imageTag: "3.0"
+        ports:
+          http-metrics:
+            containerPort: 2020
+        volumeMounts:
+          - name: varlog
+            mountPath: /var/log
+            readOnly: true
+    volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log

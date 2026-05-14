@@ -1,0 +1,37 @@
+suite: test certificate
+templates:
+  - deployment.yaml
+  - certificate.yaml
+tests:
+  - it: should create a certificate when autoCreateCertificate is enabled
+    set:
+      generic:
+        ingressesGeneral:
+          domain: "example.org"
+      deployments:
+        test-app:
+          replicas: 1
+          autoCreateCertificate: true
+          autoCreateIngress: true
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+              ports:
+                http:
+                  containerPort: 80
+          ingress:
+            hosts:
+              - subdomain: "test"
+                paths:
+                  - path: "/"
+                    pathType: "Prefix"
+              - host: "example.com"
+                paths:
+                  - path: "/"
+                    pathType: "Prefix"
+          certificate:
+            clusterIssuer: "letsencrypt-prod"
+    asserts:
+      - matchSnapshot:
+          path: spec 

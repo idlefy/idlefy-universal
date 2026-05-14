@@ -1,0 +1,1093 @@
+$defs:
+  PortSpec:
+    description: |
+      A container port exposed to the pod (and optionally to a Service).
+      The port name is the map key in containers.*.ports.
+    examples:
+      - http:
+          containerPort: 8080
+          servicePort: 80
+          protocol: TCP
+    x-agent-when-to-use: |
+      Use any time the container listens on a TCP/UDP port. Setting
+      servicePort here saves repeating the port when autoCreateService
+      is enabled.
+    properties:
+      containerPort:
+        description: TCP/UDP port the container listens on inside the pod.
+        examples: [8080, 9090]
+      servicePort:
+        description: |
+          External port for the auto-created Service. Defaults to containerPort
+          when omitted.
+        examples: [80, 443]
+      protocol:
+        description: IP protocol for this port.
+        examples: [TCP, UDP]
+
+  EnvVar:
+    description: |
+      A single environment variable. Provide exactly one of 'value'
+      or 'valueFrom'.
+    examples:
+      - name: LOG_LEVEL
+        value: info
+      - name: DB_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: db-credentials
+            key: password
+    x-agent-when-to-use: |
+      Use for per-container env vars. For groups of variables shared
+      across services, prefer secretRefs at the chart level.
+    x-agent-common-mistakes:
+      - "Providing both 'value' and 'valueFrom' — only one is allowed."
+      - "Using a name that does not match POSIX env var regex."
+    properties:
+      valueFrom:
+        description: |
+          Source the env var from another Kubernetes object. Provide exactly
+          one of secretKeyRef, configMapKeyRef, or fieldRef.
+        examples:
+          - secretKeyRef: {name: db-credentials, key: password}
+          - configMapKeyRef: {name: app-config, key: log_level}
+          - fieldRef: {fieldPath: metadata.name}
+        properties:
+          configMapKeyRef:
+            description: |
+              Reference a single key in an existing ConfigMap. The ConfigMap
+              must exist in the same namespace as the pod at runtime.
+            examples:
+              - {name: app-config, key: log_level}
+              - {name: feature-flags, key: enable_v2, optional: true}
+          fieldRef:
+            description: |
+              Pull a value from the pod's own object metadata (downward API):
+              metadata.name, metadata.namespace, status.podIP, spec.nodeName, etc.
+            examples:
+              - {fieldPath: metadata.name}
+              - {fieldPath: status.podIP}
+
+  EnvFrom:
+    description: |
+      Pulls every key from a ConfigMap or Secret as environment variables.
+    examples:
+      - type: configMap
+        configName: app-config
+    x-agent-when-to-use: Use to load all keys from a ConfigMap/Secret at once.
+
+  ResourceRequirements:
+    description: |
+      Standard Kubernetes resource requests and limits. Passthrough — any
+      additional fields are forwarded to the container spec.
+    examples:
+      - requests: {cpu: 100m, memory: 256Mi}
+        limits: {cpu: 500m, memory: 512Mi}
+    x-agent-when-to-use: Always set; helps the scheduler and pod priority.
+    properties:
+      requests:
+        description: |
+          Minimum guaranteed resources. Used by the scheduler to find a node
+          with enough capacity. Keys are Kubernetes resource names (cpu, memory,
+          ephemeral-storage, hugepages-*, plus extended resources like nvidia.com/gpu).
+          Values use standard Kubernetes quantity strings.
+        examples:
+          - {cpu: 100m, memory: 256Mi}
+          - {cpu: "1", memory: 1Gi, "nvidia.com/gpu": "1"}
+      limits:
+        description: |
+          Maximum resources the container can use. CPU is throttled past the
+          limit; memory past the limit causes OOMKill. Set memory request == memory
+          limit to make pods Guaranteed QoS class.
+        examples:
+          - {cpu: 500m, memory: 512Mi}
+          - {memory: 1Gi}
+
+  ProbeSpec:
+    description: |
+      Liveness/readiness/startup probe. Mirrors the upstream PodSpec.
+      Common pattern is to define defaults in deploymentsGeneral.probes.
+    examples:
+      - httpGet: {path: /healthz, port: http}
+        initialDelaySeconds: 10
+        periodSeconds: 10
+    x-agent-when-to-use: |
+      Define readiness for traffic gating, liveness for self-healing,
+      startup for slow-starting apps.
+    properties:
+      httpGet:
+        description: |
+          HTTP GET probe against the container. Common form for web apps.
+          Port can be a containerPort name (e.g. "http") or an integer.
+        examples:
+          - {path: /healthz, port: http}
+          - {path: /ready, port: 8080, scheme: HTTPS, httpHeaders: [{name: Host, value: example.com}]}
+      tcpSocket:
+        description: |
+          TCP probe — succeeds if the kubelet can open a TCP connection to
+          the port. Use for non-HTTP services (databases, gRPC without grpc
+          health, raw TCP listeners).
+        examples:
+          - {port: 5432}
+          - {port: postgres}
+      exec:
+        description: |
+          Exec probe — runs a command inside the container; exit code 0 = healthy.
+          Higher latency than httpGet/tcpSocket; use only when no network probe fits.
+        examples:
+          - {command: [sh, -c, "pg_isready -U postgres"]}
+          - {command: [cat, /tmp/ready]}
+      grpc:
+        description: |
+          gRPC health checking protocol (grpc.health.v1). Requires the app to
+          implement the standard gRPC health service. Available since Kubernetes 1.24.
+        examples:
+          - {port: 9090}
+          - {port: 9090, service: my.package.MyService}
+
+  VolumeMount:
+    description: |
+      Mounts a pod volume into the container filesystem. The name must
+      reference an entry in the deployment-level volumes list.
+    examples:
+      - name: config-volume
+        mountPath: /etc/app
+        readOnly: true
+    x-agent-when-to-use: Use to mount ConfigMaps, Secrets, or PVCs into containers.
+
+  StrategySpec:
+    description: |
+      Deployment update strategy. RollingUpdate keeps old pods alive
+      during rollout; Recreate kills all then starts new.
+    examples:
+      - type: RollingUpdate
+        rollingUpdate: {maxSurge: 30%, maxUnavailable: 20%}
+    x-agent-when-to-use: |
+      Use Recreate only when concurrent old+new instances cannot
+      coexist (e.g. exclusive lock on a resource).
+    properties:
+      rollingUpdate:
+        description: |
+          Tuning knobs for RollingUpdate. maxSurge controls how many pods above
+          replicas can run during rollout; maxUnavailable controls how many can
+          go missing. Both accept integer counts or percent strings ("25%").
+          Ignored when type=Recreate.
+        examples:
+          - {maxSurge: "25%", maxUnavailable: "25%"}
+          - {maxSurge: 1, maxUnavailable: 0}
+
+  SecretKeyRef:
+    description: References a single key in an existing Kubernetes Secret.
+    examples:
+      - name: app-secrets
+        key: API_KEY
+    x-agent-when-to-use: |
+      Use to pull individual secret values into env vars or to compose
+      reusable secretRefs groups.
+
+  ContainerSpec:
+    description: |
+      A single container in a Deployment/Job/CronJob pod template.
+      The container name is the map key in containers.<name>.
+      Required: image (no registry prefix needed) and imageTag.
+    examples:
+      - image: my-app
+        imageTag: v1.2.3
+        ports:
+          http: {containerPort: 8080, servicePort: 80}
+        resources:
+          requests: {cpu: 100m, memory: 128Mi}
+          limits: {cpu: 500m, memory: 512Mi}
+    x-agent-when-to-use: |
+      Use ContainerSpec anywhere a container template is needed:
+      deployments, jobs, cronJobs all share this schema.
+    x-agent-common-mistakes:
+      - "Forgetting imageTag — the chart requires it explicitly."
+      - "Using port-number key in ports instead of a port-name key."
+    properties:
+      image:
+        description: |
+          Container image name without registry or tag. Combined at runtime
+          with imageTag and an optional global registry prefix.
+        examples: [my-app, nginx, postgres]
+      imageTag:
+        description: Image tag/version. Required (no implicit latest).
+        examples: ["v1.0.0", "1.25-alpine"]
+      ports:
+        description: |
+          Named ports keyed by name. The key (e.g. 'http') becomes the
+          Kubernetes port name and is the identifier used by Services,
+          Ingresses, and Probes that reference 'port: http'.
+        examples:
+          - http: {containerPort: 8080, servicePort: 80}
+            metrics: {containerPort: 9090, servicePort: 9090}
+      env:
+        description: |
+          Environment variables. Each must use exactly one of value or valueFrom.
+        examples:
+          - - {name: LOG_LEVEL, value: info}
+            - {name: DB_PASSWORD, valueFrom: {secretKeyRef: {name: db, key: password}}}
+      envFrom:
+        description: Pulls all keys from a referenced ConfigMap or Secret.
+        examples:
+          - - {type: configMap, configName: app-config}
+      secretRefs:
+        description: |
+          Names of secretRefs groups defined at the top level of values.yaml.
+          Each group injects multiple env vars derived from Secret keys.
+        examples:
+          - [shared-secrets, db-secrets]
+      resources:
+        description: CPU/memory requests and limits for this container.
+      command:
+        description: |
+          Entrypoint override — replaces the image's ENTRYPOINT.
+          Pass as a list of strings (exec form). The shell is NOT invoked
+          unless you explicitly include sh/bash as the first element.
+        examples:
+          - [/app/server]
+          - [sh, -c, "exec /app/server --config /etc/app/config.yaml"]
+      args:
+        description: |
+          Arguments override — replaces the image's CMD. Use together with
+          (or instead of) command. Use args alone when you only want to
+          override flags but keep the image's ENTRYPOINT.
+        examples:
+          - [serve, --port, "8080"]
+          - [migrate, up]
+      volumeMounts:
+        description: Mount entries from the deployment-level volumes list.
+        examples:
+          - - {name: config-volume, mountPath: /etc/app, readOnly: true}
+            - {name: cache, mountPath: /var/cache/app}
+      lifecycle:
+        description: |
+          Container lifecycle hooks (passthrough to Kubernetes). postStart runs
+          immediately after the container starts; preStop runs before SIGTERM
+          on shutdown — useful for connection draining or LB deregistration.
+          The preStop sleep trick gives the service mesh time to update its
+          endpoint table before the container exits.
+        examples:
+          - preStop: {exec: {command: [sh, -c, "sleep 10"]}}
+          - postStart: {exec: {command: [sh, -c, "echo started > /tmp/state"]}}
+      securityContext:
+        description: |
+          Container-level security context (passthrough). Per-container settings
+          override pod-level ones. Use to enforce non-root, drop capabilities,
+          set readOnlyRootFilesystem, or pin a specific UID/GID.
+        examples:
+          - {runAsNonRoot: true, runAsUser: 1000, readOnlyRootFilesystem: true}
+          - {capabilities: {drop: [ALL], add: [NET_BIND_SERVICE]}}
+      probes:
+        description: |
+          Container probes. Each probe (liveness/readiness/startup) merges
+          with the per-deployment defaults in deploymentsGeneral.probes.
+        examples:
+          - readinessProbe:
+              httpGet: {path: /ready, port: http}
+              initialDelaySeconds: 5
+              periodSeconds: 10
+      imagePullPolicy:
+        description: When to pull the image.
+        examples: [IfNotPresent, Always]
+
+  CertificateConfig:
+    description: |
+      cert-manager Certificate configuration. Either set clusterIssuer for a
+      simple ClusterIssuer reference, or use issuer for an Issuer reference.
+    examples:
+      - {clusterIssuer: letsencrypt-prod}
+      - {issuer: vault-issuer, domains: [api.example.com]}
+    x-agent-when-to-use: |
+      Use when autoCreateCertificate is true on a deployment, or for a chart-level
+      Certificate not tied to one deployment.
+    properties:
+      domains:
+        description: |
+          Additional DNS names beyond the ingress.tls hosts (subject
+          alternative names). Useful for certs that cover hostnames not yet
+          wired into ingress, or for wildcard + apex combos.
+        examples:
+          - [api.example.com, "*.api.example.com"]
+          - [legacy.example.com]
+
+  PdbConfig:
+    description: |
+      PodDisruptionBudget. Provide exactly one of minAvailable or maxUnavailable.
+    examples:
+      - {minAvailable: 2}
+      - {maxUnavailable: "50%"}
+    x-agent-when-to-use: |
+      Use to keep a minimum replica count during voluntary disruptions
+      (node drains, upgrades).
+    properties:
+      labels:
+        description: |
+          Extra labels merged onto the PodDisruptionBudget metadata. Standard
+          chart labels (app.kubernetes.io/*) are added automatically.
+        examples:
+          - {team: platform, tier: critical}
+      annotations:
+        description: |
+          Extra annotations on the PodDisruptionBudget metadata.
+        examples:
+          - {"argocd.argoproj.io/sync-wave": "5"}
+
+  ServiceAccountConfig:
+    description: |
+      ServiceAccount configuration for the auto-created SA. The name field
+      lets you reference an existing SA instead of creating a new one.
+    examples:
+      - {name: backend-api-sa, automountServiceAccountToken: false}
+    x-agent-when-to-use: |
+      Use when the deployment needs cluster-bound RBAC permissions or a
+      specific IAM identity (IRSA, Workload Identity).
+    properties:
+      labels:
+        description: |
+          Extra labels merged onto the ServiceAccount metadata. Standard
+          chart labels (app.kubernetes.io/*) are added automatically.
+        examples:
+          - {team: platform}
+      annotations:
+        description: |
+          Extra annotations on the ServiceAccount metadata. The most common
+          use is wiring up IRSA (EKS) or Workload Identity (GKE).
+        examples:
+          - {"eks.amazonaws.com/role-arn": "arn:aws:iam::123456789012:role/backend-api"}
+          - {"iam.gke.io/gcp-service-account": "backend-api@my-project.iam.gserviceaccount.com"}
+      imagePullSecrets:
+        description: |
+          Per-ServiceAccount image pull secrets. Pods using this SA inherit
+          these secrets automatically — no need to add them to the pod template.
+          For chart-wide pull secrets, use generic.extraImagePullSecrets instead.
+        examples:
+          - - {name: ghcr-pull-secret}
+            - {name: dockerhub-pull-secret}
+        items:
+          description: One image pull secret reference (just a name).
+          examples:
+            - {name: ghcr-pull-secret}
+
+  ServiceMonitorEndpoint:
+    description: A single scrape endpoint inside a ServiceMonitor.
+    examples:
+      - {port: http-metrics, path: /metrics, interval: 30s}
+    x-agent-when-to-use: |
+      Define per-port scrape settings. Port must reference a named container
+      port that becomes a Service port (auto-created or otherwise).
+    properties:
+      relabelings:
+        description: |
+          Prometheus `relabel_configs` applied to the target labels BEFORE
+          scrape. Use to rewrite/drop the target itself: filter pods by label,
+          add cluster metadata, rename `__address__`.
+        examples:
+          - - {sourceLabels: [__meta_kubernetes_pod_label_app], regex: api, action: keep}
+        items:
+          description: |
+            One relabel rule (passthrough to Prometheus Operator).
+            Common keys: sourceLabels, targetLabel, regex, replacement, action.
+          examples:
+            - {sourceLabels: [__meta_kubernetes_namespace], targetLabel: namespace}
+      metricRelabelings:
+        description: |
+          Prometheus `metric_relabel_configs` applied to each scraped sample
+          AFTER scrape. Use to drop high-cardinality metrics, rewrite labels,
+          or filter test-pod metrics from production aggregations.
+        examples:
+          - - {sourceLabels: [__name__], regex: 'go_gc_.*', action: drop}
+        items:
+          description: |
+            One metric relabel rule (passthrough). Same keys as relabelings but
+            operates on each metric sample, not on the target.
+          examples:
+            - {sourceLabels: [__name__], regex: 'http_requests_total', action: keep}
+      tlsConfig:
+        description: |
+          TLS settings for HTTPS scrape (passthrough). Use insecureSkipVerify
+          only for self-signed dev clusters; in prod pin caFile or use
+          serverName matching.
+        examples:
+          - {insecureSkipVerify: true}
+          - {caFile: /etc/prometheus/secrets/ca/ca.crt, serverName: metrics.svc}
+
+  ServiceMonitorConfig:
+    description: |
+      Prometheus ServiceMonitor selector and scrape settings. Inherits
+      label selectors and global defaults from generic.serviceMonitorGeneral.
+      Two modes: single-endpoint (top-level path/port/interval/scrapeTimeout/
+      relabelings/metricRelabelings) or multi-endpoint (endpoints[] for
+      heterogeneous scrape configs).
+    examples:
+      - labels: {prometheus: kube-prometheus}
+        path: /metrics
+        port: http-metrics
+        interval: 15s
+      - endpoints: [{port: http-metrics, path: /metrics}, {port: admin, path: /admin/metrics}]
+    x-agent-when-to-use: |
+      Use with autoCreateServiceMonitor: true to point Prometheus at the
+      auto-created Service. Use the single-endpoint form for one scrape
+      target; use endpoints[] when the same Service exposes multiple metrics
+      ports that need different scrape config.
+    x-agent-common-mistakes:
+      - "Mixing top-level path/port with endpoints[] — endpoints wins, top-level is ignored."
+      - "Setting port to a containerPort that is not also a servicePort — ServiceMonitor scrapes the Service, not the Pod."
+    properties:
+      labels:
+        description: |
+          Labels merged onto the ServiceMonitor metadata. The Prometheus Operator
+          uses these to decide which ServiceMonitors a given Prometheus instance
+          adopts (selector match) — typically you need at least one
+          well-known label like `prometheus: kube-prometheus`.
+        examples:
+          - {prometheus: kube-prometheus}
+          - {release: prometheus-stack, team: platform}
+      endpoints:
+        description: |
+          List of scrape endpoints. Use this multi-endpoint form when one
+          Service exposes multiple metrics ports that need different scrape
+          configs (e.g. main app metrics on /metrics + sidecar metrics on
+          /admin/metrics with a different interval).
+        examples:
+          - - {port: http-metrics, path: /metrics, interval: 15s}
+            - {port: admin, path: /admin/metrics, interval: 60s, scrapeTimeout: 10s}
+      relabelings:
+        description: |
+          Top-level relabelings applied to ALL endpoints (single-endpoint mode).
+          For per-endpoint relabelings use endpoints[i].relabelings instead.
+        examples:
+          - - {sourceLabels: [__meta_kubernetes_pod_label_app], targetLabel: app}
+        items:
+          description: One relabel rule (passthrough to Prometheus Operator).
+          examples:
+            - {sourceLabels: [__meta_kubernetes_namespace], targetLabel: namespace}
+      metricRelabelings:
+        description: |
+          Top-level metric relabelings applied to ALL endpoints (single-endpoint
+          mode). For per-endpoint use endpoints[i].metricRelabelings.
+        examples:
+          - - {sourceLabels: [__name__], regex: 'go_gc_.*', action: drop}
+        items:
+          description: One metric relabel rule (passthrough).
+          examples:
+            - {sourceLabels: [__name__], regex: 'http_requests_total', action: keep}
+      namespaceSelector:
+        description: |
+          Which namespaces the ServiceMonitor should scrape. Defaults to "only
+          the namespace this ServiceMonitor lives in" (matchNames: [own ns]).
+          Set `any: true` for cluster-wide scraping (requires Prometheus RBAC).
+        examples:
+          - {matchNames: [my-app, my-app-staging]}
+          - {any: true}
+
+  HpaMetric:
+    description: |
+      A single HPA metric. Set type and the matching subfield (resource for
+      cpu/memory, pods for per-pod custom metric, object for object metric,
+      external for external metric, containerResource for per-container).
+    examples:
+      - {type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}
+      - {type: Pods, pods: {metric: {name: requests_per_second}, target: {type: AverageValue, averageValue: "100"}}}
+    x-agent-when-to-use: Use one entry per signal driving the autoscaler.
+    properties:
+      resource:
+        description: |
+          Built-in pod resource metric (cpu or memory). The most common HPA
+          configuration. Prefer Utilization targets over AverageValue —
+          Utilization adapts to per-container requests automatically.
+        examples:
+          - {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+          - {name: memory, target: {type: Utilization, averageUtilization: 80}}
+      pods:
+        description: |
+          Per-pod custom metric (averaged across all pods in the target).
+          Requires a custom metrics adapter (e.g. prometheus-adapter) wired
+          into the Kubernetes custom.metrics.k8s.io API.
+        examples:
+          - metric: {name: requests_per_second}
+            target: {type: AverageValue, averageValue: "100"}
+        properties:
+          metric:
+            description: |
+              Identifies which custom metric to read from the metrics API
+              by name, with an optional label selector for disambiguation.
+            examples:
+              - {name: requests_per_second}
+              - {name: queue_depth, selector: {matchLabels: {queue: orders}}}
+            properties:
+              selector:
+                description: |
+                  Label selector applied when fetching the metric from the
+                  custom metrics adapter. Use when the adapter exposes
+                  multiple series under the same metric name.
+                examples:
+                  - {matchLabels: {queue: orders}}
+      object:
+        description: |
+          Metric describing a non-pod Kubernetes object (e.g. Ingress
+          requests-per-second on a specific Ingress). Less common than
+          pods/external; requires custom metrics adapter support.
+        examples:
+          - describedObject: {apiVersion: networking.k8s.io/v1, kind: Ingress, name: api}
+            metric: {name: requests_per_second}
+            target: {type: Value, value: "1000"}
+      external:
+        description: |
+          External metric not tied to a Kubernetes object — cloud queue
+          depth, message broker lag, business KPI. Requires the external
+          metrics adapter (e.g. KEDA, custom-metrics-stackdriver).
+        examples:
+          - metric: {name: sqs_queue_length, selector: {matchLabels: {queue: orders}}}
+            target: {type: Value, value: "30"}
+      containerResource:
+        description: |
+          Resource metric scoped to a single named container within the pod
+          (instead of summed across all containers). Useful when one container
+          drives load and sidecar metrics would skew the signal.
+        examples:
+          - {name: cpu, container: main, target: {type: Utilization, averageUtilization: 70}}
+
+  HpaMetricTarget:
+    description: |
+      HPA metric target. For Resource metrics, prefer Utilization with
+      averageUtilization. For Pods/Object, use AverageValue or Value.
+    examples:
+      - {type: Utilization, averageUtilization: 70}
+
+  HpaInlineConfig:
+    description: |
+      Inline HPA tied to a deployment. Setting this both enables HPA and
+      defines its parameters. For standalone HPAs not bound to a chart
+      deployment, use the top-level `hpas:` section.
+    examples:
+      - {minReplicas: 2, maxReplicas: 10, metrics: [{type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}]}
+    x-agent-when-to-use: |
+      Use when scaling decisions are driven by metrics rather than a fixed
+      replica count.
+    x-agent-common-mistakes:
+      - "Omitting metrics — at least one is required by Kubernetes."
+      - "Setting minReplicas > maxReplicas — schema does not catch this; templates fail."
+    properties:
+      metrics:
+        description: |
+          One or more HPA metrics driving the autoscaler. Multiple metrics
+          OR: the HPA picks the recommendation that yields the highest replica
+          count across all metrics. At least one entry is required.
+        examples:
+          - - {type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}
+            - {type: Resource, resource: {name: memory, target: {type: Utilization, averageUtilization: 80}}}
+      behavior:
+        description: |
+          Scale-up/scale-down behavior tuning (passthrough to Kubernetes HPA
+          v2 `behavior`). Controls scaling velocity and stabilization windows.
+          Use to prevent flapping under noisy metrics or to slow down scale-down.
+        examples:
+          - scaleDown: {stabilizationWindowSeconds: 300, policies: [{type: Percent, value: 50, periodSeconds: 60}]}
+          - scaleUp: {stabilizationWindowSeconds: 0, policies: [{type: Pods, value: 4, periodSeconds: 60}]}
+
+  IngressPath:
+    description: A single HTTP path rule with backend reference.
+    examples:
+      - {path: /, pathType: Prefix}
+      - {path: /api, pathType: Prefix, service: backend-api, portName: http}
+    x-agent-when-to-use: |
+      Use to map URL paths to backends. For per-deployment ingresses you can
+      omit service/portName — the deployment becomes the backend automatically.
+
+  IngressHost:
+    description: |
+      A hostname rule. Provide one of:
+        host       — explicit FQDN (e.g. api.example.com)
+        subdomain  — prefix appended to generic.ingressesGeneral.domain
+        (neither) — falls back to generic.ingressesGeneral.domain as-is
+    examples:
+      - host: api.example.com
+        paths: [{path: /, pathType: Prefix}]
+      - subdomain: api
+        paths: [{path: /, pathType: Prefix}]
+    x-agent-when-to-use: |
+      Use subdomain in multi-environment setups where the suffix changes
+      per cluster (dev/stage/prod). Use host for full external pinning.
+    properties:
+      paths:
+        description: |
+          URL path rules for this hostname. Each path routes matched
+          requests to a backend Service+port. At least one path is required.
+        examples:
+          - - {path: /, pathType: Prefix}
+          - - {path: /api, pathType: Prefix, service: backend-api, portName: http}
+            - {path: /admin, pathType: Prefix, service: admin, portName: http}
+
+  IngressTls:
+    description: TLS configuration for one or more hosts.
+    examples:
+      - {secretName: api-tls, hosts: [api.example.com]}
+    x-agent-when-to-use: |
+      Use with autoCreateCertificate to wire cert-manager into the ingress.
+    properties:
+      hosts:
+        description: |
+          List of FQDNs covered by the TLS secret. Must include every host
+          served over HTTPS — wildcards (e.g. *.example.com) require a
+          wildcard certificate in the secret.
+        examples:
+          - [api.example.com]
+          - [api.example.com, admin.example.com]
+
+  IngressConfig:
+    description: Shared shape for both per-deployment ingress and standalone ingresses.
+    examples:
+      - hosts: [{subdomain: api, paths: [{path: /, pathType: Prefix}]}]
+        tls: [{secretName: api-tls, hosts: [api.example.com]}]
+    x-agent-when-to-use: Per-deployment ingress lives under deployments.<name>.ingress.
+    x-agent-related-fields:
+      - /generic/ingressesGeneral
+      - /$defs/CertificateConfig
+    properties:
+      hosts:
+        description: |
+          One or more hostname rules. Each entry mixes host/subdomain with a
+          list of path-to-backend mappings. At least one host is required.
+        examples:
+          - - {subdomain: api, paths: [{path: /, pathType: Prefix}]}
+          - - host: api.example.com
+              paths: [{path: /, pathType: Prefix}]
+            - host: admin.example.com
+              paths: [{path: /, pathType: Prefix}]
+      tls:
+        description: |
+          TLS settings for one or more hosts. Each entry binds a secret to a
+          set of hosts. With autoCreateCertificate, cert-manager populates
+          the secret automatically.
+        examples:
+          - - {secretName: api-tls, hosts: [api.example.com]}
+      annotations:
+        description: |
+          Annotations on the Ingress. Common use is ingress-controller
+          tuning (nginx, traefik, AWS LB controller) — class-specific.
+          Merged with generic.ingressesGeneral.annotations.
+        examples:
+          - {"nginx.ingress.kubernetes.io/rewrite-target": /}
+          - {"cert-manager.io/cluster-issuer": letsencrypt-prod}
+      labels:
+        description: |
+          Extra labels merged onto the Ingress metadata.
+        examples:
+          - {team: platform}
+
+  HttpRouteHostname:
+    description: |
+      Hostname for a Gateway API HTTPRoute. Provide host (FQDN) or subdomain
+      (which combines with generic.ingressesGeneral.domain).
+    examples:
+      - {host: api.example.com}
+      - {subdomain: api}
+
+  HttpRouteParentRef:
+    description: |
+      Reference to a Gateway (Gateway API). Defaults to
+      generic.httpRoutesGeneral.parentRefs when omitted.
+    examples:
+      - {name: shared-gateway, namespace: gateway-system}
+
+  HttpRouteMatch:
+    description: |
+      One match clause. All sub-fields are ANDed. Combine multiple matches in
+      the same rule to OR them.
+    examples:
+      - {path: {type: PathPrefix, value: /api}}
+      - {path: {type: Exact, value: /v2}, method: POST}
+    properties:
+      path:
+        description: |
+          Path match clause. type controls match semantics — PathPrefix is the
+          most common (any URL starting with value), Exact requires literal
+          equality, RegularExpression uses the implementation's regex flavor.
+        examples:
+          - {type: PathPrefix, value: /api}
+          - {type: Exact, value: /healthz}
+      headers:
+        description: |
+          Header match conditions. All listed headers must match for the rule
+          to apply. Standard use: route by Host (canary), by custom headers
+          (feature flags), or by Authorization presence.
+        examples:
+          - - {name: X-Canary, value: "true"}
+          - - {name: Host, value: 'api\.example\.com', type: RegularExpression}
+        items:
+          description: |
+            One header match — name+value with optional type (Exact default
+            or RegularExpression). Header names are case-insensitive in HTTP.
+          examples:
+            - {name: X-Canary, value: "true"}
+            - {name: User-Agent, value: "^Mozilla.*", type: RegularExpression}
+      queryParams:
+        description: |
+          Query-string parameter match conditions. All listed params must
+          match. Useful for routing experiments or version pinning via URL.
+        examples:
+          - - {name: version, value: v2}
+        items:
+          description: |
+            One query-param match — name+value with optional type (Exact
+            default or RegularExpression).
+          examples:
+            - {name: version, value: v2}
+            - {name: debug, value: "true"}
+
+  HttpRouteBackendRef:
+    description: |
+      Backend Service reference. Use weight to split traffic across multiple
+      backendRefs (canary / blue-green).
+    examples:
+      - {name: api-stable, port: 8080, weight: 90}
+      - {name: api-canary, port: 8080, weight: 10}
+
+  HttpRouteRule:
+    description: A single routing rule. matches selects requests; backendRefs sends them.
+    examples:
+      - matches: [{path: {type: PathPrefix, value: /}}]
+        backendRefs: [{name: api, port: 8080}]
+    properties:
+      matches:
+        description: |
+          Request match conditions. Multiple entries are ORed: a request matches
+          the rule if it satisfies at least one matches[i]. Omit for a catch-all
+          rule that takes everything for this hostname.
+        examples:
+          - - {path: {type: PathPrefix, value: /api}}
+          - - {path: {type: Exact, value: /v1}, method: GET}
+            - {path: {type: Exact, value: /v2}, method: GET}
+      backendRefs:
+        description: |
+          Where matched traffic goes. Multiple entries split traffic by weight
+          (the canonical canary/blue-green setup). Without weights, traffic is
+          split evenly. At least one backendRef is required.
+        examples:
+          - - {name: api, port: 8080}
+          - - {name: api-stable, port: 8080, weight: 90}
+            - {name: api-canary, port: 8080, weight: 10}
+      filters:
+        description: |
+          Inline filters applied to matching requests (request/response
+          mutation, redirects, mirroring, URL rewrites). Passthrough to
+          Gateway API — exact filter set depends on the Gateway implementation.
+        examples:
+          - - type: RequestHeaderModifier
+              requestHeaderModifier: {set: [{name: X-Forwarded-Proto, value: https}]}
+          - - type: URLRewrite
+              urlRewrite: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /v2}}
+        items:
+          description: |
+            One filter (passthrough to the Gateway controller). Common types:
+            RequestHeaderModifier, ResponseHeaderModifier, RequestRedirect,
+            URLRewrite, RequestMirror.
+          examples:
+            - {type: RequestRedirect, requestRedirect: {scheme: https, statusCode: 301}}
+      timeouts:
+        description: |
+          Per-rule timeouts (Gateway API v1.0+). request bounds the entire
+          client-visible request lifetime; backendRequest bounds a single
+          attempt to the backend (allowing retries within request).
+        examples:
+          - {request: 30s}
+          - {request: 30s, backendRequest: 5s}
+
+  HttpRouteConfig:
+    description: |
+      Gateway API HTTPRoute configuration. Shared by per-deployment
+      `httpRoute` and the standalone `httpRoutes:` section.
+    examples:
+      - parentRefs: [{name: shared-gateway, namespace: gateway-system}]
+        hostnames: [{subdomain: api}]
+        rules: [{matches: [{path: {type: PathPrefix, value: /}}], backendRefs: [{name: api, port: 8080}]}]
+    x-agent-when-to-use: |
+      Use Gateway API instead of Ingress when the cluster runs a Gateway
+      controller (Cilium, Istio, Envoy Gateway, etc.).
+    properties:
+      parentRefs:
+        description: |
+          Gateway objects this HTTPRoute attaches to. Required by Gateway API
+          — at least one. Defaults to generic.httpRoutesGeneral.parentRefs
+          when omitted on a per-deployment route.
+        examples:
+          - - {name: shared-gateway, namespace: gateway-system}
+          - - {name: public-gateway, namespace: gateway-system, sectionName: https}
+      hostnames:
+        description: |
+          Hostnames this route matches. Each entry uses host (FQDN) or
+          subdomain (combined with generic.ingressesGeneral.domain). At
+          runtime the controller intersects these with the parent Gateway's
+          allowed hostnames.
+        examples:
+          - - {subdomain: api}
+          - - {host: api.example.com}
+            - {host: admin.example.com}
+      rules:
+        description: |
+          Routing rules — request matches plus backend destinations.
+          At least one rule is required. Rules are evaluated in array order;
+          first matching rule wins (per Gateway API spec precedence).
+        examples:
+          - - matches: [{path: {type: PathPrefix, value: /api}}]
+              backendRefs: [{name: api, port: 8080}]
+            - matches: [{path: {type: PathPrefix, value: /}}]
+              backendRefs: [{name: web, port: 80}]
+      annotations:
+        description: |
+          Annotations on the HTTPRoute metadata. Use sparingly — Gateway API
+          generally prefers typed fields over annotations.
+        examples:
+          - {"argocd.argoproj.io/sync-wave": "10"}
+      labels:
+        description: |
+          Extra labels merged onto the HTTPRoute metadata.
+        examples:
+          - {team: platform}
+
+  MigrationsConfig:
+    description: |
+      Pre-deploy Job that runs database migrations before the matching
+      Deployment rolls out. When enabled, the chart emits a Helm hook
+      (helm.sh/hook: pre-install,pre-upgrade) Job that must complete
+      successfully before the Deployment is applied.
+    examples:
+      - {enabled: true, args: [migrate, up], backoffLimit: 1}
+    x-agent-when-to-use: |
+      Use for schema migrations, seed data, or any one-shot setup that
+      must complete before the new replicaset takes traffic.
+    x-agent-common-mistakes:
+      - "Forgetting enabled: true — every other field is meaningless without it."
+    properties:
+      args:
+        description: |
+          Arguments passed to the migration container (the same container
+          image used by the deployment). Use this to drive the entrypoint
+          to its migration subcommand without changing the image.
+        examples:
+          - [migrate, up]
+          - [bin/rails, "db:migrate"]
+          - [alembic, upgrade, head]
+
+  ImagePullSecret:
+    description: Reference to a Secret holding registry credentials.
+    examples:
+      - {name: docker-registry-secret}
+
+  HostAlias:
+    description: |
+      A single /etc/hosts entry injected into every pod replica. One IP
+      can map to one or more hostnames.
+    examples:
+      - {ip: 10.0.0.1, hostnames: [legacy-db.internal]}
+      - {ip: 10.0.0.2, hostnames: [cache.internal, cache-secondary.internal]}
+    x-agent-when-to-use: |
+      Use when the pod must reach a host by name that is not resolvable via
+      cluster DNS — typically a legacy on-prem service or a cluster-external
+      endpoint without a DNS record.
+    properties:
+      hostnames:
+        description: |
+          One or more hostnames that resolve to the IP. Hostnames are added
+          to /etc/hosts as-is; case is preserved but DNS lookups are
+          case-insensitive.
+        examples:
+          - [legacy-db.internal]
+          - [cache.internal, cache-secondary.internal]
+
+  HttpRoutesGeneralConfig:
+    description: Defaults for all HTTPRoutes (parentRefs, labels, annotations).
+    examples:
+      - parentRefs: [{name: shared-gateway, namespace: gateway-system}]
+    x-agent-when-to-use: |
+      Use to avoid repeating the same Gateway reference on every HTTPRoute.
+    properties:
+      parentRefs:
+        description: |
+          Default Gateway references applied to every HTTPRoute that omits
+          parentRefs. Lets you centralize "all routes attach to gateway X" in
+          one place.
+        examples:
+          - - {name: shared-gateway, namespace: gateway-system}
+      annotations:
+        description: |
+          Default annotations merged into every HTTPRoute's metadata.
+        examples:
+          - {"argocd.argoproj.io/sync-wave": "10"}
+      labels:
+        description: |
+          Default labels merged into every HTTPRoute's metadata.
+        examples:
+          - {team: platform}
+
+  ServiceMonitorGeneralConfig:
+    description: |
+      Defaults applied to every auto-created ServiceMonitor. Per-deployment
+      serviceMonitor.* overrides take precedence.
+    examples:
+      - labels: {prometheus: kube-prometheus}
+        interval: 30s
+    properties:
+      labels:
+        description: |
+          Default labels merged onto every auto-created ServiceMonitor.
+          Typically used to satisfy the Prometheus instance's serviceMonitorSelector
+          (e.g. `prometheus: kube-prometheus` or `release: prometheus-stack`).
+        examples:
+          - {prometheus: kube-prometheus}
+          - {release: prometheus-stack}
+      namespaceSelector:
+        description: |
+          Default namespaceSelector for every ServiceMonitor — controls
+          which pod namespaces this monitor scrapes. Per-deployment values
+          override.
+        examples:
+          - {matchNames: [my-app]}
+          - {any: true}
+
+  NetworkPolicySpec:
+    description: |
+      A `kind: NetworkPolicy` rendered from a workload's networkPolicy block.
+      Strict explicit-only: policyTypes must be non-empty, and each direction
+      listed in policyTypes requires its corresponding ingress/egress block
+      (use [] for explicit deny). The pod selector is derived automatically
+      from the workload's component label and is not user-configurable.
+    x-agent-when-to-use: |
+      Generate this block when an LLM is asked to "restrict pod traffic" or
+      "isolate this workload." Always list policyTypes explicitly; never
+      leave ingress or egress as null when its direction is in policyTypes.
+    examples:
+      - policyTypes: [Ingress]
+        ingress: []
+      - policyTypes: [Ingress, Egress]
+        ingress:
+          - from: [{podSelector: {matchLabels: {app.kubernetes.io/component: gateway}}}]
+            ports: [{protocol: TCP, port: 8080}]
+        egress:
+          - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}}]
+            ports: [{protocol: UDP, port: 53}]
+    properties:
+      policyTypes:
+        description: |
+          Required, non-empty. Each value must be 'Ingress' or 'Egress'.
+          Determines which directions are governed by this policy. Each direction
+          listed here requires the corresponding ingress/egress block (use [] for
+          explicit deny — the chart never infers policyTypes from rule presence).
+        examples:
+          - [Ingress]
+          - [Egress]
+          - [Ingress, Egress]
+      ingress:
+        description: |
+          Required when policyTypes contains 'Ingress'. Empty list `[]` means
+          deny-all-ingress (still explicit — the user has stated intent). Each
+          rule is a NetworkPolicyIngressRule from networking.k8s.io/v1.
+        examples:
+          - []
+          - - from: [{podSelector: {matchLabels: {app.kubernetes.io/component: gateway}}}]
+              ports: [{protocol: TCP, port: 8080}]
+      egress:
+        description: |
+          Required when policyTypes contains 'Egress'. Empty list `[]` means
+          deny-all-egress. Each rule is a NetworkPolicyEgressRule.
+        examples:
+          - []
+          - - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}}]
+              ports: [{protocol: UDP, port: 53}]
+      annotations:
+        description: |
+          Extra annotations merged onto the NetworkPolicy metadata. Standard
+          chart-emitted annotations are applied first.
+        examples:
+          - {policy.k8s.io/note: "audited 2026-05"}
+      labels:
+        description: |
+          Extra labels merged onto the NetworkPolicy metadata. Chart-emitted
+          labels (app.kubernetes.io/*) are still applied automatically.
+        examples:
+          - {tier: backend}
+
+  RbacSpec:
+    description: |
+      A namespaced RBAC pair (kind: Role + kind: RoleBinding) rendered from
+      a workload's rbac block. Strict explicit-only: rules must be non-empty,
+      and the workload must have a resolvable ServiceAccount (via
+      autoCreateServiceAccount, serviceAccountName, generic.serviceAccountName,
+      or a serviceAccount block). The RoleBinding always binds the chart-
+      rendered Role to the workload's SA in the release namespace.
+      ClusterRole / ClusterRoleBinding are NOT supported in v1.
+    x-agent-when-to-use: |
+      Generate this block when an LLM is asked to "give this workload
+      Kubernetes API access" or "let this controller watch ConfigMaps."
+      Always pair with one of the SA-resolution paths. Keep rules to
+      least-privilege — pin resourceNames where you can.
+    examples:
+      - rules:
+          - apiGroups: [""]
+            resources: [configmaps, secrets]
+            verbs: [get, list, watch]
+      - rules:
+          - apiGroups: ["coordination.k8s.io"]
+            resources: [leases]
+            verbs: [create]
+          - apiGroups: ["coordination.k8s.io"]
+            resources: [leases]
+            resourceNames: [api-leader]
+            verbs: [get, update, patch]
+    properties:
+      rules:
+        description: |
+          Required, non-empty. Each rule is a PolicyRule from rbac.authorization.k8s.io/v1.
+          Every rule must specify non-empty verbs and at least one of resources or
+          nonResourceURLs. Prefer pinning resourceNames over wildcard access.
+        examples:
+          - - apiGroups: [""]
+              resources: [configmaps]
+              verbs: [get, list, watch]
+      annotations:
+        description: |
+          Extra annotations applied to BOTH the Role and RoleBinding metadata.
+          Standard chart-emitted annotations are applied first.
+        examples:
+          - {policy.k8s.io/scope: namespaced}
+      labels:
+        description: |
+          Extra labels applied to BOTH the Role and RoleBinding metadata.
+          Chart-emitted labels (app.kubernetes.io/*) are still applied automatically.
+        examples:
+          - {tier: backend}
+
+  IngressesGeneralConfig:
+    description: |
+      Defaults applied to every Ingress (auto-created or standalone). Annotations,
+      labels, ingressClassName, and tls merge with per-ingress values.
+    examples:
+      - domain: example.com
+        ingressClassName: nginx
+        annotations: {"nginx.ingress.kubernetes.io/enable-cors": "true"}
+    x-agent-when-to-use: |
+      Use to set the cluster-wide ingress controller class and a global domain
+      so individual ingresses can use subdomain shorthands.
+    properties:
+      annotations:
+        description: |
+          Default annotations merged onto every Ingress. Per-ingress
+          annotations win on conflict. Use for ingress-class-wide settings
+          like CORS, proxy buffer size, or cert-manager wiring.
+        examples:
+          - {"nginx.ingress.kubernetes.io/enable-cors": "true"}
+          - {"cert-manager.io/cluster-issuer": letsencrypt-prod}
+      labels:
+        description: |
+          Default labels merged onto every Ingress metadata.
+        examples:
+          - {team: platform}
+      tls:
+        description: |
+          Default TLS settings merged with per-ingress tls. Use for a
+          shared wildcard certificate that protects every ingress under
+          the global domain.
+        examples:
+          - - {secretName: wildcard-tls, hosts: ["*.example.com"]}
+

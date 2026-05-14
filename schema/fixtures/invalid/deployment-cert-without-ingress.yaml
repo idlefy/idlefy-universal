@@ -1,0 +1,8 @@
+# expected_error: autoCreateIngress
+deployments:
+  cert-bug:
+    autoCreateCertificate: true
+    containers:
+      main:
+        image: my-app
+        imageTag: v1.0.0

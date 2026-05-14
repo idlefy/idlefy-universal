@@ -1,0 +1,29 @@
+suite: test service
+templates:
+  - service.yaml
+tests:
+  - it: should create a service with specified configuration
+    set:
+      services:
+        test-service:
+          type: ClusterIP
+          ports:
+            - name: http
+              port: 80
+              targetPort: 8080
+            - name: https
+              port: 443
+              targetPort: 8443
+    asserts:
+      - isKind:
+          of: Service
+      - isAPIVersion:
+          of: v1
+      - equal:
+          path: metadata.name
+          value: test-service
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - matchSnapshot:
+          path: spec.ports 

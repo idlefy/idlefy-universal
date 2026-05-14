@@ -1,0 +1,87 @@
+suite: test cronjob
+templates:
+  - cronjob.yaml
+tests:
+  - it: should create a cron job with specified configuration
+    set:
+      cronJobs:
+        test-backup:
+          schedule: "0 2 * * *"
+          containers:
+            backup:
+              image: backup-tool
+              imageTag: "1.0.0"
+              command: 
+                - /bin/sh
+                - -c
+                - backup.sh
+              env:
+                - name: BACKUP_DIR
+                  value: /backup
+    asserts:
+      - isKind:
+          of: CronJob
+      - isAPIVersion:
+          of: batch/v1
+      - equal:
+          path: metadata.name
+          value: test-backup
+      - equal:
+          path: spec.schedule
+          value: "0 2 * * *"
+      - matchSnapshot:
+          path: spec.jobTemplate.spec.template.spec
+
+  - it: should use custom serviceAccountName when specified per-cronjob
+    set:
+      cronJobs:
+        test-backup:
+          schedule: "0 2 * * *"
+          serviceAccountName: backup-sa
+          containers:
+            backup:
+              image: backup-tool
+              imageTag: "1.0.0"
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.serviceAccountName
+          value: backup-sa
+
+  - it: should use global serviceAccountName for cronjob
+    set:
+      generic:
+        serviceAccountName: global-sa
+      cronJobs:
+        test-backup:
+          schedule: "0 2 * * *"
+          containers:
+            backup:
+              image: backup-tool
+              imageTag: "1.0.0"
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.serviceAccountName
+          value: global-sa
+
+  - it: should override global serviceAccountName with per-cronjob serviceAccountName
+    set:
+      generic:
+        serviceAccountName: global-sa
+      cronJobs:
+        test-backup:
+          schedule: "0 2 * * *"
+          serviceAccountName: override-sa
+          containers:
+            backup:
+              image: backup-tool
+              imageTag: "1.0.0"
+    asserts:
+      - isKind:
+          of: CronJob
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.serviceAccountName
+          value: override-sa

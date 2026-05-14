@@ -1,0 +1,816 @@
+$defs:
+  PortSpec:
+    type: object
+    additionalProperties: false
+    required: [containerPort]
+    properties:
+      containerPort:
+        type: integer
+        minimum: 1
+        maximum: 65535
+      servicePort:
+        type: integer
+        minimum: 1
+        maximum: 65535
+      protocol:
+        type: string
+        enum: [TCP, UDP, SCTP]
+        default: TCP
+
+  EnvVar:
+    type: object
+    additionalProperties: false
+    required: [name]
+    oneOf:
+      - required: [value]
+      - required: [valueFrom]
+    properties:
+      name:
+        type: string
+        pattern: "^[A-Za-z_][A-Za-z0-9_]*$"
+      value:
+        type: string
+      valueFrom:
+        type: object
+        additionalProperties: false
+        properties:
+          secretKeyRef:
+            $ref: "#/$defs/SecretKeyRef"
+          configMapKeyRef:
+            type: object
+            additionalProperties: false
+            required: [name, key]
+            properties:
+              name: {type: string}
+              key: {type: string}
+              optional: {type: boolean}
+          fieldRef:
+            type: object
+            additionalProperties: false
+            required: [fieldPath]
+            properties:
+              fieldPath: {type: string}
+              apiVersion: {type: string}
+
+  EnvFrom:
+    type: object
+    additionalProperties: false
+    required: [type, configName]
+    properties:
+      type:
+        type: string
+        enum: [configMap, secret]
+      configName:
+        type: string
+      prefix:
+        type: string
+      optional:
+        type: boolean
+
+  ResourceRequirements:
+    type: object
+    additionalProperties: true   # K8s passthrough
+    properties:
+      requests:
+        type: object
+        additionalProperties:
+          type: string
+      limits:
+        type: object
+        additionalProperties:
+          type: string
+
+  ProbeSpec:
+    type: object
+    additionalProperties: true   # K8s passthrough
+    properties:
+      httpGet:
+        type: object
+        additionalProperties: true
+      tcpSocket:
+        type: object
+        additionalProperties: true
+      exec:
+        type: object
+        additionalProperties: true
+      grpc:
+        type: object
+        additionalProperties: true
+      initialDelaySeconds: {type: integer, minimum: 0}
+      periodSeconds: {type: integer, minimum: 1}
+      timeoutSeconds: {type: integer, minimum: 1}
+      successThreshold: {type: integer, minimum: 1}
+      failureThreshold: {type: integer, minimum: 1}
+
+  VolumeMount:
+    type: object
+    additionalProperties: true   # K8s passthrough
+    required: [name, mountPath]
+    properties:
+      name: {type: string}
+      mountPath: {type: string}
+      readOnly: {type: boolean}
+      subPath: {type: string}
+      subPathExpr: {type: string}
+
+  StrategySpec:
+    type: object
+    additionalProperties: false
+    required: [type]
+    properties:
+      type:
+        type: string
+        enum: [RollingUpdate, Recreate]
+      rollingUpdate:
+        type: object
+        additionalProperties: false
+        properties:
+          maxSurge:
+            oneOf:
+              - {type: integer, minimum: 0}
+              - {type: string, pattern: "^[0-9]+%$"}
+          maxUnavailable:
+            oneOf:
+              - {type: integer, minimum: 0}
+              - {type: string, pattern: "^[0-9]+%$"}
+
+  SecretKeyRef:
+    type: object
+    additionalProperties: false
+    required: [name, key]
+    properties:
+      name: {type: string}
+      key: {type: string}
+      optional: {type: boolean}
+
+  ContainerSpec:
+    type: object
+    additionalProperties: false
+    required: [image, imageTag]
+    properties:
+      image:
+        type: string
+        minLength: 1
+      imageTag:
+        type: string
+        minLength: 1
+      command:
+        type: array
+        items: {type: string}
+      args:
+        type: array
+        items: {type: string}
+      ports:
+        type: object
+        additionalProperties:
+          $ref: "#/$defs/PortSpec"
+      env:
+        type: array
+        items: {$ref: "#/$defs/EnvVar"}
+      envFrom:
+        type: array
+        items: {$ref: "#/$defs/EnvFrom"}
+      secretRefs:
+        type: array
+        items: {type: string}
+      resources:
+        $ref: "#/$defs/ResourceRequirements"
+      volumeMounts:
+        type: array
+        items: {$ref: "#/$defs/VolumeMount"}
+      probes:
+        type: object
+        additionalProperties: false
+        properties:
+          livenessProbe: {$ref: "#/$defs/ProbeSpec"}
+          readinessProbe: {$ref: "#/$defs/ProbeSpec"}
+          startupProbe: {$ref: "#/$defs/ProbeSpec"}
+      lifecycle:
+        $ref: "#/$defs/k8s.io.api.core.v1.Lifecycle"
+      securityContext:
+        $ref: "#/$defs/k8s.io.api.core.v1.SecurityContext"
+      imagePullPolicy:
+        type: string
+        enum: [Always, IfNotPresent, Never]
+
+  IngressPath:
+    type: object
+    additionalProperties: false
+    required: [path]
+    properties:
+      path:
+        type: string
+        minLength: 1
+      pathType:
+        type: string
+        enum: [Exact, Prefix, ImplementationSpecific]
+        default: Prefix
+      service:
+        type: string
+        description: |
+          Backend service name. Omit for per-deployment ingresses where the
+          backend is the deployment itself; required for standalone ingresses.
+      portName:
+        type: string
+      port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+
+  IngressHost:
+    type: object
+    additionalProperties: false
+    anyOf:
+      - required: [host]
+        not: {required: [subdomain]}
+      - required: [subdomain]
+        not: {required: [host]}
+      - not: {anyOf: [{required: [host]}, {required: [subdomain]}]}
+    properties:
+      host:
+        type: string
+      subdomain:
+        type: string
+        pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+      paths:
+        type: array
+        minItems: 1
+        items: {$ref: "#/$defs/IngressPath"}
+
+  IngressTls:
+    type: object
+    additionalProperties: false
+    required: [hosts]
+    properties:
+      secretName: {type: string}
+      hosts:
+        type: array
+        items: {type: string}
+
+  IngressConfig:
+    type: object
+    additionalProperties: false
+    properties:
+      hosts:
+        type: array
+        minItems: 1
+        items: {$ref: "#/$defs/IngressHost"}
+      tls:
+        type: array
+        items: {$ref: "#/$defs/IngressTls"}
+      ingressClassName:
+        type: string
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+
+  HttpRouteHostname:
+    type: object
+    additionalProperties: false
+    oneOf:
+      - required: [host]
+      - required: [subdomain]
+    properties:
+      host:
+        type: string
+      subdomain:
+        type: string
+
+  HttpRouteParentRef:
+    type: object
+    additionalProperties: false
+    required: [name]
+    properties:
+      name: {type: string}
+      namespace: {type: string}
+      sectionName: {type: string}
+      port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+      group: {type: string}
+      kind: {type: string}
+
+  HttpRouteMatch:
+    type: object
+    additionalProperties: false
+    properties:
+      path:
+        type: object
+        additionalProperties: false
+        required: [value]
+        properties:
+          type:
+            type: string
+            enum: [Exact, PathPrefix, RegularExpression]
+            default: PathPrefix
+          value: {type: string}
+      headers:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [name, value]
+          properties:
+            name: {type: string}
+            value: {type: string}
+            type:
+              type: string
+              enum: [Exact, RegularExpression]
+              default: Exact
+      queryParams:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [name, value]
+          properties:
+            name: {type: string}
+            value: {type: string}
+            type:
+              type: string
+              enum: [Exact, RegularExpression]
+      method:
+        type: string
+        enum: [GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE, PATCH]
+
+  HttpRouteBackendRef:
+    type: object
+    additionalProperties: false
+    required: [name]
+    properties:
+      name: {type: string}
+      namespace: {type: string}
+      port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+      weight:
+        type: integer
+        minimum: 0
+        maximum: 1000000
+      group: {type: string}
+      kind: {type: string}
+
+  HttpRouteRule:
+    type: object
+    additionalProperties: false
+    properties:
+      matches:
+        type: array
+        items: {$ref: "#/$defs/HttpRouteMatch"}
+      backendRefs:
+        type: array
+        minItems: 1
+        items: {$ref: "#/$defs/HttpRouteBackendRef"}
+      filters:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      timeouts:
+        type: object
+        additionalProperties: false
+        properties:
+          request: {type: string}
+          backendRequest: {type: string}
+
+  HttpRouteConfig:
+    type: object
+    additionalProperties: false
+    properties:
+      parentRefs:
+        type: array
+        items: {$ref: "#/$defs/HttpRouteParentRef"}
+      hostnames:
+        type: array
+        items: {$ref: "#/$defs/HttpRouteHostname"}
+      rules:
+        type: array
+        minItems: 1
+        items: {$ref: "#/$defs/HttpRouteRule"}
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+
+  CertificateConfig:
+    type: object
+    additionalProperties: false
+    properties:
+      clusterIssuer:
+        type: string
+        description: cert-manager ClusterIssuer name.
+      issuer:
+        type: string
+        description: |
+          cert-manager Issuer name (alternative to clusterIssuer). The template
+          uses this only when clusterIssuer is unset.
+      domains:
+        type: array
+        items: {type: string}
+        description: |
+          Extra DNS names beyond what the parent ingress already covers.
+  ServiceMonitorEndpoint:
+    type: object
+    additionalProperties: false
+    properties:
+      port:
+        type: string
+        description: Named port on the Service to scrape.
+      path:
+        type: string
+        default: /metrics
+      interval:
+        type: string
+        pattern: "^([0-9]+(ms|s|m|h))+$"
+      scrapeTimeout:
+        type: string
+        pattern: "^([0-9]+(ms|s|m|h))+$"
+      scheme:
+        type: string
+        enum: [http, https]
+      honorLabels:
+        type: boolean
+      relabelings:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      metricRelabelings:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      tlsConfig:
+        type: object
+        additionalProperties: true
+  ServiceMonitorConfig:
+    type: object
+    additionalProperties: false
+    properties:
+      labels:
+        type: object
+        additionalProperties: true
+      interval:
+        type: string
+        pattern: "^([0-9]+(ms|s|m|h))+$"
+      scrapeTimeout:
+        type: string
+        pattern: "^([0-9]+(ms|s|m|h))+$"
+      path:
+        type: string
+      port:
+        type: string
+      relabelings:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      metricRelabelings:
+        type: array
+        items:
+          type: object
+          additionalProperties: true
+      endpoints:
+        type: array
+        items: {$ref: "#/$defs/ServiceMonitorEndpoint"}
+      namespaceSelector:
+        type: object
+        additionalProperties: true
+  PdbConfig:
+    type: object
+    additionalProperties: false
+    oneOf:
+      - required: [minAvailable]
+      - required: [maxUnavailable]
+    properties:
+      minAvailable:
+        oneOf:
+          - {type: integer, minimum: 0}
+          - {type: string, pattern: "^[0-9]+%$"}
+      maxUnavailable:
+        oneOf:
+          - {type: integer, minimum: 0}
+          - {type: string, pattern: "^[0-9]+%$"}
+      labels:
+        type: object
+        additionalProperties: true
+      annotations:
+        type: object
+        additionalProperties: true
+  ServiceAccountConfig:
+    type: object
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+      labels:
+        type: object
+        additionalProperties: true
+      annotations:
+        type: object
+        additionalProperties: true
+      automountServiceAccountToken:
+        type: boolean
+      imagePullSecrets:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [name]
+          properties:
+            name: {type: string}
+  HpaMetric:
+    type: object
+    additionalProperties: false
+    required: [type]
+    allOf:
+      - if:
+          properties: {type: {const: Resource}}
+          required: [type]
+        then:
+          required: [resource]
+      - if:
+          properties: {type: {const: Pods}}
+          required: [type]
+        then:
+          required: [pods]
+      - if:
+          properties: {type: {const: Object}}
+          required: [type]
+        then:
+          required: [object]
+      - if:
+          properties: {type: {const: External}}
+          required: [type]
+        then:
+          required: [external]
+      - if:
+          properties: {type: {const: ContainerResource}}
+          required: [type]
+        then:
+          required: [containerResource]
+    properties:
+      type:
+        type: string
+        enum: [Resource, Pods, Object, External, ContainerResource]
+      resource:
+        type: object
+        additionalProperties: false
+        required: [name, target]
+        properties:
+          name:
+            type: string
+            enum: [cpu, memory]
+          target: {$ref: "#/$defs/HpaMetricTarget"}
+      pods:
+        type: object
+        additionalProperties: false
+        required: [metric, target]
+        properties:
+          metric:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name: {type: string}
+              selector:
+                $ref: "#/$defs/k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector"
+          target: {$ref: "#/$defs/HpaMetricTarget"}
+      object:
+        $ref: "#/$defs/k8s.io.api.autoscaling.v2.ObjectMetricSource"
+      external:
+        $ref: "#/$defs/k8s.io.api.autoscaling.v2.ExternalMetricSource"
+      containerResource:
+        type: object
+        additionalProperties: false
+        required: [name, target, container]
+        properties:
+          name: {type: string, enum: [cpu, memory]}
+          container: {type: string}
+          target: {$ref: "#/$defs/HpaMetricTarget"}
+  HpaMetricTarget:
+    type: object
+    additionalProperties: false
+    required: [type]
+    properties:
+      type:
+        type: string
+        enum: [Utilization, Value, AverageValue]
+      averageUtilization:
+        type: integer
+        minimum: 1
+        maximum: 100
+      averageValue:
+        type: string
+      value:
+        type: string
+  HpaInlineConfig:
+    type: object
+    additionalProperties: false
+    required: [maxReplicas]
+    properties:
+      minReplicas:
+        type: integer
+        minimum: 0
+      maxReplicas:
+        type: integer
+        minimum: 1
+      metrics:
+        type: array
+        minItems: 1
+        items: {$ref: "#/$defs/HpaMetric"}
+      behavior:
+        $ref: "#/$defs/k8s.io.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
+  MigrationsConfig:
+    type: object
+    additionalProperties: false
+    required: [enabled]
+    properties:
+      enabled:
+        type: boolean
+      args:
+        type: array
+        items: {type: string}
+      backoffLimit:
+        type: integer
+        minimum: 0
+      parallelism:
+        type: integer
+        minimum: 1
+      completions:
+        type: integer
+        minimum: 1
+
+  ServicePort:
+    type: object
+    additionalProperties: false
+    required: [name, port]
+    properties:
+      name: {type: string}
+      port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+      targetPort:
+        oneOf:
+          - {type: integer, minimum: 1, maximum: 65535}
+          - {type: string}
+      protocol:
+        type: string
+        enum: [TCP, UDP, SCTP]
+        default: TCP
+      nodePort:
+        type: integer
+        minimum: 30000
+        maximum: 32767
+      appProtocol:
+        type: string
+
+  StandaloneServiceSpec:
+    type: object
+    additionalProperties: false
+    required: [ports]
+    properties:
+      type:
+        type: string
+        enum: [ClusterIP, NodePort, LoadBalancer, ExternalName]
+        default: ClusterIP
+      ports:
+        type: array
+        minItems: 1
+        items: {$ref: "#/$defs/ServicePort"}
+      selector:
+        type: object
+        additionalProperties:
+          type: string
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+      externalName:
+        type: string
+      clusterIP:
+        type: string
+      sessionAffinity:
+        type: string
+        enum: [ClientIP, None]
+
+  ImagePullSecret:
+    type: object
+    additionalProperties: false
+    required: [name]
+    properties:
+      name: {type: string}
+
+  HostAlias:
+    type: object
+    additionalProperties: false
+    required: [ip, hostnames]
+    properties:
+      ip:
+        type: string
+        minLength: 1
+      hostnames:
+        type: array
+        minItems: 1
+        items:
+          type: string
+          minLength: 1
+
+  HttpRoutesGeneralConfig:
+    type: object
+    additionalProperties: false
+    properties:
+      parentRefs:
+        type: array
+        items: {$ref: "#/$defs/HttpRouteParentRef"}
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+
+  ServiceMonitorGeneralConfig:
+    type: object
+    additionalProperties: false
+    properties:
+      labels:
+        type: object
+        additionalProperties: true
+      interval:
+        type: string
+        pattern: "^([0-9]+(ms|s|m|h))+$"
+      scrapeTimeout:
+        type: string
+        pattern: "^([0-9]+(ms|s|m|h))+$"
+      namespaceSelector:
+        type: object
+        additionalProperties: true
+
+  IngressesGeneralConfig:
+    type: object
+    additionalProperties: false
+    properties:
+      domain:
+        type: string
+        description: Default domain appended to ingress.hosts[].subdomain.
+      ingressClassName:
+        type: string
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+      tls:
+        type: array
+        items: {$ref: "#/$defs/IngressTls"}
+  NetworkPolicySpec:
+    type: object
+    additionalProperties: false
+    required: [policyTypes]
+    properties:
+      policyTypes:
+        type: array
+        minItems: 1
+        items:
+          type: string
+          enum: [Ingress, Egress]
+      ingress:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.networking.v1.NetworkPolicyIngressRule"}
+      egress:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.networking.v1.NetworkPolicyEgressRule"}
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+  RbacSpec:
+    type: object
+    additionalProperties: false
+    required: [rules]
+    properties:
+      rules:
+        type: array
+        minItems: 1
+        items: {$ref: "#/$defs/k8s.io.api.rbac.v1.PolicyRule"}
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+

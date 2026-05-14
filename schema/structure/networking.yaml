@@ -1,0 +1,13 @@
+properties:
+  services:
+    type: object
+    additionalProperties:
+      $ref: "#/$defs/StandaloneServiceSpec"
+  ingresses:
+    type: object
+    additionalProperties:
+      $ref: "#/$defs/IngressConfig"
+  httpRoutes:
+    type: object
+    additionalProperties:
+      $ref: "#/$defs/HttpRouteConfig"

@@ -1,0 +1,18 @@
+deployments:
+  api:
+    terminationGracePeriodSeconds: 60
+    hostAliases:
+      - ip: 10.0.0.1
+        hostnames: [legacy-db.internal]
+      - ip: 10.0.0.2
+        hostnames: [cache.internal, cache-secondary.internal]
+    dnsConfig:
+      nameservers: [1.1.1.1, 8.8.8.8]
+      searches: [my-ns.svc.cluster.local]
+      options:
+        - name: ndots
+          value: "2"
+    containers:
+      main:
+        image: my-app
+        imageTag: v1.0.0

@@ -1,0 +1,6 @@
+ingresses:
+  api-gateway:
+    hosts:
+      - host: api.example.com
+        paths:
+          - {path: /, pathType: Prefix, service: backend, portName: http}

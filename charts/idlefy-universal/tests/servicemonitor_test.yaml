@@ -1,0 +1,25 @@
+suite: test servicemonitor
+templates:
+  - deployment.yaml
+  - servicemonitor.yaml
+tests:
+  - it: should create a service monitor when autoCreateServiceMonitor is enabled
+    set:
+      deployments:
+        test-app:
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+              ports:
+                http:
+                  containerPort: 80
+                http-metrics:
+                  containerPort: 8080
+          autoCreateService: true
+          autoCreateServiceMonitor: true
+          serviceMonitor:
+            interval: "15s"
+            path: "/metrics"
+    asserts:
+      - matchSnapshot: {} 

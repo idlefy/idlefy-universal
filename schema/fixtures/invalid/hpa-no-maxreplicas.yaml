@@ -1,0 +1,8 @@
+# expected_error: maxReplicas
+hpas:
+  bad:
+    scaleTargetRef: {kind: Deployment, name: foo}
+    minReplicas: 1
+    metrics:
+      - type: Resource
+        resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}

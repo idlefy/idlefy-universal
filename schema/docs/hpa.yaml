@@ -1,0 +1,53 @@
+properties:
+  hpas:
+    description: |
+      Map of standalone HorizontalPodAutoscaler resources keyed by name.
+      Use this for HPAs that target resources not managed by this chart
+      (e.g. an externally-deployed Deployment).
+    examples:
+      - external-api:
+          scaleTargetRef: {kind: Deployment, name: external-api}
+          minReplicas: 2
+          maxReplicas: 10
+          metrics:
+            - type: Resource
+              resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+    x-agent-when-to-use: |
+      Use for HPAs not tied to a chart deployment. For chart deployments
+      prefer the inline hpa: block under deployments.<name>.
+
+$defs:
+  StandaloneHpaSpec:
+    description: A single standalone HPA.
+    examples:
+      - scaleTargetRef: {kind: Deployment, name: api}
+        maxReplicas: 5
+        metrics:
+          - {type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 60}}}
+    properties:
+      scaleTargetRef:
+        description: |
+          Reference to the workload this HPA scales. Required for standalone
+          HPAs (inline HPAs derive it from the parent deployment). kind is
+          usually Deployment but can be any scalable workload (StatefulSet,
+          ReplicaSet, ReplicationController, custom CRDs implementing /scale).
+        examples:
+          - {apiVersion: apps/v1, kind: Deployment, name: external-api}
+          - {apiVersion: apps/v1, kind: StatefulSet, name: stateful-worker}
+      metrics:
+        description: |
+          List of HPA metrics. At least one entry is required by Kubernetes.
+          Multiple metrics combine via max() — the HPA picks the highest
+          replica count across all metric recommendations.
+        examples:
+          - - {type: Resource, resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}}
+            - {type: Resource, resource: {name: memory, target: {type: Utilization, averageUtilization: 80}}}
+      behavior:
+        description: |
+          Scale-up/scale-down behavior tuning (passthrough to HPA v2
+          `behavior`). Controls scaling velocity and stabilization windows.
+          Useful for slowing scale-down to avoid flapping or capping scale-up
+          velocity under bursty traffic.
+        examples:
+          - scaleDown: {stabilizationWindowSeconds: 300, policies: [{type: Percent, value: 50, periodSeconds: 60}]}
+          - scaleUp: {stabilizationWindowSeconds: 0, policies: [{type: Pods, value: 4, periodSeconds: 60}]}

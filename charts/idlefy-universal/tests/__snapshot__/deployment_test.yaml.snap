@@ -1,0 +1,28 @@
+should create a deployment with specified configuration:
+  1: |
+    containers:
+      - image: nginx:1.21
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        name: main
+        ports:
+          - containerPort: 80
+            name: http
+            protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi

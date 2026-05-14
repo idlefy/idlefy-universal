@@ -1,0 +1,39 @@
+suite: test ingress
+templates:
+  - deployment.yaml
+  - ingress.yaml
+tests:
+  - it: should create an ingress with specified configuration
+    set:
+      generic:
+        ingressesGeneral:
+          domain: "example.org"
+          ingressClassName: "nginx"
+          annotations:
+            nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+      deployments:
+        test-app:
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+              ports:
+                http:
+                  containerPort: 80
+                  servicePort: 80
+          autoCreateService: true
+          autoCreateIngress: true
+          ingress:
+            annotations:
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            hosts:
+              - subdomain: "test"
+                paths:
+                  - path: "/"
+                    pathType: "Prefix"
+              - host: "custom.example.com"
+                paths:
+                  - path: "/api"
+                    pathType: "Prefix"
+    asserts:
+      - matchSnapshot: {} 

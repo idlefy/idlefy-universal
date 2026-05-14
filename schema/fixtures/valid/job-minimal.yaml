@@ -1,0 +1,5 @@
+jobs:
+  setup-job:
+    containers:
+      main: {image: setup, imageTag: v1.0.0}
+    backoffLimit: 2

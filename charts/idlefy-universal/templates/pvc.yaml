@@ -1,0 +1,32 @@
+{{- include "idlefy-universal.validate" . -}}
+{{- range $pvcName, $pvcConfig := .Values.persistentVolumeClaims }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $pvcName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $pvcName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $pvcConfig.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $pvcConfig.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml $pvcConfig.accessModes | nindent 4 }}
+  {{- if $pvcConfig.storageClassName }}
+  storageClassName: {{ $pvcConfig.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $pvcConfig.size }}
+  {{- with $pvcConfig.selector }}
+  selector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+{{- end }}

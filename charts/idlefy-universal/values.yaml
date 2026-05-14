@@ -1,0 +1,11 @@
+deploymentsGeneral: {}
+deployments: {}
+configs: {}
+services: {}
+ingresses: {}
+httpRoutes: {}
+jobs: {}
+generic:
+  labels: {}
+  annotations: {}
+secretRefs: {}

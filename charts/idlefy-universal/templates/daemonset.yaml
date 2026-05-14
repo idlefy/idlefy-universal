@@ -1,0 +1,51 @@
+{{- include "idlefy-universal.validate" . -}}
+{{- if .Values.daemonSets }}
+{{- range $dsName, $dsConfig := .Values.daemonSets }}
+{{- $defaultedConfig := include "idlefy-universal.daemonSetDefaults" (dict "daemonSet" $dsConfig "general" $.Values.daemonSetsGeneral) | fromYaml }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ $dsName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $dsName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $defaultedConfig.updateStrategy }}
+  updateStrategy:
+    {{- toYaml $defaultedConfig.updateStrategy | nindent 4 }}
+  {{- end }}
+  {{- if hasKey $defaultedConfig "minReadySeconds" }}
+  minReadySeconds: {{ $defaultedConfig.minReadySeconds }}
+  {{- end }}
+  {{- if hasKey $defaultedConfig "revisionHistoryLimit" }}
+  revisionHistoryLimit: {{ $defaultedConfig.revisionHistoryLimit }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "idlefy-universal.componentLabels" (dict "name" $dsName "root" $) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $dsName) | nindent 8 }}
+        {{- $podExtraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+        {{- if $podExtraLabels }}
+        {{- $podExtraLabels | nindent 8 }}
+        {{- end }}
+      {{- $podMergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.podAnnotations) }}
+      {{- if $podMergedAnnotations }}
+      annotations:
+        {{- $podMergedAnnotations | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "idlefy-universal.podSpec" (dict "config" $defaultedConfig "resourceConfig" $dsConfig "kind" "DaemonSet" "Root" $ "name" $dsName "general" $.Values.daemonSetsGeneral) | nindent 6 }}
+---
+{{- end }}
+{{- end }}

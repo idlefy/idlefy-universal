@@ -1,0 +1,203 @@
+properties:
+  daemonSets:
+    description: |
+      Node-level agents that run one pod per matching node (log shippers,
+      monitoring agents, CNI plugins, storage drivers).
+    examples:
+      - fluent-bit:
+          containers:
+            main: {image: fluent/fluent-bit, imageTag: "2.2"}
+          hostNetwork: true
+          tolerations:
+            - {operator: Exists}
+    x-agent-when-to-use: |
+      Choose daemonSets when the workload must run on every node (or
+      every node matching a nodeSelector). For app workloads, prefer
+      deployments. For stateful per-pod identity, prefer statefulSets.
+    x-agent-related-fields:
+      - updateStrategy
+      - hostNetwork
+      - tolerations
+    x-agent-common-mistakes:
+      - Setting replicas (DaemonSet pod count is managed by node count).
+      - Setting hpa (DaemonSets cannot be horizontally autoscaled).
+      - Forgetting tolerations for node taints (control-plane, GPU nodes).
+      - Setting both updateStrategy.rollingUpdate.maxUnavailable=0 and maxSurge=0 — the rollout stalls; at least one must be > 0.
+    x-agent-example-use-case: |
+      Fluent Bit log shipper with hostNetwork=true, tolerating all node
+      taints to run on every node.
+
+$defs:
+  DaemonSetSpec:
+    description: Per-instance config for a DaemonSet workload.
+    examples:
+      - containers:
+          main: {image: fluent/fluent-bit, imageTag: "2.2"}
+        hostNetwork: true
+        tolerations:
+          - {operator: Exists}
+    properties:
+      containers:
+        description: |
+          Map of containers keyed by container name. At least one is
+          required. The key becomes the Kubernetes container name verbatim.
+        examples:
+          - main: {image: fluent/fluent-bit, imageTag: "2.2"}
+      initContainers:
+        description: |
+          Map of init containers keyed by name. Each uses the same shape
+          as a normal container. Init containers run sequentially in
+          alphabetical order of their keys before main containers start.
+        examples:
+          - prepare-host:
+              image: busybox
+              imageTag: "1.36"
+              command: [sh, -c, "mkdir -p /var/log/app"]
+      nodeSelector:
+        description: |
+          Node label constraints for pod scheduling (passthrough). Pods only
+          schedule onto nodes that match all listed labels.
+        examples:
+          - {"kubernetes.io/os": linux}
+      tolerations:
+        description: |
+          Pod tolerations for tainted nodes (passthrough). DaemonSets often
+          need {operator: Exists} to tolerate every taint and land on every
+          node.
+        examples:
+          - - {operator: Exists}
+        items:
+          description: |
+            One toleration (passthrough). Standard fields: key, operator,
+            value, effect, tolerationSeconds.
+          examples:
+            - {operator: Exists}
+      annotations:
+        description: |
+          Extra annotations merged onto the DaemonSet metadata. Use for
+          GitOps wave ordering, audit labels, or controller hints. Pod-level
+          annotations live under podAnnotations.
+        examples:
+          - {"argocd.argoproj.io/sync-wave": "5"}
+      labels:
+        description: |
+          Extra labels merged onto the DaemonSet metadata. Standard chart
+          labels (app.kubernetes.io/*) are always added automatically.
+        examples:
+          - {team: platform, tier: node-agent}
+      podAnnotations:
+        description: |
+          Annotations applied to the pod template (spec.template.metadata).
+          Common use: Prometheus scrape hints or checksum annotations that
+          force a rollout on ConfigMap change.
+        examples:
+          - {"prometheus.io/scrape": "true", "prometheus.io/port": "9090"}
+      podLabels:
+        description: |
+          Labels applied to the pod template (spec.template.metadata).
+          Propagate to pods and match NetworkPolicy / Service / ServiceMonitor
+          selectors.
+        examples:
+          - {tier: node-agent}
+      volumes:
+        description: |
+          Pod volumes (passthrough). Each entry defines a named volume that
+          containers reference via volumeMounts. Host-path volumes are
+          common for node-level agents (log directories, host /proc).
+        examples:
+          - - {name: varlog, hostPath: {path: /var/log}}
+        items:
+          description: |
+            One volume (passthrough). Required keys: name plus one
+            volume source (hostPath, configMap, secret, etc.).
+          examples:
+            - {name: varlog, hostPath: {path: /var/log}}
+      hostAliases:
+        description: |
+          Static /etc/hosts entries injected into every pod replica. Each
+          entry maps a single IP to one or more hostnames.
+        examples:
+          - - {ip: 10.0.0.1, hostnames: [legacy.internal]}
+      topologySpreadConstraints:
+        description: |
+          Constraints that spread pod replicas across failure domains
+          (zones, nodes, racks). Rarely useful for DaemonSets, but supported
+          for completeness. Passthrough to Kubernetes.
+        examples:
+          - - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: {matchLabels: {"app.kubernetes.io/component": agent}}
+        items:
+          description: |
+            One topology spread constraint (passthrough). Required keys:
+            maxSkew, topologyKey, whenUnsatisfiable, labelSelector.
+          examples:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: {matchLabels: {"app.kubernetes.io/component": agent}}
+      updateStrategy:
+        description: Controls rollout behavior. RollingUpdate or OnDelete.
+        examples:
+          - type: RollingUpdate
+            rollingUpdate: {maxUnavailable: 1}
+        properties:
+          rollingUpdate:
+            description: |
+              Tuning knobs for the RollingUpdate strategy: maxUnavailable
+              (how many node pods may be unavailable during rollout) and
+              maxSurge (extra pods allowed above the desired count, K8s 1.25+).
+            examples:
+              - {maxUnavailable: 1}
+      hostNetwork:
+        description: |
+          Run pods in the host's network namespace. Required for some
+          node-level agents (CNI plugins, host metrics scrapers).
+      hostPID:
+        description: Run pods in the host's PID namespace.
+      hostIPC:
+        description: Run pods in the host's IPC namespace.
+      minReadySeconds:
+        description: Seconds a pod must be ready before it counts as available.
+      revisionHistoryLimit:
+        description: ControllerRevisions retained for rollback.
+      probes:
+        description: |
+          Default probes (livenessProbe / readinessProbe / startupProbe)
+          applied to every container in this DaemonSet unless the container
+          overrides them.
+        examples:
+          - readinessProbe: {httpGet: {path: /ready, port: http}, initialDelaySeconds: 5}
+      autoCreateNetworkPolicy:
+        description: |
+          When true, chart renders a `kind: NetworkPolicy` named after the
+          daemonSet. Requires a `networkPolicy:` block — strict explicit-only,
+          no silent allow/deny defaults. See NetworkPolicySpec.
+        examples:
+          - true
+      networkPolicy:
+        description: |
+          NetworkPolicy configuration for this daemonSet. Only rendered when
+          autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
+          full shape and validation rules.
+        examples:
+          - policyTypes: [Ingress]
+            ingress: []
+      autoCreateRbac:
+        description: |
+          When true, chart renders a kind: Role + kind: RoleBinding pair named
+          after the daemonSet. Requires an `rbac:` block and a resolvable
+          ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
+        examples:
+          - true
+      rbac:
+        description: |
+          Namespaced RBAC configuration for this daemonSet. Only rendered when
+          autoCreateRbac is true. See $defs/RbacSpec for full shape and
+          validation rules.
+        examples:
+          - rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get, list, watch]

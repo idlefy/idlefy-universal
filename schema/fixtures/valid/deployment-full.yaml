@@ -1,0 +1,61 @@
+generic:
+  ingressesGeneral:
+    domain: example.com
+    ingressClassName: nginx
+
+deploymentsGeneral:
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  probes:
+    livenessProbe:
+      httpGet: {path: /health, port: http}
+      initialDelaySeconds: 30
+      periodSeconds: 10
+
+deployments:
+  backend-api:
+    replicas: 3
+    autoCreateService: true
+    autoCreateIngress: true
+    autoCreateCertificate: true
+    ingress:
+      hosts:
+        - subdomain: api
+          paths: [{path: /, pathType: Prefix}]
+      tls:
+        - {secretName: api-tls, hosts: [api.example.com]}
+    certificate:
+      clusterIssuer: letsencrypt-prod
+    autoCreateServiceMonitor: true
+    autoCreatePdb: true
+    pdb:
+      minAvailable: 2
+      labels: {}
+      annotations: {}
+    strategy:
+      type: RollingUpdate
+      rollingUpdate: {maxSurge: "30%", maxUnavailable: "20%"}
+    containers:
+      main:
+        image: backend-api
+        imageTag: v1.0.0
+        ports:
+          http: {containerPort: 8080, servicePort: 80}
+          metrics: {containerPort: 9090, servicePort: 9090}
+        env:
+          - {name: LOG_LEVEL, value: info}
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef: {name: db, key: password}
+        resources:
+          requests: {cpu: 100m, memory: 256Mi}
+          limits: {cpu: 500m, memory: 512Mi}
+    hpa:
+      minReplicas: 3
+      maxReplicas: 10
+      metrics:
+        - type: Resource
+          resource:
+            name: cpu
+            target: {type: Utilization, averageUtilization: 70}

@@ -1,0 +1,128 @@
+# Curated recipes consumed by emit_agent_index to inline copy-paste-ready
+# values.yaml snippets in charts/idlefy-universal/agent-index.json.
+#
+# Each entry: id (kebab-case), summary (one short sentence), snippet (literal
+# block scalar with a complete, valid values.yaml fragment).
+#
+# Keep this list to ~5 entries. New recipes go to docs/recipes/*.md, not here.
+recipes:
+  - id: web-service
+    summary: Web service exposed via Service + Ingress with TLS.
+    snippet: |
+      deployments:
+        web:
+          autoCreateService: true
+          autoCreateIngress: true
+          autoCreateCertificate: true
+          containers:
+            main:
+              image: nginx
+              imageTag: "1.25"
+              ports:
+                http:
+                  containerPort: 80
+          ingress:
+            hosts:
+              - host: web.example.com
+                paths:
+                  - path: /
+                    pathType: Prefix
+          certificate:
+            clusterIssuer: letsencrypt-prod
+  - id: api-with-metrics
+    summary: API deployment with Prometheus ServiceMonitor.
+    snippet: |
+      deployments:
+        api:
+          autoCreateService: true
+          autoCreateServiceMonitor: true
+          containers:
+            main:
+              image: my-api
+              imageTag: v1.2.3
+              ports:
+                http:
+                  containerPort: 8080
+                http-metrics:
+                  containerPort: 9090
+  - id: cronjob
+    summary: Scheduled CronJob with concurrency policy.
+    snippet: |
+      cronJobs:
+        nightly-report:
+          schedule: "0 2 * * *"
+          concurrencyPolicy: Forbid
+          containers:
+            main:
+              image: my-report
+              imageTag: v1.0.0
+              command: ["/bin/report"]
+  - id: one-off-job
+    summary: One-shot Job (e.g. migrations) with restartPolicy=OnFailure.
+    snippet: |
+      jobs:
+        migrate:
+          backoffLimit: 3
+          restartPolicy: OnFailure
+          containers:
+            main:
+              image: my-app
+              imageTag: v1.0.0
+              command: ["./manage", "migrate"]
+  - id: stateful-app
+    summary: Single-replica Postgres-like StatefulSet with one PVC and a headless Service.
+    snippet: |
+      statefulSets:
+        postgres:
+          serviceName: postgres-headless
+          replicas: 1
+          autoCreateService: true
+          autoCreatePdb: true
+          volumeClaimTemplates:
+            - metadata:
+                name: data
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: 20Gi
+          containers:
+            main:
+              image: postgres
+              imageTag: "16.2"
+              ports:
+                postgres:
+                  containerPort: 5432
+              env:
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-creds
+                      key: password
+              volumeMounts:
+                - name: data
+                  mountPath: /var/lib/postgresql/data
+  - id: node-agent
+    summary: DaemonSet log shipper with hostNetwork and tolerations for every node.
+    snippet: |
+      daemonSets:
+        log-shipper:
+          hostNetwork: true
+          autoCreateServiceMonitor: true
+          tolerations:
+            - operator: Exists
+          containers:
+            main:
+              image: fluent/fluent-bit
+              imageTag: "3.0"
+              ports:
+                http-metrics:
+                  containerPort: 2020
+              volumeMounts:
+                - name: varlog
+                  mountPath: /var/log
+                  readOnly: true
+          volumes:
+            - name: varlog
+              hostPath:
+                path: /var/log

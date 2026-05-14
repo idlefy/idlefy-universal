@@ -1,0 +1,335 @@
+{
+  "$schemaVersion": "1",
+  "generatedFrom": "values.schema.json",
+  "recipes": [
+    {
+      "id": "web-service",
+      "snippet": "deployments:\n  web:\n    autoCreateService: true\n    autoCreateIngress: true\n    autoCreateCertificate: true\n    containers:\n      main:\n        image: nginx\n        imageTag: \"1.25\"\n        ports:\n          http:\n            containerPort: 80\n    ingress:\n      hosts:\n        - host: web.example.com\n          paths:\n            - path: /\n              pathType: Prefix\n    certificate:\n      clusterIssuer: letsencrypt-prod\n",
+      "summary": "Web service exposed via Service + Ingress with TLS."
+    },
+    {
+      "id": "api-with-metrics",
+      "snippet": "deployments:\n  api:\n    autoCreateService: true\n    autoCreateServiceMonitor: true\n    containers:\n      main:\n        image: my-api\n        imageTag: v1.2.3\n        ports:\n          http:\n            containerPort: 8080\n          http-metrics:\n            containerPort: 9090\n",
+      "summary": "API deployment with Prometheus ServiceMonitor."
+    },
+    {
+      "id": "cronjob",
+      "snippet": "cronJobs:\n  nightly-report:\n    schedule: \"0 2 * * *\"\n    concurrencyPolicy: Forbid\n    containers:\n      main:\n        image: my-report\n        imageTag: v1.0.0\n        command: [\"/bin/report\"]\n",
+      "summary": "Scheduled CronJob with concurrency policy."
+    },
+    {
+      "id": "one-off-job",
+      "snippet": "jobs:\n  migrate:\n    backoffLimit: 3\n    restartPolicy: OnFailure\n    containers:\n      main:\n        image: my-app\n        imageTag: v1.0.0\n        command: [\"./manage\", \"migrate\"]\n",
+      "summary": "One-shot Job (e.g. migrations) with restartPolicy=OnFailure."
+    },
+    {
+      "id": "stateful-app",
+      "snippet": "statefulSets:\n  postgres:\n    serviceName: postgres-headless\n    replicas: 1\n    autoCreateService: true\n    autoCreatePdb: true\n    volumeClaimTemplates:\n      - metadata:\n          name: data\n        spec:\n          accessModes: [ReadWriteOnce]\n          resources:\n            requests:\n              storage: 20Gi\n    containers:\n      main:\n        image: postgres\n        imageTag: \"16.2\"\n        ports:\n          postgres:\n            containerPort: 5432\n        env:\n          - name: POSTGRES_PASSWORD\n            valueFrom:\n              secretKeyRef:\n                name: postgres-creds\n                key: password\n        volumeMounts:\n          - name: data\n            mountPath: /var/lib/postgresql/data\n",
+      "summary": "Single-replica Postgres-like StatefulSet with one PVC and a headless Service."
+    },
+    {
+      "id": "node-agent",
+      "snippet": "daemonSets:\n  log-shipper:\n    hostNetwork: true\n    autoCreateServiceMonitor: true\n    tolerations:\n      - operator: Exists\n    containers:\n      main:\n        image: fluent/fluent-bit\n        imageTag: \"3.0\"\n        ports:\n          http-metrics:\n            containerPort: 2020\n        volumeMounts:\n          - name: varlog\n            mountPath: /var/log\n            readOnly: true\n    volumes:\n      - name: varlog\n        hostPath:\n          path: /var/log\n",
+      "summary": "DaemonSet log shipper with hostNetwork and tolerations for every node."
+    }
+  ],
+  "topLevelKeys": {
+    "configs": {
+      "commonChildKeys": [
+        "type",
+        "data",
+        "binaryData",
+        "annotations",
+        "labels"
+      ],
+      "fullSchemaPath": "#/properties/configs",
+      "lookupHint": "schema/structure/configs.yaml + schema/docs/configs.yaml",
+      "requiredChildKeys": [
+        "type"
+      ],
+      "summary": "ConfigMaps and Secrets managed by the chart. Each key becomes the",
+      "type": "object",
+      "whenToUse": "Use for in-chart ConfigMaps/Secrets that are mounted by chart"
+    },
+    "cronJobs": {
+      "commonChildKeys": [
+        "schedule",
+        "containers",
+        "timezone",
+        "concurrencyPolicy",
+        "successfulJobsHistoryLimit",
+        "failedJobsHistoryLimit",
+        "startingDeadlineSeconds",
+        "suspend",
+        "activeDeadlineSeconds",
+        "backoffLimit"
+      ],
+      "fullSchemaPath": "#/properties/cronJobs",
+      "lookupHint": "schema/structure/jobs.yaml + schema/docs/jobs.yaml",
+      "requiredChildKeys": [
+        "schedule",
+        "containers"
+      ],
+      "summary": "Map of CronJob resources keyed by name.",
+      "type": "object"
+    },
+    "daemonSets": {
+      "commonChildKeys": [
+        "containers",
+        "namespace",
+        "initContainers",
+        "priorityClassName",
+        "serviceAccountName",
+        "nodeSelector",
+        "tolerations",
+        "affinity",
+        "annotations",
+        "labels"
+      ],
+      "fullSchemaPath": "#/properties/daemonSets",
+      "lookupHint": "schema/structure/daemonsets.yaml + schema/docs/daemonsets.yaml",
+      "requiredChildKeys": [
+        "containers"
+      ],
+      "summary": "Node-level agents that run one pod per matching node (log shippers,",
+      "type": "object",
+      "whenToUse": "Choose daemonSets when the workload must run on every node (or"
+    },
+    "daemonSetsGeneral": {
+      "commonChildKeys": [
+        "nodeSelector",
+        "tolerations",
+        "affinity",
+        "securityContext",
+        "priorityClassName",
+        "probes",
+        "networkPolicy"
+      ],
+      "fullSchemaPath": "#/properties/daemonSetsGeneral",
+      "lookupHint": "schema/structure/globals.yaml + schema/docs/globals.yaml",
+      "requiredChildKeys": [],
+      "summary": "Chart-wide defaults applied to every daemonSets.* entry. Supports a",
+      "type": "object",
+      "whenToUse": "Set platform-wide defaults here to avoid repeating boilerplate in"
+    },
+    "deployments": {
+      "commonChildKeys": [
+        "containers",
+        "replicas",
+        "namespace",
+        "strategy",
+        "priorityClassName",
+        "serviceAccountName",
+        "nodeSelector",
+        "tolerations",
+        "affinity",
+        "annotations"
+      ],
+      "fullSchemaPath": "#/properties/deployments",
+      "lookupHint": "schema/structure/deployments.yaml + schema/docs/deployments.yaml",
+      "requiredChildKeys": [
+        "containers"
+      ],
+      "summary": "Map of Deployment resources keyed by logical name. Each key becomes",
+      "type": "object",
+      "whenToUse": "Use deployments for long-running stateless workloads. Each entry can"
+    },
+    "deploymentsGeneral": {
+      "commonChildKeys": [
+        "replicas",
+        "namespace",
+        "containers",
+        "strategy",
+        "priorityClassName",
+        "serviceAccountName",
+        "nodeSelector",
+        "tolerations",
+        "affinity",
+        "annotations"
+      ],
+      "fullSchemaPath": "#/properties/deploymentsGeneral",
+      "lookupHint": "schema/structure/globals.yaml + schema/docs/globals.yaml",
+      "requiredChildKeys": [],
+      "summary": "Global defaults applied to every entry under deployments. Same shape",
+      "type": "object",
+      "whenToUse": "Set platform-wide defaults here to avoid repeating boilerplate in"
+    },
+    "generic": {
+      "commonChildKeys": [
+        "extraImagePullSecrets",
+        "serviceAccountName",
+        "ingressesGeneral",
+        "httpRoutesGeneral",
+        "serviceMonitorGeneral",
+        "labels",
+        "annotations"
+      ],
+      "fullSchemaPath": "#/properties/generic",
+      "lookupHint": "schema/structure/globals.yaml + schema/docs/globals.yaml",
+      "requiredChildKeys": [],
+      "summary": "Chart-wide settings shared by every resource: image pull secrets,",
+      "type": "object",
+      "whenToUse": "Set platform-wide defaults that should not be repeated."
+    },
+    "hpas": {
+      "commonChildKeys": [
+        "scaleTargetRef",
+        "maxReplicas",
+        "metrics",
+        "minReplicas",
+        "behavior"
+      ],
+      "fullSchemaPath": "#/properties/hpas",
+      "lookupHint": "schema/structure/hpa.yaml + schema/docs/hpa.yaml",
+      "requiredChildKeys": [
+        "scaleTargetRef",
+        "maxReplicas",
+        "metrics"
+      ],
+      "summary": "Map of standalone HorizontalPodAutoscaler resources keyed by name.",
+      "type": "object",
+      "whenToUse": "Use for HPAs not tied to a chart deployment. For chart deployments"
+    },
+    "httpRoutes": {
+      "commonChildKeys": [
+        "parentRefs",
+        "hostnames",
+        "rules",
+        "annotations",
+        "labels"
+      ],
+      "fullSchemaPath": "#/properties/httpRoutes",
+      "lookupHint": "schema/structure/networking.yaml + schema/docs/networking.yaml",
+      "requiredChildKeys": [],
+      "summary": "Map of standalone HTTPRoute (Gateway API) resources keyed by name.",
+      "type": "object",
+      "whenToUse": "Use for traffic-splitting (canary), header-based routing, or any"
+    },
+    "ingresses": {
+      "commonChildKeys": [
+        "hosts",
+        "tls",
+        "ingressClassName",
+        "annotations",
+        "labels"
+      ],
+      "fullSchemaPath": "#/properties/ingresses",
+      "lookupHint": "schema/structure/networking.yaml + schema/docs/networking.yaml",
+      "requiredChildKeys": [],
+      "summary": "Map of standalone Ingress resources keyed by logical name. Use this for",
+      "type": "object",
+      "whenToUse": "Use when one Ingress must route to multiple backends. For 1-deployment"
+    },
+    "jobs": {
+      "commonChildKeys": [
+        "containers",
+        "parallelism",
+        "completions",
+        "backoffLimit",
+        "activeDeadlineSeconds",
+        "ttlSecondsAfterFinished",
+        "restartPolicy",
+        "priorityClassName",
+        "serviceAccountName",
+        "namespace"
+      ],
+      "fullSchemaPath": "#/properties/jobs",
+      "lookupHint": "schema/structure/jobs.yaml + schema/docs/jobs.yaml",
+      "requiredChildKeys": [
+        "containers"
+      ],
+      "summary": "Map of one-time Job resources keyed by name. Use cronJobs for scheduled",
+      "type": "object",
+      "whenToUse": "Use for one-off batch processing, data backfills, or one-shot setup"
+    },
+    "persistentVolumeClaims": {
+      "commonChildKeys": [
+        "accessModes",
+        "size",
+        "storageClassName",
+        "volumeMode",
+        "selector",
+        "annotations",
+        "labels"
+      ],
+      "fullSchemaPath": "#/properties/persistentVolumeClaims",
+      "lookupHint": "schema/structure/storage.yaml + schema/docs/storage.yaml",
+      "requiredChildKeys": [
+        "accessModes",
+        "size"
+      ],
+      "summary": "Map of PersistentVolumeClaim resources keyed by name. Each entry creates",
+      "type": "object",
+      "whenToUse": "Use for stateful workloads or for shared scratch space across containers"
+    },
+    "secretRefs": {
+      "commonChildKeys": [],
+      "fullSchemaPath": "#/properties/secretRefs",
+      "lookupHint": "schema/structure/secretrefs.yaml + schema/docs/secretrefs.yaml",
+      "requiredChildKeys": [],
+      "summary": "Map of reusable env-var groups keyed by name. Each group is a list of",
+      "type": "object",
+      "whenToUse": "Use when the same Secret-derived env vars are needed by multiple"
+    },
+    "services": {
+      "commonChildKeys": [
+        "ports",
+        "type",
+        "selector",
+        "annotations",
+        "labels",
+        "externalName",
+        "clusterIP",
+        "sessionAffinity"
+      ],
+      "fullSchemaPath": "#/properties/services",
+      "lookupHint": "schema/structure/networking.yaml + schema/docs/networking.yaml",
+      "requiredChildKeys": [
+        "ports"
+      ],
+      "summary": "Map of standalone Service resources keyed by logical name. For per-deployment",
+      "type": "object"
+    },
+    "statefulSets": {
+      "commonChildKeys": [
+        "containers",
+        "serviceName",
+        "replicas",
+        "namespace",
+        "initContainers",
+        "priorityClassName",
+        "serviceAccountName",
+        "nodeSelector",
+        "tolerations",
+        "affinity"
+      ],
+      "fullSchemaPath": "#/properties/statefulSets",
+      "lookupHint": "schema/structure/statefulsets.yaml + schema/docs/statefulsets.yaml",
+      "requiredChildKeys": [
+        "containers",
+        "serviceName"
+      ],
+      "summary": "Workloads requiring stable network identity (DNS) and/or persistent",
+      "type": "object",
+      "whenToUse": "Choose statefulSets when pods need stable hostnames, persistent"
+    },
+    "statefulSetsGeneral": {
+      "commonChildKeys": [
+        "nodeSelector",
+        "tolerations",
+        "affinity",
+        "autoCreateSoftAntiAffinity",
+        "securityContext",
+        "priorityClassName",
+        "probes",
+        "networkPolicy"
+      ],
+      "fullSchemaPath": "#/properties/statefulSetsGeneral",
+      "lookupHint": "schema/structure/globals.yaml + schema/docs/globals.yaml",
+      "requiredChildKeys": [],
+      "summary": "Chart-wide defaults applied to every statefulSets.* entry. Shares",
+      "type": "object",
+      "whenToUse": "Set platform-wide defaults here to avoid repeating boilerplate in"
+    }
+  }
+}

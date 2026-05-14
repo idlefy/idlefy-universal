@@ -1,0 +1,48 @@
+should create a pod disruption budget when autoCreatePdb is enabled:
+  1: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      labels:
+        app.kubernetes.io/component: test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: test-app
+        helm.sh/chart: idlefy-universal-test-version
+      name: test-app
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: test-app
+          app.kubernetes.io/instance: RELEASE-NAME
+          app.kubernetes.io/name: test-app
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: test-app
+            app.kubernetes.io/instance: RELEASE-NAME
+            app.kubernetes.io/managed-by: Helm
+            app.kubernetes.io/name: test-app
+            helm.sh/chart: idlefy-universal-test-version
+        spec:
+          containers:
+            - image: nginx:latest
+              name: main
+  2: |
+    apiVersion: policy/v1
+    kind: PodDisruptionBudget
+    metadata:
+      labels:
+        app.kubernetes.io/component: test-app
+        app.kubernetes.io/instance: RELEASE-NAME
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: test-app
+        helm.sh/chart: idlefy-universal-test-version
+      name: test-app
+    spec:
+      maxUnavailable: 1
+      selector:
+        matchLabels:
+          app.kubernetes.io/component: test-app
+          app.kubernetes.io/instance: RELEASE-NAME
+          app.kubernetes.io/name: test-app

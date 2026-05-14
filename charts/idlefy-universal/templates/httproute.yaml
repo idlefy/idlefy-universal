@@ -1,0 +1,84 @@
+{{- include "idlefy-universal.validate" . -}}
+{{- /* Standalone HTTPRoutes */ -}}
+{{- if .Values.httpRoutes }}
+{{- range $routeName, $routeConfig := .Values.httpRoutes }}
+{{- $defaultedRoute := include "idlefy-universal.httpRouteDefaults" (dict "httpRoute" $routeConfig "general" (index ($.Values.generic | default dict) "httpRoutesGeneral" | default dict)) | fromYaml }}
+{{- $globalDomain := "" }}
+{{- if and $.Values.generic $.Values.generic.ingressesGeneral }}
+  {{- $globalDomain = $.Values.generic.ingressesGeneral.domain | default "" | trim }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $routeName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $routeName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $routeConfig.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedRoute.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  parentRefs:
+    {{- toYaml $defaultedRoute.parentRefs | nindent 4 }}
+  hostnames:
+    {{- range $defaultedRoute.hostnames }}
+    - {{ include "idlefy-universal.computedIngressHost" (dict "host" .host "subdomain" .subdomain "globalDomain" $globalDomain) | trim | quote }}
+    {{- end }}
+  rules:
+    {{- range $rule := $defaultedRoute.rules }}
+    - matches:
+        {{- range $match := $rule.matches }}
+        - path:
+            type: {{ $match.path.type | default "PathPrefix" }}
+            value: {{ $match.path.value | default "/" }}
+          {{- if $match.headers }}
+          headers:
+            {{- range $header := $match.headers }}
+            - name: {{ $header.name }}
+              value: {{ $header.value | quote }}
+              {{- if $header.type }}
+              type: {{ $header.type }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- if $match.queryParams }}
+          queryParams:
+            {{- range $qp := $match.queryParams }}
+            - name: {{ $qp.name }}
+              value: {{ $qp.value | quote }}
+              {{- if $qp.type }}
+              type: {{ $qp.type }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+      backendRefs:
+        {{- if $rule.backendRefs }}
+        {{- range $ref := $rule.backendRefs }}
+        - name: {{ $ref.name | default $routeName }}
+          port: {{ $ref.port | default 80 }}
+          {{- if $ref.weight }}
+          weight: {{ $ref.weight }}
+          {{- end }}
+        {{- end }}
+        {{- else }}
+        - name: {{ $routeName }}
+          port: 80
+        {{- end }}
+    {{- end }}
+---
+{{- end }}
+{{- end }}
+
+{{- /* Auto-created HTTPRoutes from deployments */ -}}
+{{- range $deploymentName, $deploymentConfig := .Values.deployments }}
+{{- if $deploymentConfig.autoCreateHttpRoute }}
+{{- include "idlefy-universal.autoHttpRoute" (dict "deploymentName" $deploymentName "deploymentConfig" $deploymentConfig "root" $) }}
+---
+{{- end }}
+{{- end }}

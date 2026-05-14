@@ -1,0 +1,79 @@
+{{/* Service helper template */}}
+{{- define "idlefy-universal.service" -}}
+{{- $serviceName := .serviceName }}
+{{- $serviceConfig := .serviceConfig }}
+{{- $root := .root }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $serviceName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $root.Chart "Release" $root.Release "name" $serviceName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $root "resourceLabels" $serviceConfig.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $root "resourceAnnotations" $serviceConfig.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $serviceConfig.headless }}
+  clusterIP: None
+  publishNotReadyAddresses: true
+  {{- else }}
+  type: {{ $serviceConfig.type | default "ClusterIP" }}
+  {{- end }}
+  ports:
+    {{- range $serviceConfig.ports }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .targetPort }}
+      {{- if .nodePort }}
+      nodePort: {{ .nodePort }}
+      {{- end }}
+      protocol: {{ .protocol | default "TCP" }}
+    {{- end }}
+  selector:
+    {{- include "idlefy-universal.componentLabels" (dict "name" $serviceName "root" $root) | nindent 4 }}
+{{- end }}
+{{- include "idlefy-universal.validate" . -}}
+{{/* Main service template */}}
+{{- if .Values.services }}
+{{- range $serviceName, $serviceConfig := .Values.services }}
+---
+{{- include "idlefy-universal.service" (dict "serviceName" $serviceName "serviceConfig" $serviceConfig "root" $) }}
+{{- end }}
+{{- end }}
+
+{{/* Auto-created services from deployments */}}
+{{- range $deploymentName, $deploymentConfig := .Values.deployments }}
+{{- if $deploymentConfig.autoCreateService }}
+{{- $portsYaml := include "idlefy-universal.autoCreateServicePortsList" (dict "workloadConfig" $deploymentConfig) }}
+{{- $ports := fromYamlArray $portsYaml }}
+{{- if $ports }}
+---
+{{- $serviceConfig := dict "ports" $ports "type" ($deploymentConfig.serviceType | default "ClusterIP") }}
+{{- include "idlefy-universal.service" (dict "serviceName" $deploymentName "serviceConfig" $serviceConfig "root" $) }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* Auto-created services from statefulSets */}}
+{{- range $stsName, $stsConfig := .Values.statefulSets }}
+{{- if $stsConfig.autoCreateService }}
+{{- $defaultedConfig := include "idlefy-universal.statefulSetDefaults" (dict "statefulSet" $stsConfig "general" $.Values.statefulSetsGeneral) | fromYaml }}
+{{- $portsYaml := include "idlefy-universal.autoCreateServicePortsList" (dict "workloadConfig" $defaultedConfig) }}
+{{- $ports := fromYamlArray $portsYaml }}
+{{- if $ports }}
+---
+{{- $headless := default false $defaultedConfig.serviceHeadless }}
+{{- $serviceConfig := dict "ports" $ports "headless" $headless }}
+{{- if not $headless }}
+{{- $_ := set $serviceConfig "type" ($defaultedConfig.serviceType | default "ClusterIP") }}
+{{- end }}
+{{- include "idlefy-universal.service" (dict "serviceName" $defaultedConfig.serviceName "serviceConfig" $serviceConfig "root" $) }}
+{{- end }}
+{{- end }}
+{{- end }}

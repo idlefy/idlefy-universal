@@ -1,0 +1,81 @@
+{{- include "idlefy-universal.validate" . -}}
+{{- range $jobName, $jobConfig := .Values.jobs }}
+{{- $defaultedConfig := include "idlefy-universal.deploymentDefaults" (dict "deployment" $jobConfig "general" $.Values.deploymentsGeneral) | fromYaml }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $jobName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $jobName) | nindent 4 }}
+    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+    {{- if $extraLabels }}
+    {{- $extraLabels | nindent 4 }}
+    {{- end }}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.annotations) }}
+  {{- if $mergedAnnotations }}
+  annotations:
+    {{- $mergedAnnotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if $defaultedConfig.activeDeadlineSeconds }}
+  activeDeadlineSeconds: {{ $defaultedConfig.activeDeadlineSeconds }}
+  {{- end }}
+  {{- if $defaultedConfig.backoffLimit }}
+  backoffLimit: {{ $defaultedConfig.backoffLimit }}
+  {{- end }}
+  {{- if $defaultedConfig.parallelism }}
+  parallelism: {{ int $defaultedConfig.parallelism }}
+  {{- end }}
+  {{- if $defaultedConfig.completions }}
+  completions: {{ int $defaultedConfig.completions }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $jobName) | nindent 8 }}
+        {{- $podExtraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+        {{- if $podExtraLabels }}
+        {{- $podExtraLabels | nindent 8 }}
+        {{- end }}
+      {{- $podMergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.podAnnotations) }}
+      {{- if $podMergedAnnotations }}
+      annotations:
+        {{- $podMergedAnnotations | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- include "idlefy-universal.podSpec" (dict "config" $defaultedConfig "resourceConfig" $jobConfig "kind" "Job" "Root" $ "name" $jobName "general" $.Values.deploymentsGeneral) | nindent 6 }}
+---
+{{- end }}
+
+{{/* Обработка миграций */}}
+{{- range $deploymentName, $deploymentConfig := .Values.deployments }}
+{{- if and $deploymentConfig.migrations (hasKey $deploymentConfig.migrations "enabled") $deploymentConfig.migrations.enabled }}
+{{- $defaultedConfig := include "idlefy-universal.deploymentDefaults" (dict "deployment" $deploymentConfig "general" $.Values.deploymentsGeneral) | fromYaml }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $deploymentName }}-migrations
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" (printf "%s-migrations" $deploymentName)) | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ $deploymentConfig.migrations.backoffLimit | default 1 }}
+  {{- if $deploymentConfig.migrations.parallelism }}
+  parallelism: {{ int $deploymentConfig.migrations.parallelism }}
+  {{- end }}
+  {{- if $deploymentConfig.migrations.completions }}
+  completions: {{ int $deploymentConfig.migrations.completions }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" (printf "%s-migrations" $deploymentName)) | nindent 8 }}
+    spec:
+      {{- include "idlefy-universal.podSpec" (dict "config" $defaultedConfig "resourceConfig" $deploymentConfig "kind" "MigrationJob" "Root" $ "name" (printf "%s-migrations" $deploymentName) "migrationArgs" $deploymentConfig.migrations.args "general" $.Values.deploymentsGeneral) | nindent 6 }}
+{{- end }}
+---
+{{- end }}

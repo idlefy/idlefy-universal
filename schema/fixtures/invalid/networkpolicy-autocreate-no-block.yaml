@@ -1,0 +1,6 @@
+# expected_error: networkPolicy
+deployments:
+  api:
+    containers:
+      main: {image: api, imageTag: "1.0", ports: {http: {containerPort: 8080}}}
+    autoCreateNetworkPolicy: true

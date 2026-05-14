@@ -1,0 +1,16 @@
+# Test for certificate component
+certificates:
+  test-certificate:
+    secretName: "test-certificate-tls"
+    clusterIssuer: "letsencrypt-prod"
+    duration: "2160h"  # 90 days
+    renewBefore: "360h"  # 15 days
+    dnsNames:
+      - "example.com"
+      - "www.example.com"
+    subject:
+      organizations:
+        - "Example Org"
+    usages:
+      - digital signature
+      - key encipherment 

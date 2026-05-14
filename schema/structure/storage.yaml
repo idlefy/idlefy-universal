@@ -1,0 +1,36 @@
+properties:
+  persistentVolumeClaims:
+    type: object
+    additionalProperties:
+      $ref: "#/$defs/PvcSpec"
+
+$defs:
+  PvcSpec:
+    type: object
+    additionalProperties: false
+    required: [accessModes, size]
+    properties:
+      accessModes:
+        type: array
+        minItems: 1
+        items:
+          type: string
+          enum: [ReadWriteOnce, ReadOnlyMany, ReadWriteMany, ReadWriteOncePod]
+      size:
+        type: string
+        pattern: "^[0-9]+(Ei|Pi|Ti|Gi|Mi|Ki|E|P|T|G|M|K)?$"
+      storageClassName:
+        type: string
+      volumeMode:
+        type: string
+        enum: [Filesystem, Block]
+        default: Filesystem
+      selector:
+        type: object
+        additionalProperties: true
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true

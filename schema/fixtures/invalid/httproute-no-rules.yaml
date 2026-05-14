@@ -1,0 +1,5 @@
+# expected_error: Additional properties are not allowed
+httpRoutes:
+  bad:
+    hostnames: [{host: a.example.com}]
+    unknownField: not-allowed

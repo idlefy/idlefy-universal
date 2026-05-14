@@ -1,0 +1,58 @@
+properties:
+  configs:
+    description: |
+      ConfigMaps and Secrets managed by the chart. Each key becomes the
+      Kubernetes resource name (prefixed with the release name); type
+      selects ConfigMap vs Secret.
+    examples:
+      - app-config:
+          type: configMap
+          data:
+            config.yaml: |
+              log_level: info
+        app-secrets:
+          type: secret
+          data:
+            API_KEY: my-secret-key
+    x-agent-when-to-use: |
+      Use for in-chart ConfigMaps/Secrets that are mounted by chart
+      deployments. For externally-managed secrets, prefer the secretRefs
+      section with valueFrom references.
+    x-agent-common-mistakes:
+      - "Putting binary content in data — base64 it into binaryData instead."
+      - "Forgetting type: secret — defaults to configMap, which won't be base64-encoded."
+
+$defs:
+  ConfigSpec:
+    description: One ConfigMap or Secret. type chooses the kind.
+    examples:
+      - {type: configMap, data: {"key.yaml": "value"}}
+      - {type: secret, data: {DB_PASSWORD: "redacted"}}
+    properties:
+      data:
+        description: |
+          Plain string key/value pairs. For ConfigMaps these are stored as-is;
+          for Secrets the chart base64-encodes them at template time so you
+          can keep human-readable strings in values.yaml.
+        examples:
+          - {"config.yaml": "log_level: info", "feature_flags.json": "{\"v2\": true}"}
+          - {DB_PASSWORD: "redacted", API_KEY: "abc123"}
+      binaryData:
+        description: |
+          Pre-base64-encoded values. Use for true binary payloads (TLS certs,
+          binary tokens, gzip-compressed files) where re-encoding from a string
+          would corrupt content. Keys still must be DNS subdomain compliant.
+        examples:
+          - {"ca.crt": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t..."}
+      annotations:
+        description: |
+          Extra annotations on the ConfigMap/Secret metadata. Common use:
+          GitOps sync waves so configs install before workloads that consume
+          them, or controller-specific hints.
+        examples:
+          - {"helm.sh/hook": pre-install, "helm.sh/hook-weight": "-5"}
+      labels:
+        description: |
+          Extra labels on the ConfigMap/Secret metadata.
+        examples:
+          - {team: platform, config-class: app}

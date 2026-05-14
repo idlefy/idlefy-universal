@@ -1,0 +1,288 @@
+properties:
+  deployments:
+    description: |
+      Map of Deployment resources keyed by logical name. Each key becomes
+      the Kubernetes Deployment name (prefixed with the Helm release name).
+      Inherits defaults from deploymentsGeneral.
+    examples:
+      - backend-api:
+          replicas: 3
+          containers:
+            main: {image: my-app, imageTag: v1.0.0}
+    x-agent-when-to-use: |
+      Use deployments for long-running stateless workloads. Each entry can
+      auto-create Service, Ingress, HPA, PDB, ServiceMonitor via flags.
+    x-agent-related-fields:
+      - /deploymentsGeneral
+      - /services
+      - /hpas
+
+$defs:
+  DeploymentSpec:
+    description: |
+      The shape of a single deployments.<name> entry. Inherits defaults
+      from deploymentsGeneral (same property set, no required fields).
+    examples:
+      - replicas: 2
+        containers:
+          main: {image: nginx, imageTag: "1.25"}
+        autoCreateService: true
+    x-agent-when-to-use: Always when defining a deployment under deployments.<name>.
+    properties:
+      replicas:
+        description: Number of pod replicas. Defaults to 1.
+        examples: [1, 3]
+      containers:
+        description: |
+          Map of containers keyed by container name. At least one is required.
+          The key becomes the Kubernetes container name verbatim.
+        examples:
+          - main: {image: nginx, imageTag: "1.25"}
+      strategy:
+        description: Update strategy (RollingUpdate or Recreate).
+      annotations:
+        description: |
+          Extra annotations merged onto the Deployment metadata. Use for
+          GitOps wave ordering, audit labels, or controller-specific hints.
+          Pod-level annotations (on the pod template) live under podAnnotations.
+        examples:
+          - {"argocd.argoproj.io/sync-wave": "5"}
+      labels:
+        description: |
+          Extra labels merged onto the Deployment metadata. Standard chart
+          labels (app.kubernetes.io/*) are always added automatically.
+          Pod-level labels live under podLabels.
+        examples:
+          - {team: platform, tier: critical}
+      podAnnotations:
+        description: |
+          Annotations applied to the pod template (spec.template.metadata).
+          Common use: Prometheus scrape hints (`prometheus.io/scrape`,
+          `prometheus.io/port`) or a checksum annotation that forces rollout
+          on ConfigMap change.
+        examples:
+          - {"prometheus.io/scrape": "true", "prometheus.io/port": "9090"}
+      podLabels:
+        description: |
+          Labels applied to the pod template (spec.template.metadata). These
+          propagate to pods and are matchable by NetworkPolicy selectors,
+          ServiceMonitor selectors, and Service selectors.
+        examples:
+          - {tier: backend, env: prod}
+      nodeSelector:
+        description: |
+          Node label constraints for pod scheduling (passthrough). Pods only
+          schedule onto nodes that match all listed labels. For more expressive
+          constraints (anti-affinity, preferences) use affinity instead.
+        examples:
+          - {"kubernetes.io/os": linux}
+          - {"node-role.kubernetes.io/worker": "true"}
+      tolerations:
+        description: |
+          Pod tolerations for tainted nodes (passthrough). Each entry tolerates
+          a specific taint key/value/effect — without a matching toleration, a
+          pod cannot schedule onto nodes carrying that taint.
+        examples:
+          - - {key: dedicated, operator: Equal, value: backend, effect: NoSchedule}
+        items:
+          description: |
+            One toleration (passthrough). Standard fields: key, operator
+            (Equal/Exists), value, effect (NoSchedule/PreferNoSchedule/NoExecute),
+            tolerationSeconds (NoExecute only).
+          examples:
+            - {key: dedicated, operator: Equal, value: backend, effect: NoSchedule}
+            - {key: node.kubernetes.io/unreachable, operator: Exists, effect: NoExecute, tolerationSeconds: 60}
+      affinity:
+        description: |
+          Pod affinity / anti-affinity rules (passthrough). The chart's
+          `autoCreateSoftAntiAffinity` flag generates a sensible default for
+          host-spreading; use this field for custom rules — zone affinity,
+          colocation with another workload, or anti-affinity against a label.
+        examples:
+          - podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector: {matchLabels: {"app.kubernetes.io/component": api}}
+                    topologyKey: kubernetes.io/hostname
+      securityContext:
+        description: |
+          Pod-level security context (passthrough). Settings apply to all
+          containers unless a container overrides them. Common use: fsGroup
+          for volume permissions, runAsNonRoot/runAsUser as a baseline.
+        examples:
+          - {runAsNonRoot: true, runAsUser: 1000, fsGroup: 2000}
+      volumes:
+        description: |
+          Pod volumes (passthrough). Each entry defines a named volume that
+          containers reference via volumeMounts. Supports the full K8s volume
+          source set: configMap, secret, persistentVolumeClaim, emptyDir,
+          hostPath, projected, csi, etc.
+        examples:
+          - - {name: config-volume, configMap: {name: app-config}}
+            - {name: cache, emptyDir: {}}
+            - {name: data, persistentVolumeClaim: {claimName: app-data}}
+        items:
+          description: |
+            One volume (passthrough). Required keys: name plus exactly one
+            volume source (configMap, secret, persistentVolumeClaim, emptyDir,
+            hostPath, projected, csi, ...).
+          examples:
+            - {name: config, configMap: {name: app-config}}
+            - {name: data, persistentVolumeClaim: {claimName: app-pvc, readOnly: false}}
+      probes:
+        description: |
+          Default probes (livenessProbe / readinessProbe / startupProbe) applied
+          to every container in this deployment unless the container overrides
+          them. Define once per deployment instead of repeating on each container.
+        examples:
+          - readinessProbe: {httpGet: {path: /ready, port: http}, initialDelaySeconds: 5}
+            livenessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 30}
+      autoCreateService:
+        description: When true, generates a Service from declared container ports.
+      autoCreateIngress:
+        description: |
+          When true, generates an Ingress using ingress.* and the global
+          generic.ingressesGeneral defaults. Requires at least one container
+          port (enforced in _validation.tpl).
+      autoCreateCertificate:
+        description: |
+          When true, generates a cert-manager Certificate. Requires
+          autoCreateIngress: true (enforced via cross-field if/then).
+      autoCreateNetworkPolicy:
+        description: |
+          When true, chart renders a `kind: NetworkPolicy` named after the
+          deployment. Requires a `networkPolicy:` block — strict explicit-only,
+          no silent allow/deny defaults. See NetworkPolicySpec.
+        examples:
+          - true
+      networkPolicy:
+        description: |
+          NetworkPolicy configuration for this deployment. Only rendered when
+          autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
+          full shape and validation rules.
+        examples:
+          - policyTypes: [Ingress]
+            ingress: []
+      autoCreateRbac:
+        description: |
+          When true, chart renders a kind: Role + kind: RoleBinding pair named
+          after the deployment. Requires an `rbac:` block and a resolvable
+          ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
+        examples:
+          - true
+      rbac:
+        description: |
+          Namespaced RBAC configuration for this deployment. Only rendered when
+          autoCreateRbac is true. See $defs/RbacSpec for full shape and
+          validation rules.
+        examples:
+          - rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get, list, watch]
+      hpa:
+        description: Inline HPA configuration. Setting this also creates an HPA tied to this deployment.
+      migrations:
+        description: Pre-deploy Job that runs database migrations before the deployment rolls out.
+      initContainers:
+        description: |
+          Map of init containers keyed by name. Each entry uses the same shape as
+          a normal container (image, imageTag, env, secretRefs, etc.). Init
+          containers run sequentially in alphabetical order of their map keys
+          before the main containers start.
+        examples:
+          - wait-for-db:
+              image: busybox
+              imageTag: "1.36"
+              command: [sh, -c, "until nc -z db 5432; do sleep 1; done"]
+            run-migrations:
+              image: my-app
+              imageTag: v1.0.0
+              args: [migrate, up]
+        x-agent-when-to-use: |
+          Use initContainers for one-shot setup work that must complete before the
+          main containers start: schema migrations, waiting on dependencies,
+          fetching config or secrets, fixing volume permissions.
+        x-agent-related-fields:
+          - /deployments/<name>/containers
+          - /deployments/<name>/volumes
+        x-agent-common-mistakes:
+          - Naming init containers without an ordering prefix (e.g. "01-wait", "02-migrate") when order matters — keys sort alphabetically, so unprefixed names like "migrate" and "wait" will run in unexpected order.
+          - Using initContainers for sidecars — sidecars must live in `containers`, not `initContainers`, because init containers exit before main containers start.
+      hostAliases:
+        description: |
+          Static /etc/hosts entries to inject into every pod replica.
+          Each entry maps a single IP to one or more hostnames.
+        examples:
+          - - ip: 10.0.0.1
+              hostnames: [legacy-db.internal]
+            - ip: 10.0.0.2
+              hostnames: [cache.internal, cache-secondary.internal]
+        x-agent-when-to-use: |
+          Use when the pod must reach a host by name that is not resolvable via
+          cluster DNS — typically a legacy on-prem service, a cluster-external
+          endpoint without DNS, or a name override for testing.
+        x-agent-common-mistakes:
+          - Adding hostAliases for hostnames that already resolve through cluster DNS — duplicate entries can override Services unexpectedly.
+      dnsConfig:
+        description: |
+          Pod-level DNS overrides. Passthrough to Kubernetes `podSpec.dnsConfig`:
+          nameservers, searches, and options. Combined with the pod's default
+          dnsPolicy (usually ClusterFirst).
+        examples:
+          - nameservers: [1.1.1.1, 8.8.8.8]
+            searches: [my-ns.svc.cluster.local]
+            options:
+              - name: ndots
+                value: "2"
+        x-agent-when-to-use: |
+          Use to lower `ndots` for latency-sensitive services, add extra search
+          domains, or pin a specific upstream resolver. Most workloads do not
+          need this — cluster DNS defaults are usually correct.
+        x-agent-related-fields:
+          - /deployments/<name>/hostAliases
+      terminationGracePeriodSeconds:
+        description: |
+          Seconds the pod is given to shut down gracefully after SIGTERM before
+          the kubelet sends SIGKILL. Defaults to 30s in Kubernetes when omitted.
+        examples: [30, 60, 120]
+        x-agent-when-to-use: |
+          Increase for workloads that need time to drain connections, flush
+          buffers, or finish in-flight requests (HTTP servers, queue
+          consumers). Decrease only for stateless workloads where a fast
+          recycle matters more than graceful shutdown.
+        x-agent-common-mistakes:
+          - Setting a very large value (e.g. 3600) without a matching preStop hook or readinessProbe failure path — the rolling update will stall waiting for pods to exit.
+      topologySpreadConstraints:
+        description: |
+          Constraints that spread pod replicas across failure domains (zones,
+          nodes, racks). Passthrough to Kubernetes `podSpec.topologySpreadConstraints`.
+          The labelSelector should match the workload's component labels.
+        examples:
+          - - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: my-app
+        x-agent-when-to-use: |
+          Use for any deployment with replicas > 1 that must survive a zone
+          outage. Pair `topology.kubernetes.io/zone` (DoNotSchedule) with
+          `kubernetes.io/hostname` (ScheduleAnyway) for both zone and host
+          spreading without blocking scheduling on small clusters.
+        x-agent-related-fields:
+          - /deployments/<name>/autoCreateSoftAntiAffinity
+        x-agent-common-mistakes:
+          - Forgetting that labelSelector must match the deployment's pod labels — using `app.kubernetes.io/name` instead of the chart-emitted `app.kubernetes.io/component` will spread across unrelated workloads.
+          - Using whenUnsatisfiable=DoNotSchedule on small clusters where the constraint can't be satisfied — pods stay Pending forever.
+        items:
+          description: |
+            One topology spread constraint (passthrough). Required keys:
+            maxSkew, topologyKey, whenUnsatisfiable, labelSelector. Optional:
+            minDomains (K8s 1.27+), nodeAffinityPolicy, nodeTaintsPolicy.
+          examples:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: DoNotSchedule
+              labelSelector: {matchLabels: {"app.kubernetes.io/component": api}}

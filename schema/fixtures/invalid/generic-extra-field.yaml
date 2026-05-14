@@ -1,0 +1,4 @@
+# expected_error: Additional properties are not allowed
+generic:
+  extraImagePullSecretz:
+    - {name: registry-secret}

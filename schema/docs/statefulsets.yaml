@@ -1,0 +1,257 @@
+properties:
+  statefulSets:
+    description: |
+      Workloads requiring stable network identity (DNS) and/or persistent
+      per-pod storage. Use for databases, queues, stateful caches.
+    examples:
+      - postgres:
+          serviceName: postgres
+          autoCreateService: true
+          containers:
+            main: {image: postgres, imageTag: "16"}
+          volumeClaimTemplates:
+            - metadata: {name: data}
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources: {requests: {storage: 20Gi}}
+    x-agent-when-to-use: |
+      Choose statefulSets when pods need stable hostnames, persistent
+      volumes that survive rescheduling, or strict ordering during
+      rolling updates. For stateless apps, prefer deployments.
+    x-agent-related-fields:
+      - serviceName
+      - volumeClaimTemplates
+      - autoCreateService
+      - podManagementPolicy
+    x-agent-common-mistakes:
+      - Omitting serviceName (required by Kubernetes).
+      - Using autoCreateService without headless mode (the chart defaults headless=true; only override if you have a specific reason).
+      - Reusing a name shared with a deployments key (component labels collide).
+      - Combining hpa with podManagementPolicy=OrderedReady — scale-down is sequential and slow, causing HPA oscillation. Prefer podManagementPolicy=Parallel when using HPA.
+      - Omitting metadata.name on a volumeClaimTemplates entry — Kubernetes requires it (it becomes the volume name and the PVC name prefix).
+    x-agent-example-use-case: |
+      Single-replica Postgres with one persistent volume and an autoCreated
+      headless Service for stable DNS.
+
+$defs:
+  StatefulSetSpec:
+    description: Per-instance config for a StatefulSet workload.
+    examples:
+      - serviceName: postgres
+        containers:
+          main: {image: postgres, imageTag: "16"}
+        volumeClaimTemplates:
+          - metadata: {name: data}
+            spec:
+              accessModes: [ReadWriteOnce]
+              resources: {requests: {storage: 20Gi}}
+    properties:
+      replicas:
+        description: Desired pod count. Defaults to 1.
+      namespace:
+        description: Override the release namespace for this resource.
+      serviceName:
+        description: |
+          Name of the headless Service that controls the StatefulSet's
+          network identity. Required by Kubernetes. When
+          autoCreateService=true, the chart creates a Service of this
+          name with clusterIP=None.
+      containers:
+        description: |
+          Map of containers keyed by container name. At least one is
+          required. The key becomes the Kubernetes container name verbatim.
+        examples:
+          - main: {image: postgres, imageTag: "16"}
+      initContainers:
+        description: |
+          Map of init containers keyed by name. Each uses the same shape
+          as a normal container. Init containers run sequentially in
+          alphabetical order of their keys before main containers start.
+        examples:
+          - wait-for-pv:
+              image: busybox
+              imageTag: "1.36"
+              command: [sh, -c, "test -d /var/lib/data"]
+      annotations:
+        description: |
+          Extra annotations merged onto the StatefulSet metadata. Use for
+          GitOps wave ordering, audit labels, or controller hints. Pod-level
+          annotations live under podAnnotations.
+        examples:
+          - {"argocd.argoproj.io/sync-wave": "5"}
+      labels:
+        description: |
+          Extra labels merged onto the StatefulSet metadata. Standard chart
+          labels (app.kubernetes.io/*) are always added automatically.
+        examples:
+          - {team: data, tier: critical}
+      podAnnotations:
+        description: |
+          Annotations applied to the pod template (spec.template.metadata).
+          Common use: Prometheus scrape hints or checksum annotations that
+          force a rollout on ConfigMap change.
+        examples:
+          - {"prometheus.io/scrape": "true", "prometheus.io/port": "9090"}
+      podLabels:
+        description: |
+          Labels applied to the pod template (spec.template.metadata).
+          Propagate to pods and match NetworkPolicy / Service / ServiceMonitor
+          selectors.
+        examples:
+          - {tier: data, env: prod}
+      nodeSelector:
+        description: |
+          Node label constraints for pod scheduling (passthrough). Pods only
+          schedule onto nodes that match all listed labels.
+        examples:
+          - {"kubernetes.io/os": linux}
+      tolerations:
+        description: |
+          Pod tolerations for tainted nodes (passthrough). Each entry
+          tolerates a specific taint key/value/effect.
+        examples:
+          - - {key: dedicated, operator: Equal, value: data, effect: NoSchedule}
+        items:
+          description: |
+            One toleration (passthrough). Standard fields: key, operator,
+            value, effect, tolerationSeconds.
+          examples:
+            - {key: dedicated, operator: Equal, value: data, effect: NoSchedule}
+      volumes:
+        description: |
+          Pod volumes (passthrough). Each entry defines a named volume
+          containers reference via volumeMounts. PVC templates from
+          volumeClaimTemplates are mounted by their template name, not here.
+        examples:
+          - - {name: config-volume, configMap: {name: app-config}}
+        items:
+          description: |
+            One volume (passthrough). Required keys: name plus one
+            volume source (configMap, secret, persistentVolumeClaim, etc.).
+          examples:
+            - {name: config, configMap: {name: app-config}}
+      hostAliases:
+        description: |
+          Static /etc/hosts entries injected into every pod replica.
+          Each entry maps a single IP to one or more hostnames.
+        examples:
+          - - {ip: 10.0.0.1, hostnames: [legacy.internal]}
+      topologySpreadConstraints:
+        description: |
+          Constraints that spread pod replicas across failure domains
+          (zones, nodes, racks). Passthrough to Kubernetes.
+        examples:
+          - - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: {matchLabels: {"app.kubernetes.io/component": db}}
+        items:
+          description: |
+            One topology spread constraint (passthrough). Required keys:
+            maxSkew, topologyKey, whenUnsatisfiable, labelSelector.
+          examples:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: {matchLabels: {"app.kubernetes.io/component": db}}
+      probes:
+        description: |
+          Default probes (livenessProbe / readinessProbe / startupProbe)
+          applied to every container in this StatefulSet unless the
+          container overrides them.
+        examples:
+          - readinessProbe: {httpGet: {path: /ready, port: http}, initialDelaySeconds: 5}
+      volumeClaimTemplates:
+        description: |
+          PVC templates that produce a unique PVC per pod ordinal. Each
+          template's metadata.name is used as the volume name; mount it
+          via container.volumeMounts.
+        examples:
+          - - metadata: {name: data}
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources: {requests: {storage: 20Gi}}
+        items:
+          description: |
+            One PVC template. Shape: {metadata, spec}.
+            `metadata.name` is REQUIRED — it becomes the volume name and the
+            PVC name prefix (`<name>-<sts-name>-<ordinal>`). The PVC survives
+            pod rescheduling and (by default) StatefulSet deletion. This is
+            different semantics from the `EphemeralVolumeSource` PVC template;
+            ignore any docs you see that say "metadata.name is server-set" —
+            those apply to ephemeral pod volumes, not StatefulSet templates.
+          x-agent-common-mistakes:
+            - Omitting metadata.name (Kubernetes rejects the StatefulSet).
+            - Expecting the PVC to be deleted automatically — by default it
+              is retained on STS deletion and scale-down. Use
+              persistentVolumeClaimRetentionPolicy to change this.
+          examples:
+            - metadata: {name: data}
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources: {requests: {storage: 20Gi}}
+      updateStrategy:
+        description: Controls rollout behavior. RollingUpdate with optional partition, or OnDelete.
+        examples:
+          - type: RollingUpdate
+            rollingUpdate: {partition: 0, maxUnavailable: 1}
+        properties:
+          rollingUpdate:
+            description: |
+              Tuning knobs for the RollingUpdate strategy: partition
+              (pods at ordinals >= partition are updated) and
+              maxUnavailable (K8s 1.24+, requires the feature gate).
+            examples:
+              - {partition: 0, maxUnavailable: 1}
+      podManagementPolicy:
+        description: |
+          OrderedReady (default) creates/deletes pods one at a time in
+          ordinal order. Parallel creates/deletes all pods simultaneously.
+      persistentVolumeClaimRetentionPolicy:
+        description: |
+          Controls PVC lifecycle when the StatefulSet is deleted or
+          scaled down. Retain (default) keeps PVCs; Delete removes them.
+        examples:
+          - {whenDeleted: Retain, whenScaled: Delete}
+      minReadySeconds:
+        description: Seconds a pod must be ready before it counts as available.
+      revisionHistoryLimit:
+        description: ControllerRevisions retained for rollback.
+      autoCreateService:
+        description: |
+          When true, the chart creates a Service for this StatefulSet.
+          Defaults the service to headless mode (clusterIP=None,
+          publishNotReadyAddresses=true). The Service is named after
+          serviceName, not the StatefulSet key.
+      autoCreateNetworkPolicy:
+        description: |
+          When true, chart renders a `kind: NetworkPolicy` named after the
+          statefulSet. Requires a `networkPolicy:` block — strict explicit-only,
+          no silent allow/deny defaults. See NetworkPolicySpec.
+        examples:
+          - true
+      networkPolicy:
+        description: |
+          NetworkPolicy configuration for this statefulSet. Only rendered when
+          autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
+          full shape and validation rules.
+        examples:
+          - policyTypes: [Ingress]
+            ingress: []
+      autoCreateRbac:
+        description: |
+          When true, chart renders a kind: Role + kind: RoleBinding pair named
+          after the statefulSet. Requires an `rbac:` block and a resolvable
+          ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
+        examples:
+          - true
+      rbac:
+        description: |
+          Namespaced RBAC configuration for this statefulSet. Only rendered when
+          autoCreateRbac is true. See $defs/RbacSpec for full shape and
+          validation rules.
+        examples:
+          - rules:
+              - apiGroups: [""]
+                resources: [configmaps]
+                verbs: [get, list, watch]

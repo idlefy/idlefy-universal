@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/idlefy/idlefy-universal/tree/main/docs
+    about: Check our documentation before creating an issue
+  - name: 💬 Questions & Discussions
+    url: https://github.com/idlefy/idlefy-universal/discussions
+    about: Please ask and answer questions here

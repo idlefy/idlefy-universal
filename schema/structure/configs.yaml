@@ -1,0 +1,29 @@
+properties:
+  configs:
+    type: object
+    additionalProperties:
+      $ref: "#/$defs/ConfigSpec"
+
+$defs:
+  ConfigSpec:
+    type: object
+    additionalProperties: false
+    required: [type]
+    properties:
+      type:
+        type: string
+        enum: [configMap, secret]
+      data:
+        type: object
+        additionalProperties:
+          type: string
+      binaryData:
+        type: object
+        additionalProperties:
+          type: string
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true

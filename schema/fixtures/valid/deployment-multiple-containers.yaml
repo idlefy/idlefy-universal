@@ -1,0 +1,13 @@
+deployments:
+  app-with-sidecar:
+    containers:
+      main:
+        image: my-app
+        imageTag: v1.0.0
+        ports:
+          http: {containerPort: 8080}
+      sidecar:
+        image: envoy
+        imageTag: "1.28-alpine"
+        ports:
+          admin: {containerPort: 9901}

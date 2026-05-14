@@ -1,0 +1,35 @@
+{{- range $deploymentName, $deploymentConfig := .Values.deployments }}
+{{- $defaultedConfig := include "idlefy-universal.deploymentDefaults" (dict "deployment" $deploymentConfig "general" $.Values.deploymentsGeneral) | fromYaml }}
+{{- if $defaultedConfig.autoCreateNetworkPolicy }}
+{{- include "idlefy-universal.autoNetworkPolicy" (dict "deploymentName" $deploymentName "deploymentConfig" $defaultedConfig "root" $) }}
+---
+{{- end }}
+{{- end }}
+{{- range $stsName, $stsConfig := .Values.statefulSets }}
+{{- $defaultedConfig := include "idlefy-universal.statefulSetDefaults" (dict "statefulSet" $stsConfig "general" $.Values.statefulSetsGeneral) | fromYaml }}
+{{- if $defaultedConfig.autoCreateNetworkPolicy }}
+{{- include "idlefy-universal.autoNetworkPolicy" (dict "deploymentName" $stsName "deploymentConfig" $defaultedConfig "root" $) }}
+---
+{{- end }}
+{{- end }}
+{{- range $dsName, $dsConfig := .Values.daemonSets }}
+{{- $defaultedConfig := include "idlefy-universal.daemonSetDefaults" (dict "daemonSet" $dsConfig "general" $.Values.daemonSetsGeneral) | fromYaml }}
+{{- if $defaultedConfig.autoCreateNetworkPolicy }}
+{{- include "idlefy-universal.autoNetworkPolicy" (dict "deploymentName" $dsName "deploymentConfig" $defaultedConfig "root" $) }}
+---
+{{- end }}
+{{- end }}
+{{- range $jobName, $jobConfig := .Values.jobs }}
+{{- $defaultedConfig := include "idlefy-universal.deploymentDefaults" (dict "deployment" $jobConfig "general" $.Values.deploymentsGeneral) | fromYaml }}
+{{- if $defaultedConfig.autoCreateNetworkPolicy }}
+{{- include "idlefy-universal.autoNetworkPolicy" (dict "deploymentName" $jobName "deploymentConfig" $defaultedConfig "root" $) }}
+---
+{{- end }}
+{{- end }}
+{{- range $cronJobName, $cronJobConfig := .Values.cronJobs }}
+{{- $defaultedConfig := include "idlefy-universal.deploymentDefaults" (dict "deployment" $cronJobConfig "general" $.Values.deploymentsGeneral) | fromYaml }}
+{{- if $defaultedConfig.autoCreateNetworkPolicy }}
+{{- include "idlefy-universal.autoNetworkPolicy" (dict "deploymentName" $cronJobName "deploymentConfig" $defaultedConfig "root" $) }}
+---
+{{- end }}
+{{- end }}

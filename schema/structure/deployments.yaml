@@ -1,0 +1,147 @@
+properties:
+  deployments:
+    type: object
+    additionalProperties:
+      $ref: "#/$defs/DeploymentSpec"
+
+$defs:
+  DeploymentSpec:
+    type: object
+    additionalProperties: false
+    required: [containers]
+    properties:
+      replicas:
+        type: integer
+        minimum: 0
+        default: 1
+      namespace:
+        type: string
+      containers:
+        type: object
+        additionalProperties:
+          $ref: "#/$defs/ContainerSpec"
+      strategy:
+        $ref: "#/$defs/StrategySpec"
+      priorityClassName:
+        type: string
+      serviceAccountName:
+        type: string
+      nodeSelector:
+        type: object
+        additionalProperties: true
+      tolerations:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Toleration"}
+      affinity: {$ref: "#/$defs/k8s.io.api.core.v1.Affinity"}
+      annotations:
+        type: object
+        additionalProperties: true
+      labels:
+        type: object
+        additionalProperties: true
+      podAnnotations:
+        type: object
+        additionalProperties: true
+      podLabels:
+        type: object
+        additionalProperties: true
+      securityContext: {$ref: "#/$defs/k8s.io.api.core.v1.PodSecurityContext"}
+      volumes:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.Volume"}
+      initContainers:
+        type: object
+        additionalProperties:
+          $ref: "#/$defs/ContainerSpec"
+      hostAliases:
+        type: array
+        items: {$ref: "#/$defs/HostAlias"}
+      dnsConfig: {$ref: "#/$defs/k8s.io.api.core.v1.PodDNSConfig"}
+      terminationGracePeriodSeconds:
+        type: integer
+        minimum: 0
+      topologySpreadConstraints:
+        type: array
+        items: {$ref: "#/$defs/k8s.io.api.core.v1.TopologySpreadConstraint"}
+      autoCreateService:
+        type: boolean
+        default: false
+      autoCreateIngress:
+        type: boolean
+        default: false
+      autoCreateHttpRoute:
+        type: boolean
+        default: false
+      autoCreateCertificate:
+        type: boolean
+        default: false
+      autoCreateServiceMonitor:
+        type: boolean
+        default: false
+      autoCreatePdb:
+        type: boolean
+        default: false
+      autoCreateServiceAccount:
+        type: boolean
+        default: false
+      autoCreateSoftAntiAffinity:
+        type: boolean
+        default: false
+      autoCreateNetworkPolicy:
+        type: boolean
+        default: false
+      autoCreateRbac:
+        type: boolean
+        default: false
+      networkPolicy:
+        $ref: "#/$defs/NetworkPolicySpec"
+      rbac:
+        $ref: "#/$defs/RbacSpec"
+      serviceType:
+        type: string
+        enum: [ClusterIP, NodePort, LoadBalancer]
+        default: ClusterIP
+      ingress:
+        $ref: "#/$defs/IngressConfig"
+      httpRoute:
+        $ref: "#/$defs/HttpRouteConfig"
+      certificate:
+        $ref: "#/$defs/CertificateConfig"
+      serviceMonitor:
+        $ref: "#/$defs/ServiceMonitorConfig"
+      pdb:
+        $ref: "#/$defs/PdbConfig"
+      serviceAccount:
+        $ref: "#/$defs/ServiceAccountConfig"
+      hpa:
+        $ref: "#/$defs/HpaInlineConfig"
+      migrations:
+        $ref: "#/$defs/MigrationsConfig"
+      probes:
+        type: object
+        additionalProperties: false
+        properties:
+          livenessProbe: {$ref: "#/$defs/ProbeSpec"}
+          readinessProbe: {$ref: "#/$defs/ProbeSpec"}
+          startupProbe: {$ref: "#/$defs/ProbeSpec"}
+    allOf:
+      - if:
+          properties:
+            autoCreateCertificate: {const: true}
+          required: [autoCreateCertificate]
+        then:
+          properties:
+            autoCreateIngress: {const: true}
+          required: [autoCreateIngress]
+      - if:
+          properties:
+            autoCreateNetworkPolicy: {const: true}
+          required: [autoCreateNetworkPolicy]
+        then:
+          required: [networkPolicy]
+      - if:
+          properties:
+            autoCreateRbac: {const: true}
+          required: [autoCreateRbac]
+        then:
+          required: [rbac]

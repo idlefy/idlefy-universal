@@ -1,0 +1,19 @@
+deployments:
+  app:
+    containers:
+      web:
+        image: nginx
+        imageTag: "1.27"
+        ports:
+          http: {containerPort: 80}
+        volumeMounts:
+          - {name: cache, mountPath: /var/cache}
+          - {name: config, mountPath: /etc/app}
+          - {name: secret, mountPath: /etc/secret, readOnly: true}
+    volumes:
+      - name: cache
+        emptyDir: {sizeLimit: 1Gi}
+      - name: config
+        configMap: {name: app-config}
+      - name: secret
+        secret: {secretName: app-secret}

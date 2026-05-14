@@ -1,0 +1,107 @@
+Thank you for installing {{ .Chart.Name }}!
+
+╭─ Release Information ──────────────────────────────────────╮
+│ Name:      {{ .Release.Name }}
+│ Namespace: {{ .Release.Namespace }}
+╰──────────────────────────────────────────────────────────╯
+{{- if .Values.deployments }}
+╭─ Applications ───────────────────────────────────────────╮
+{{- range $name, $deployment := .Values.deployments }}
+│ 📦 {{ $name }}
+{{- if $deployment.replicas }}
+│    • Replicas: {{ $deployment.replicas }}
+{{- end }}
+{{- if $deployment.autoCreateService }}
+│    • Service Ports:
+{{- range $containerName, $container := $deployment.containers }}
+{{- range $portName, $port := $container.ports }}
+│      - {{ $portName }}: {{ $port.containerPort }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $deployment.autoCreateIngress }}
+│    • Ingress Hosts:
+{{- range $deployment.ingress.hosts }}
+│      - {{ .host }}
+{{- end }}
+{{- end }}
+{{- if $deployment.autoCreateCertificate }}
+│    • SSL: Automatic certificate management enabled
+{{- end }}
+{{- if $deployment.autoCreateServiceMonitor }}
+│    • Monitoring: Prometheus ServiceMonitor enabled
+{{- end }}
+{{- if $deployment.hpa }}
+│    • Autoscaling: {{ $deployment.hpa.minReplicas }}-{{ $deployment.hpa.maxReplicas }} replicas
+{{- end }}
+{{- end }}
+╰──────────────────────────────────────────────────────────╯
+{{- end }}
+
+{{- if .Values.cronJobs }}
+╭─ Scheduled Tasks ────────────────────────────────────────╮
+{{- range $name, $job := .Values.cronJobs }}
+│ ⏰ {{ $name }}
+│    • Schedule: {{ $job.schedule }}
+{{- end }}
+╰──────────────────────────────────────────────────────────╯
+{{- end }}
+
+{{- if .Values.jobs }}
+╭─ One-time Jobs ─────────────────────────────────────────╮
+{{- range $name, $job := .Values.jobs }}
+│ 🔄 {{ $name }}
+{{- end }}
+╰──────────────────────────────────────────────────────────╯
+{{- end }}
+
+{{- if .Values.configs }}
+╭─ Configuration Resources ─────────────────────────────────╮
+{{- range $name, $config := .Values.configs }}
+│ 📄 {{ if eq $config.type "secret" }}🔒 Secret{{ else }}ConfigMap{{ end }}: {{ $name }}
+{{- end }}
+╰──────────────────────────────────────────────────────────╯
+{{- end }}
+
+{{- if .Values.persistentVolumeClaims }}
+╭─ Persistent Volumes ──────────────────────────────────────╮
+{{- range $name, $pvc := .Values.persistentVolumeClaims }}
+│ 💾 {{ $name }}
+│    • Size: {{ $pvc.size }}
+│    • StorageClass: {{ $pvc.storageClassName | default "default" }}
+{{- end }}
+╰──────────────────────────────────────────────────────────╯
+{{- end }}
+
+{{- if .Values.services }}
+╭─ Additional Services ─────────────────────────────────────╮
+{{- range $name, $service := .Values.services }}
+│ 🔌 {{ $name }}
+│    • Type: {{ $service.type | default "ClusterIP" }}
+{{- end }}
+╰──────────────────────────────────────────────────────────╯
+{{- end }}
+
+╭─ Useful Commands ────────────────────────────────────────╮
+│
+│ View all resources:
+│   kubectl get all -l app.kubernetes.io/instance={{ .Release.Name }} -n {{ .Release.Namespace }}
+│
+│ View application logs:
+{{- range $name, $deployment := .Values.deployments }}
+│   {{ $name }}:
+│   kubectl logs -l app.kubernetes.io/component={{ $name }} -n {{ $.Release.Namespace }}
+{{- end }}
+╰──────────────────────────────────────────────────────────╯
+
+{{- if .Values.deployments }}
+╭─ Application URLs ────────────────────────────────────────╮
+{{- range $name, $deployment := .Values.deployments }}
+{{- if $deployment.autoCreateIngress }}
+{{- range $deployment.ingress.hosts }}
+│ 🌐 {{ $name }}: https://{{ .host }}
+{{- end }}
+{{- end }}
+{{- end }}
+╰──────────────────────────────────────────────────────────╯
+{{- end }}

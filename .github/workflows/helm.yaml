@@ -1,0 +1,340 @@
+name: Helm Chart CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'charts/**'
+      - '.github/workflows/helm.yaml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'charts/**'
+      - '.github/workflows/helm.yaml'
+  release:
+    types: [created]
+
+env:
+  CHART_DIR: charts/idlefy-universal
+  CHART_REPOSITORY: https://${{ github.repository_owner }}.github.io/$(echo ${{ github.repository }} | cut -d'/' -f2)
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.7.0
+
+      - name: Run chart-testing (list-changed)
+        id: list-changed
+        run: |
+          changed=$(ct list-changed --config ct.yaml)
+          if [[ -n "$changed" ]]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run chart-testing (lint)
+        run: ct lint --config ct.yaml
+
+      # - name: Create kind cluster
+      #   uses: helm/kind-action@v1.10.0
+      #   if: steps.list-changed.outputs.changed == 'true'
+
+      # - name: Run chart-testing (install)
+      #   run: ct install --config ct.yaml
+
+      - name: Set up Helm unittest plugin
+        run: |
+          helm plugin install https://github.com/helm-unittest/helm-unittest.git --version 0.7.2
+
+      - name: Run Helm unit tests
+        run: |
+          helm unittest $CHART_DIR
+
+  create-release:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    outputs:
+      chart-version: ${{ steps.chart-info.outputs.chart-version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Chart Info
+        id: chart-info
+        run: |
+          CHART_VERSION=$(grep -Po '^version:\s*\K.*' $CHART_DIR/Chart.yaml | tr -d '[:space:]')
+          CHART_NAME=$(grep -Po '^name:\s*\K.*' $CHART_DIR/Chart.yaml | tr -d '[:space:]')
+          echo "chart-name=$CHART_NAME" >> $GITHUB_OUTPUT
+          echo "chart-version=$CHART_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate Release Notes
+        id: release-notes
+        run: |
+          # Get commit messages since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LAST_TAG" ]; then
+            COMMIT_LOG=$(git log --pretty=format:"* %s (%h)" -n 10)
+          else
+            COMMIT_LOG=$(git log $LAST_TAG..HEAD --pretty=format:"* %s (%h)")
+          fi
+          
+          # Create release notes with chart info and commits
+          cat > release_notes.md << EOF
+          # Release ${{ steps.chart-info.outputs.chart-name }} v${{ steps.chart-info.outputs.chart-version }}
+          
+          ## Changes in this release:
+          
+          $COMMIT_LOG
+          
+          ## Chart Info
+          
+          * Chart Name: ${{ steps.chart-info.outputs.chart-name }}
+          * Version: ${{ steps.chart-info.outputs.chart-version }}
+          * Generated: $(date +'%Y-%m-%d %H:%M:%S')
+          EOF
+          
+          # Convert release notes to one line for GitHub Actions
+          RELEASE_NOTES="$(cat release_notes.md)"
+          delimiter="$(openssl rand -hex 8)"
+          echo "release-notes<<$delimiter" >> $GITHUB_OUTPUT
+          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
+          echo "$delimiter" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Tag
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ steps.chart-info.outputs.chart-version }}"
+          tag_name: "v${{ steps.chart-info.outputs.chart-version }}"
+          body: ${{ steps.release-notes.outputs.release-notes }}
+          draft: false
+          prerelease: false
+
+  publish-auto-release:
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+      contents: read
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Charts Museum
+        run: |
+          wget https://get.helm.sh/chartmuseum-v0.16.2-linux-amd64.tar.gz
+          tar xzvf chartmuseum-v0.16.2-linux-amd64.tar.gz
+          chmod +x linux-amd64/chartmuseum
+          sudo mv linux-amd64/chartmuseum /usr/local/bin/chartmuseum
+
+      - name: Package and Index Charts
+        run: |
+          # Create temporary directory for charts and pages
+          mkdir -p .cr-release-packages
+          mkdir -p pages
+          
+          # Try to download existing charts first
+          if curl -sSf -o existing-index.yaml ${{ env.CHART_REPOSITORY }}/index.yaml; then
+            # Parse existing index to find chart files to download
+            echo "Downloading existing chart packages..."
+            
+            # Get all chart URLs and download them
+            CHART_URLS=$(grep -oP 'https://[^"]*?\.tgz' existing-index.yaml || echo "")
+            for url in $CHART_URLS; do
+              echo "Downloading: $url"
+              filename=$(basename $url)
+              if curl -sSf -o pages/$filename $url; then
+                echo "Downloaded: $filename"
+              else
+                echo "Failed to download: $url"
+              fi
+            done
+          else
+            echo "No existing index found. Creating new repository."
+          fi
+          
+          # Package chart with version from Chart.yaml (no auto-incrementing)
+          CHART_VERSION="${{ needs.create-release.outputs.chart-version }}"
+          echo "Using version: $CHART_VERSION"
+          
+          # Package chart
+          helm package $CHART_DIR --destination .cr-release-packages
+          
+          # Move packaged charts to pages directory
+          mv .cr-release-packages/* pages/
+          
+          # Generate or update index.yaml
+          if [ -f "existing-index.yaml" ]; then
+            helm repo index pages --url ${{ env.CHART_REPOSITORY }} --merge existing-index.yaml
+          else
+            helm repo index pages --url ${{ env.CHART_REPOSITORY }}
+          fi
+          
+          # Prune old versions if we have more than 10 charts of the same name
+          cd pages
+          CHART_NAME=$(basename $CHART_DIR)
+          CHART_COUNT=$(ls -1 ${CHART_NAME}-*.tgz 2>/dev/null | wc -l)
+          
+          if [ $CHART_COUNT -gt 10 ]; then
+            echo "Pruning old chart versions (keeping 10 most recent)..."
+            # Sort by version and keep the 10 most recent
+            ls -t ${CHART_NAME}-*.tgz | tail -n +11 | xargs -r rm
+            
+            # Regenerate index after pruning
+            cd ..
+            helm repo index pages --url ${{ env.CHART_REPOSITORY }}
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+  
+  publish-manual-release:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    permissions:
+      pages: write
+      id-token: write
+      contents: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Charts Museum
+        run: |
+          wget https://get.helm.sh/chartmuseum-v0.16.2-linux-amd64.tar.gz
+          tar xzvf chartmuseum-v0.16.2-linux-amd64.tar.gz
+          chmod +x linux-amd64/chartmuseum
+          sudo mv linux-amd64/chartmuseum /usr/local/bin/chartmuseum
+
+      - name: Package and Index Charts
+        run: |
+          # Create temporary directory for charts and pages
+          mkdir -p .cr-release-packages
+          mkdir -p pages
+          
+          # Extract version from release tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          
+          # Try to download existing charts first
+          if curl -sSf -o existing-index.yaml ${{ env.CHART_REPOSITORY }}/index.yaml; then
+            # Parse existing index to find chart files to download
+            echo "Downloading existing chart packages..."
+            
+            # Get all chart URLs and download them
+            CHART_URLS=$(grep -oP 'https://[^"]*?\.tgz' existing-index.yaml || echo "")
+            for url in $CHART_URLS; do
+              echo "Downloading: $url"
+              filename=$(basename $url)
+              if curl -sSf -o pages/$filename $url; then
+                echo "Downloaded: $filename"
+              else
+                echo "Failed to download: $url"
+              fi
+            done
+          else
+            echo "No existing index found. Creating new repository."
+          fi
+          
+          # Package chart
+          helm package $CHART_DIR --destination .cr-release-packages
+          
+          # Move packaged charts to pages directory
+          mv .cr-release-packages/* pages/
+          
+          # Generate or update index.yaml
+          if [ -f "existing-index.yaml" ]; then
+            helm repo index pages --url ${{ env.CHART_REPOSITORY }} --merge existing-index.yaml
+          else
+            helm repo index pages --url ${{ env.CHART_REPOSITORY }}
+          fi
+          
+          # Prune old versions if we have more than 10 charts of the same name
+          cd pages
+          CHART_NAME=$(basename $CHART_DIR)
+          CHART_COUNT=$(ls -1 ${CHART_NAME}-*.tgz 2>/dev/null | wc -l)
+          
+          if [ $CHART_COUNT -gt 10 ]; then
+            echo "Pruning old chart versions (keeping 10 most recent)..."
+            # Sort by version and keep the 10 most recent
+            ls -t ${CHART_NAME}-*.tgz | tail -n +11 | xargs -r rm
+            
+            # Regenerate index after pruning
+            cd ..
+            helm repo index pages --url ${{ env.CHART_REPOSITORY }}
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

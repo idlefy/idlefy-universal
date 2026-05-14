@@ -1,0 +1,12 @@
+apiVersion: v2
+name: idlefy-universal
+description: Universal Helm chart by Idlefy — typed JSON-Schema-driven values
+type: application
+version: 1.0.0
+kubeVersion: ">=1.19.0"
+annotations:
+  license: Apache-2.0
+  maintainer: https://github.com/idlefy
+  # JSON Schema strict validation uses if/then/else, which requires Helm 3.6+.
+  # Helm 3.0-3.5 silently skip these constructs.
+  helm-version-required: ">=3.6.0"

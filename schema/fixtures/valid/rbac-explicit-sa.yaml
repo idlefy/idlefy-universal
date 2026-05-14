@@ -1,0 +1,19 @@
+deployments:
+  api:
+    containers:
+      main:
+        image: api
+        imageTag: "1.0"
+        ports:
+          http: {containerPort: 8080}
+    serviceAccountName: shared-platform-sa
+    autoCreateRbac: true
+    rbac:
+      rules:
+        - apiGroups: ["coordination.k8s.io"]
+          resources: [leases]
+          verbs: [create]
+        - apiGroups: ["coordination.k8s.io"]
+          resources: [leases]
+          resourceNames: [api-leader]
+          verbs: [get, update, patch]

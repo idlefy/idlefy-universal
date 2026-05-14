@@ -1,0 +1,15 @@
+deployments:
+  api:
+    initContainers:
+      wait-for-db:
+        image: busybox
+        imageTag: "1.36"
+        command: [sh, -c, "until nc -z db 5432; do sleep 1; done"]
+      run-migrations:
+        image: my-app
+        imageTag: v1.0.0
+        args: [migrate, up]
+    containers:
+      main:
+        image: my-app
+        imageTag: v1.0.0

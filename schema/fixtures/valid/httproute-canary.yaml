@@ -1,0 +1,15 @@
+generic:
+  ingressesGeneral:
+    domain: example.com
+  httpRoutesGeneral:
+    parentRefs:
+      - {name: shared-gateway, namespace: gateway-system}
+
+httpRoutes:
+  canary-route:
+    hostnames: [{subdomain: app}]
+    rules:
+      - matches: [{path: {type: PathPrefix, value: /}}]
+        backendRefs:
+          - {name: app-stable, port: 8080, weight: 90}
+          - {name: app-canary, port: 8080, weight: 10}
