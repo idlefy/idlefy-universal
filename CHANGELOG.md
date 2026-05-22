@@ -46,7 +46,7 @@ JSON-Schema-driven values contract.
 
 - **Helm 3.6.0+.** Schema uses `if/then/else`; Helm 3.0-3.5 silently skip
   those constructs and validation will not run.
-- **Kubernetes 1.19+.**
+- **Kubernetes 1.31+.**
 
 ### Install
 

@@ -3,7 +3,7 @@ name: idlefy-universal
 description: Universal Helm chart by Idlefy — typed JSON-Schema-driven values
 type: application
 version: 1.0.0
-kubeVersion: ">=1.19.0"
+kubeVersion: ">=1.31.0"
 annotations:
   license: Apache-2.0
   maintainer: https://github.com/idlefy
