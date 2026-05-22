@@ -1,0 +1,109 @@
+# CI smoke test: exercises every feature gate at least once.
+# Real public images used so pods can become Ready under `ct install`.
+generic:
+  ingressesGeneral:
+    domain: example.com
+    ingressClassName: nginx
+
+deploymentsGeneral:
+  nodeSelector:
+    kubernetes.io/os: linux
+
+deployments:
+  api:
+    replicas: 1
+    containers:
+      main:
+        image: nginx
+        imageTag: "1.27-alpine"
+        ports:
+          http: {containerPort: 80, servicePort: 80}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 128Mi}
+    autoCreateServiceAccount: true
+    autoCreateService: true
+    autoCreateIngress: true
+    ingress:
+      hosts:
+        - subdomain: api
+          paths: [{path: /, pathType: Prefix}]
+    autoCreateCertificate: true
+    certificate:
+      clusterIssuer: letsencrypt-staging
+    autoCreateRbac: true
+    rbac:
+      rules:
+        - apiGroups: [""]
+          resources: [configmaps]
+          verbs: [get, list, watch]
+    autoCreateNetworkPolicy: true
+    networkPolicy:
+      policyTypes: [Ingress, Egress]
+      ingress:
+        - from:
+            - podSelector: {matchLabels: {app.kubernetes.io/component: gateway}}
+          ports: [{protocol: TCP, port: 80}]
+      egress:
+        - to:
+            - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}
+          ports: [{protocol: UDP, port: 53}]
+    autoCreatePdb: true
+    pdb:
+      minAvailable: 0
+    autoCreateServiceMonitor: true
+    serviceMonitor:
+      endpoints:
+        - port: http
+          interval: 30s
+
+statefulSets:
+  cache:
+    replicas: 1
+    serviceName: cache-headless
+    autoCreateService: true
+    containers:
+      main:
+        image: redis
+        imageTag: "7-alpine"
+        ports:
+          redis: {containerPort: 6379, servicePort: 6379}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 64Mi}
+
+daemonSets:
+  node-info:
+    containers:
+      main:
+        image: busybox
+        imageTag: "1.36"
+        command: [sh, -c, "while true; do date; sleep 60; done"]
+        resources:
+          requests: {cpu: 5m, memory: 16Mi}
+
+jobs:
+  init:
+    backoffLimit: 1
+    restartPolicy: OnFailure
+    containers:
+      main:
+        image: busybox
+        imageTag: "1.36"
+        command: [sh, -c, "echo init done"]
+
+cronJobs:
+  beacon:
+    schedule: "*/5 * * * *"
+    restartPolicy: OnFailure
+    containers:
+      main:
+        image: busybox
+        imageTag: "1.36"
+        command: [sh, -c, "echo beacon"]
+
+configs:
+  app-config:
+    type: configMap
+    data:
+      log_format: json
