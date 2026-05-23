@@ -447,10 +447,20 @@ jobs:
             "ghcr.io/${GHCR_NAMESPACE}/${CHART_NAME}:${VERSION}" \
             latest
 
-  # NOTE: supply-chain hardening (SBOM + cosign + SLSA L3) lives in
-  # `publish-auto-release` only. Manual releases are human-gated and rare;
-  # mirror this block here if/when a manual-release artifact needs the same
-  # machine-verifiable trust chain. See docs/how-to/verify-supply-chain.md.
+  # Manual releases carry the same supply-chain trust chain (SBOM + cosign +
+  # SLSA L3) as auto-releases — an agent or human auditor MUST be able to
+  # verify any published version regardless of how it was produced. The block
+  # below mirrors `publish-auto-release` step-for-step; the only structural
+  # divergence is that chart-version is read from Chart.yaml inline (manual
+  # publish does not run `create-release` first). See
+  # docs/how-to/verify-supply-chain.md for the verification recipe.
+  #
+  # KNOWN LIMITATION — re-edit of a Release in the GitHub UI fires
+  # `release: edited` (not `created`), so this job will not re-run; that is
+  # intentional, because `helm push` is not idempotent against an existing
+  # tag and re-running would either no-op (best case) or leave a half-signed
+  # artifact (worst case). If a Release needs a re-publish, delete the tag,
+  # bump Chart.yaml version, and create a fresh Release.
   publish-manual-release:
     needs: lint-test
     runs-on: ubuntu-latest
@@ -458,6 +468,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write       # cosign keyless OIDC + SLSA provenance OIDC
+      attestations: write   # actions/attest-build-provenance
     concurrency:
       group: ghcr-publish
       cancel-in-progress: false
@@ -478,10 +490,42 @@ jobs:
             exit 1
           fi
 
+      - name: Get Chart Info
+        id: chart-info
+        run: |
+          set -euo pipefail
+          CHART_VERSION=$(grep -Po '^version:\s*\K.*' $CHART_DIR/Chart.yaml | tr -d '[:space:]')
+          CHART_NAME=$(grep -Po '^name:\s*\K.*' $CHART_DIR/Chart.yaml | tr -d '[:space:]')
+          echo "chart-name=$CHART_NAME" >> $GITHUB_OUTPUT
+          echo "chart-version=$CHART_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Assert release tag matches Chart.yaml version
+        # `release: created` checks out the tag commit, so Chart.yaml is whatever
+        # was committed at that tag. The release name is independent (maintainer
+        # types it in the Release UI). Refuse to publish if they disagree —
+        # otherwise we sign+attest version X under a Release page named v(Y).
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          CHART_VERSION: ${{ steps.chart-info.outputs.chart-version }}
+        run: |
+          set -euo pipefail
+          if [[ "${RELEASE_TAG}" != "v${CHART_VERSION}" ]]; then
+            echo "::error::release tag '${RELEASE_TAG}' does not match Chart.yaml version 'v${CHART_VERSION}'"
+            exit 1
+          fi
+
       - name: Set up Helm
         uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         with:
           version: v3.17.3
+
+      - name: Install oras
+        run: |
+          set -euo pipefail
+          ORAS_VERSION=1.2.0
+          curl -sSL "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin oras
+          oras version
 
       - name: Package chart
         id: package
@@ -504,8 +548,155 @@ jobs:
                 -u ${{ github.actor }} \
                 --password-stdin
 
+      - name: Log in to GHCR (oras)
+        # `oras tag` / `oras attach` read docker-config credentials, NOT the
+        # Helm registry credential file. Without this step the SBOM attach
+        # and SLSA verify steps 401.
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | oras login ghcr.io \
+                -u ${{ github.actor }} \
+                --password-stdin
+
       - name: Push chart to GHCR (versioned tag)
         run: |
           set -euo pipefail
           helm push "${{ steps.package.outputs.package_path }}" \
             "oci://ghcr.io/${GHCR_NAMESPACE}"
+
+      # --- Supply-chain hardening (SBOM + cosign + SLSA L3) ----------------
+      # Identical step-by-step to publish-auto-release; see that job for
+      # ordering rationale.
+
+      - name: Install syft (SBOM generator)
+        uses: anchore/sbom-action/download-syft@4d571ad5b30c70d2050b4f803b58afb0c93b6ad8  # v0.18.0
+        with:
+          syft-version: v1.18.1
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3.8.1
+        with:
+          cosign-release: v2.4.1
+
+      - name: Generate SPDX SBOM for the chart artifact
+        id: sbom
+        env:
+          CHART_NAME_INPUT: ${{ steps.chart-info.outputs.chart-name }}
+          CHART_VERSION: ${{ steps.chart-info.outputs.chart-version }}
+          PACKAGE_PATH: ${{ steps.package.outputs.package_path }}
+        run: |
+          set -euo pipefail
+          OCI_REF="ghcr.io/${GHCR_NAMESPACE}/${CHART_NAME_INPUT}:${CHART_VERSION}"
+          syft "file:${PACKAGE_PATH}" \
+            -o spdx-json=sbom.spdx.json \
+            --source-name "${CHART_NAME_INPUT}" \
+            --source-version "${CHART_VERSION}"
+          jq -e '.name == "'"${CHART_NAME_INPUT}"'"' sbom.spdx.json >/dev/null
+          echo "sbom_path=$(realpath sbom.spdx.json)" >> "$GITHUB_OUTPUT"
+          echo "oci_ref=${OCI_REF}" >> "$GITHUB_OUTPUT"
+          echo "chart_version=${CHART_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Attach SBOM as OCI referrer
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+          SBOM_PATH: ${{ steps.sbom.outputs.sbom_path }}
+        run: |
+          set -euo pipefail
+          oras attach --artifact-type application/spdx+json \
+            "${OCI_REF}" \
+            "${SBOM_PATH}:application/spdx+json"
+          oras discover --format json "${OCI_REF}" \
+            | jq '.manifests[] | select(.artifactType == "application/spdx+json")'
+
+      - name: Upload SBOM as workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          # `-manual` suffix avoids display-name collision with auto-release
+          # SBOMs in the workflow artifact store; both can exist in the 90-day
+          # retention window for the same chart version (rare, but documented).
+          name: sbom-spdx-${{ steps.sbom.outputs.chart_version }}-manual
+          path: ${{ steps.sbom.outputs.sbom_path }}
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Sign chart with cosign (keyless OIDC)
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+          COSIGN_YES: "true"
+          COSIGN_REGISTRY_REFERRERS_MODE: oci-1-1
+        run: |
+          set -euo pipefail
+          cosign sign --yes \
+            --oidc-issuer https://token.actions.githubusercontent.com \
+            "${OCI_REF}"
+
+      - name: Sign SBOM referrer with cosign
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+          CHART_NAME_INPUT: ${{ steps.chart-info.outputs.chart-name }}
+          COSIGN_YES: "true"
+          COSIGN_REGISTRY_REFERRERS_MODE: oci-1-1
+        run: |
+          set -euo pipefail
+          SBOM_DIGEST=$(oras discover --format json "${OCI_REF}" \
+            | jq -r '.manifests[] | select(.artifactType == "application/spdx+json") | .digest')
+          if [[ -z "${SBOM_DIGEST}" || "${SBOM_DIGEST}" == "null" ]]; then
+            echo "::error::no SBOM referrer found for ${OCI_REF}"
+            exit 1
+          fi
+          cosign sign --yes \
+            --oidc-issuer https://token.actions.githubusercontent.com \
+            "ghcr.io/${GHCR_NAMESPACE}/${CHART_NAME_INPUT}@${SBOM_DIGEST}"
+
+      - name: Verify chart cosign signature
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+        run: |
+          set -euo pipefail
+          cosign verify \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${OCI_REF}" | jq '.[0].critical'
+
+      - name: Resolve chart + SBOM artifact digests
+        id: digest
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+        run: |
+          set -euo pipefail
+          CHART_DIGEST=$(oras manifest fetch --descriptor "${OCI_REF}" | jq -r '.digest')
+          if [[ -z "${CHART_DIGEST}" || "${CHART_DIGEST}" == "null" ]]; then
+            echo "::error::could not resolve chart digest for ${OCI_REF}"
+            exit 1
+          fi
+          echo "chart_digest=${CHART_DIGEST}" >> "$GITHUB_OUTPUT"
+          SBOM_DIGEST=$(oras discover --format json "${OCI_REF}" \
+            | jq -r '.manifests[] | select(.artifactType == "application/spdx+json") | .digest')
+          echo "sbom_digest=${SBOM_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance (chart)
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb  # v2.1.0
+        with:
+          subject-name: ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ steps.chart-info.outputs.chart-name }}
+          subject-digest: ${{ steps.digest.outputs.chart_digest }}
+
+      - name: Attest build provenance (SBOM)
+        if: steps.digest.outputs.sbom_digest != ''
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb  # v2.1.0
+        with:
+          subject-name: ghcr.io/${{ env.GHCR_NAMESPACE }}/${{ steps.chart-info.outputs.chart-name }}
+          subject-digest: ${{ steps.digest.outputs.sbom_digest }}
+
+      - name: Verify SLSA build provenance
+        # `gh attestation verify oci://<ref>` resolves the chart digest by
+        # reaching out to GHCR; that resolution needs docker-config creds
+        # set by the earlier `oras login` (see "Log in to GHCR (oras)").
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh attestation verify "oci://${OCI_REF}" \
+            --owner "${{ github.repository_owner }}" --format json \
+            | jq '.[0].verificationResult.statement.predicate.buildDefinition.externalParameters'
+      # --- end supply-chain hardening --------------------------------------
