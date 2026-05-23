@@ -8,7 +8,7 @@ DOCKER_RUN_IT := docker run --rm -it -v $(CURDIR):/work -w /work $(IMAGE)
 # host user, restoring write permission.
 HELM_UNITTEST_RUN := docker run --rm --user 0:0 -v $(CURDIR):/apps $(HELM_UNITTEST_IMAGE)
 
-.PHONY: schema-image schema-test schema-build schema-lint schema-validate schema-render-docs schema-agent-index schema-shell helm-test helm-test-update test
+.PHONY: schema-image schema-test schema-build schema-lint schema-validate schema-render-docs schema-agent-index schema-shell helm-test helm-test-update test docs-serve
 
 schema-image:
 	docker build -f schema/Dockerfile -t $(IMAGE) .
@@ -41,3 +41,12 @@ helm-test-update:
 	$(HELM_UNITTEST_RUN) -u charts/idlefy-universal
 
 test: schema-test schema-validate helm-test
+
+DOCS_IMAGE := python:3.13-slim
+DOCS_TTY := $(shell test -t 0 && echo "-it" || echo "-i")
+DOCS_RUN := docker run --rm $(DOCS_TTY) -p 8000:8000 -v $(CURDIR):/work -w /work $(DOCS_IMAGE)
+
+docs-serve:
+	$(DOCS_RUN) bash -lc '\
+		pip install --quiet -r docs/requirements.txt && \
+		mkdocs serve --dev-addr 0.0.0.0:8000'
