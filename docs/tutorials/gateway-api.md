@@ -122,5 +122,8 @@ Expected: `<!DOCTYPE html>`.
 
 - For per-route patterns (header matching, weighted backends, redirects)
   see the [HTTPRoute spec on gateway-api.sigs.k8s.io](https://gateway-api.sigs.k8s.io/api-types/httproute/).
+- For TLS termination with cert-manager, see
+  [How-To → Ingress TLS](../how-to/ingress-tls.md) (Ingress-based; Gateway
+  TLS uses Listener configuration on the Gateway resource itself).
 - The full reference for `httpRoutes` is at
   [Reference → values](../reference/values.md#httproutes).

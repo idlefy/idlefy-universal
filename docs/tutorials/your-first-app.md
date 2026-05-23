@@ -117,5 +117,7 @@ kind delete cluster --name idlefy-tutorial
 ## Where to go next
 
 - The full field catalogue is in the [values reference](../reference/values.md).
-- Production patterns (Ingress + TLS, ServiceMonitor, NetworkPolicy, RBAC) live under **How-To** (added in Plan B).
-- For the design rationale behind the schema-first approach, see **Concepts** (added in Plan B).
+- Add Prometheus scrape: [Tutorials → Add metrics](add-metrics.md), then [How-To → Monitoring](../how-to/monitoring.md) for production patterns.
+- Switch from Ingress to Gateway API: [Tutorials → Gateway API](gateway-api.md).
+- Production patterns live under How-To: [Ingress TLS](../how-to/ingress-tls.md), [RBAC](../how-to/rbac.md), [Network policy](../how-to/network-policy.md), [PDB & HPA](../how-to/pdb-hpa.md).
+- For the design rationale behind the schema-first approach, see [Concepts → Schema-driven values](../concepts/schema-driven-values.md).
