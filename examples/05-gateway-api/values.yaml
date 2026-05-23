@@ -1,0 +1,30 @@
+# examples/05-gateway-api/values.yaml
+# Workload routed via Gateway API HTTPRoute instead of Ingress.
+# Requires Gateway API v1.5.1 standard CRDs.
+deployments:
+  web:
+    replicas: 1
+    containers:
+      main:
+        image: nginx
+        imageTag: "1.27-alpine"
+        ports:
+          http: {containerPort: 80, servicePort: 80}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 128Mi}
+    autoCreateService: true
+
+httpRoutes:
+  web:
+    parentRefs:
+      - name: eg
+        namespace: default
+    hostnames:
+      - host: web.example.com
+    rules:
+      - matches:
+          - path: {type: PathPrefix, value: /}
+        backendRefs:
+          - name: demo-web
+            port: 80
