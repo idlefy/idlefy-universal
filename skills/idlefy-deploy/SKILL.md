@@ -389,6 +389,26 @@ helm pull oci://ghcr.io/idlefy/idlefy-universal --version 1.0.0 --untar
 helm template demo ./idlefy-universal -f <save-path>
 ```
 
+### `403 Forbidden` from `ghcr.io`
+
+The `idlefy-universal` package is **public** — anonymous pulls are
+allowed via GHCR's token endpoint, which Helm 3.8+ does automatically.
+A `403` (as opposed to `401`) means the user's local Helm/Docker client
+is presenting **stale credentials** that GHCR rejects (e.g., an expired
+PAT from a prior `docker login ghcr.io` or `helm registry login
+ghcr.io`).
+
+Tell the user to clear the cached credentials and retry:
+
+```bash
+helm registry logout ghcr.io 2>/dev/null || true
+docker logout ghcr.io 2>/dev/null || true
+# Then re-run the helm template command above.
+```
+
+Do NOT try to authenticate with their `gh` token — the package is
+public, so anonymous pull is the correct path.
+
 ## Phase 5 — Handoff
 
 Validation passed. Wrap up.
