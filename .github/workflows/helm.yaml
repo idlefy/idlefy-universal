@@ -322,7 +322,10 @@ jobs:
             --source-name "${CHART_NAME_INPUT}" \
             --source-version "${CHART_VERSION}"
           jq -e '.name == "'"${CHART_NAME_INPUT}"'"' sbom.spdx.json >/dev/null
-          echo "sbom_path=$(realpath sbom.spdx.json)" >> "$GITHUB_OUTPUT"
+          # `oras attach` rejects absolute paths by default (refuses to embed
+          # host fs layout into layer annotations). Keep the path relative to
+          # the workspace; upload-artifact accepts relative paths fine.
+          echo "sbom_path=sbom.spdx.json" >> "$GITHUB_OUTPUT"
           echo "oci_ref=${OCI_REF}" >> "$GITHUB_OUTPUT"
           echo "chart_version=${CHART_VERSION}" >> "$GITHUB_OUTPUT"
 
@@ -592,7 +595,10 @@ jobs:
             --source-name "${CHART_NAME_INPUT}" \
             --source-version "${CHART_VERSION}"
           jq -e '.name == "'"${CHART_NAME_INPUT}"'"' sbom.spdx.json >/dev/null
-          echo "sbom_path=$(realpath sbom.spdx.json)" >> "$GITHUB_OUTPUT"
+          # `oras attach` rejects absolute paths by default (refuses to embed
+          # host fs layout into layer annotations). Keep the path relative to
+          # the workspace; upload-artifact accepts relative paths fine.
+          echo "sbom_path=sbom.spdx.json" >> "$GITHUB_OUTPUT"
           echo "oci_ref=${OCI_REF}" >> "$GITHUB_OUTPUT"
           echo "chart_version=${CHART_VERSION}" >> "$GITHUB_OUTPUT"
 
