@@ -1,0 +1,32 @@
+# examples/03-observed-api/values.yaml
+# Web app with Prometheus ServiceMonitor + PodDisruptionBudget.
+# Requires: monitoring.coreos.com CRDs.
+deployments:
+  api:
+    replicas: 2
+    containers:
+      main:
+        image: nginx
+        imageTag: "1.27-alpine"
+        ports:
+          http: {containerPort: 80, servicePort: 80}
+          metrics: {containerPort: 9113, servicePort: 9113}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 128Mi}
+      exporter:
+        image: nginx/nginx-prometheus-exporter
+        imageTag: "1.3"
+        args: ["-nginx.scrape-uri=http://localhost/stub_status"]
+        resources:
+          requests: {cpu: 5m, memory: 16Mi}
+          limits: {cpu: 50m, memory: 64Mi}
+    autoCreateService: true
+    autoCreateServiceMonitor: true
+    serviceMonitor:
+      endpoints:
+        - port: metrics
+          interval: 30s
+    autoCreatePdb: true
+    pdb:
+      minAvailable: 1
