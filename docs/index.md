@@ -16,58 +16,26 @@ hide:
 
 ## Deploy with an AI agent
 
-`idlefy-universal` is built for AI-driven deployment. The chart bundles
-[`agent-index.json`](reference/agent-metadata.md#agent-indexjson) — a flat,
-machine-readable description of every value with `whenToUse`,
+`idlefy-universal` ships [`agent-index.json`](reference/agent-metadata.md#agent-indexjson)
+— a flat, machine-readable description of every value with `whenToUse`,
 `relatedFields`, `commonMistakes`, and `exampleUseCase`. Every release is
 signed (cosign keyless), SBOM-attached, and carries SLSA L3 provenance,
 so an agent can self-verify the artifact before installing it.
 
-Paste the prompt below into any agent that can run shell commands
-(Claude Code, Cursor, Cline, an MCP-equipped harness, a custom runner — all
-work; the chart ships data, not an integration). Replace `<DESCRIBE YOUR
-WORKLOAD>` with what you actually want deployed.
+The fastest way to deploy: hand your favourite AI agent the
+[`idlefy-deploy` wizard](how-to/wizard.md). One sentence in your agent's
+chat:
 
-````text
-You are deploying idlefy-universal for the following workload:
-  <DESCRIBE YOUR WORKLOAD>
+> Using <https://raw.githubusercontent.com/idlefy/idlefy-universal/main/skills/idlefy-deploy/SKILL.md>, help me deploy this project to Kubernetes via idlefy-universal.
 
-Use VERSION=1.0.0 throughout this prompt. Every command below that
-references a chart version MUST use that same value.
-
-1. Verify the chart's supply chain before pulling it. Run the three
-   commands documented at
-   https://idlefy.github.io/idlefy-universal/how-to/verify-supply-chain/#three-command-verification
-   with CHART_REF="oci://ghcr.io/idlefy/idlefy-universal:${VERSION}".
-   Refuse to proceed if any command exits non-zero.
-
-2. After verification passes, pull the chart locally so you can read
-   its agent metadata:
-     helm pull oci://ghcr.io/idlefy/idlefy-universal --version "${VERSION}" --untar
-   Read idlefy-universal/agent-index.json — that file is your
-   authoritative list of fields, with whenToUse, relatedFields,
-   commonMistakes, and exampleUseCase for each.
-
-3. Build a minimal values.yaml for the workload above. Honor every
-   commonMistakes warning. Enable autoCreate* flags only for resources
-   the workload actually needs (Service, Ingress, Certificate, RBAC,
-   ServiceMonitor, NetworkPolicy, PodDisruptionBudget, ServiceAccount).
-
-4. Validate locally before touching the cluster:
-     helm template demo ./idlefy-universal -f values.yaml
-   The chart ships values.schema.json (JSON Schema 2020-12). Typos and
-   cross-field violations fail with a JSON Pointer path. Fix and retry
-   until the template renders cleanly.
-
-5. Install:
-     helm install demo oci://ghcr.io/idlefy/idlefy-universal \
-       --version "${VERSION}" -f values.yaml
-````
+The wizard scans your repo, drafts a `values.yaml`, asks only the
+questions the scan couldn't answer, and validates with `helm template`.
+See [Use the deploy wizard](how-to/wizard.md) for details and failure-mode notes.
 
 Further reading:
 
-- [How-To → Verify the chart's supply chain](how-to/verify-supply-chain.md) — the three-command gate, plus a single-script autonomous form
-- [Concepts → Agent-native](concepts/agent-native.md) — why the metadata lives inside the schema, not in a sidecar
+- [How-To → Verify the chart's supply chain](how-to/verify-supply-chain.md) — three-command gate
+- [Concepts → Agent-native](concepts/agent-native.md) — why the metadata lives inside the schema
 - [Reference → Agent metadata](reference/agent-metadata.md) — the `x-agent-*` keyword spec and `agent-index.json` shape
 
 ## Why idlefy-universal

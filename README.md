@@ -29,6 +29,9 @@ helm install demo oci://ghcr.io/idlefy/idlefy-universal \
   -f values.yaml
 ```
 
+Prefer a guided experience? Hand the [deploy wizard](https://idlefy.github.io/idlefy-universal/how-to/wizard/)
+to an AI agent and it'll author a validated `values.yaml` for you.
+
 A minimal `values.yaml`:
 
 ```yaml

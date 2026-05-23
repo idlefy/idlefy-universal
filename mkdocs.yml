@@ -84,6 +84,7 @@ nav:
       - Add metrics: tutorials/add-metrics.md
       - Gateway API: tutorials/gateway-api.md
   - How-To:
+      - Use the deploy wizard: how-to/wizard.md
       - Monitoring: how-to/monitoring.md
       - RBAC: how-to/rbac.md
       - Network policy: how-to/network-policy.md
