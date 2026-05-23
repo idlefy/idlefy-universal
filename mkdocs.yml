@@ -72,12 +72,27 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/idlefy/idlefy-universal
 
-# Nav reflects the full 5-tab IA. Pages that don't exist yet (Plan B)
-# will cause `mkdocs build --strict` to fail. Until Plan B lands, this
-# file lists only the pages Plan A creates. Plan B will append the rest.
 nav:
   - Home: index.md
   - Tutorials:
       - First app: tutorials/your-first-app.md
+      - Add metrics: tutorials/add-metrics.md
+      - Gateway API: tutorials/gateway-api.md
+  - How-To:
+      - Monitoring: how-to/monitoring.md
+      - RBAC: how-to/rbac.md
+      - Network policy: how-to/network-policy.md
+      - Ingress TLS: how-to/ingress-tls.md
+      - Multi-container: how-to/multi-container.md
+      - Secrets: how-to/secrets.md
+      - PDB & HPA: how-to/pdb-hpa.md
   - Reference:
       - Values: reference/values.md
+      - Agent metadata: reference/agent-metadata.md
+      - Templating: reference/templating.md
+      - Validation: reference/validation.md
+  - Concepts:
+      - Schema-driven values: concepts/schema-driven-values.md
+      - Agent-native: concepts/agent-native.md
+      - Auto-creation: concepts/auto-creation.md
+      - Composability: concepts/composability.md
