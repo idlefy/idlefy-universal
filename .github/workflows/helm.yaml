@@ -198,6 +198,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write       # cosign keyless OIDC + SLSA provenance OIDC
+      attestations: write   # actions/attest-build-provenance
     # Serialize publish jobs so the `latest` retag from an older commit cannot
     # overwrite the `latest` retag from a newer commit when two merges land
     # close together. `cancel-in-progress: false` waits for the in-flight job
@@ -288,6 +290,141 @@ jobs:
           helm push "${{ steps.package.outputs.package_path }}" \
             "oci://ghcr.io/${GHCR_NAMESPACE}"
 
+      # --- Supply-chain hardening (SBOM + cosign + SLSA L3) ----------------
+      # Order matters: SBOM attach must happen before `oras discover` reads
+      # it back; cosign signs both chart and SBOM as OCI 1.1 referrers;
+      # SLSA provenance is the final binding. All gated by in-workflow
+      # verify steps so a release that cannot self-verify fails immediately.
+
+      - name: Install syft (SBOM generator)
+        uses: anchore/sbom-action/download-syft@4d571ad5b30c70d2050b4f803b58afb0c93b6ad8  # v0.18.0
+        with:
+          syft-version: v1.18.1
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a  # v3.8.1
+        with:
+          cosign-release: v2.4.1
+
+      - name: Generate SPDX SBOM for the chart artifact
+        id: sbom
+        env:
+          CHART_NAME_INPUT: idlefy-universal
+          CHART_VERSION: ${{ needs.create-release.outputs.chart-version }}
+          PACKAGE_PATH: ${{ steps.package.outputs.package_path }}
+        run: |
+          set -euo pipefail
+          # syft 1.x does not (yet) support the Helm chart OCI media type, so
+          # scan the local tgz — same bytes that `helm push` uploaded.
+          OCI_REF="ghcr.io/${GHCR_NAMESPACE}/${CHART_NAME_INPUT}:${CHART_VERSION}"
+          syft "file:${PACKAGE_PATH}" \
+            -o spdx-json=sbom.spdx.json \
+            --source-name "${CHART_NAME_INPUT}" \
+            --source-version "${CHART_VERSION}"
+          jq -e '.name == "'"${CHART_NAME_INPUT}"'"' sbom.spdx.json >/dev/null
+          echo "sbom_path=$(realpath sbom.spdx.json)" >> "$GITHUB_OUTPUT"
+          echo "oci_ref=${OCI_REF}" >> "$GITHUB_OUTPUT"
+          echo "chart_version=${CHART_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Attach SBOM as OCI referrer
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+          SBOM_PATH: ${{ steps.sbom.outputs.sbom_path }}
+        run: |
+          set -euo pipefail
+          # oras login already done above (for the latest retag).
+          oras attach --artifact-type application/spdx+json \
+            "${OCI_REF}" \
+            "${SBOM_PATH}:application/spdx+json"
+          oras discover --format json "${OCI_REF}" \
+            | jq '.manifests[] | select(.artifactType == "application/spdx+json")'
+
+      - name: Upload SBOM as workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: sbom-spdx-${{ steps.sbom.outputs.chart_version }}
+          path: ${{ steps.sbom.outputs.sbom_path }}
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Sign chart with cosign (keyless OIDC)
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+          COSIGN_YES: "true"
+          COSIGN_REGISTRY_REFERRERS_MODE: oci-1-1
+        run: |
+          set -euo pipefail
+          cosign sign --yes \
+            --oidc-issuer https://token.actions.githubusercontent.com \
+            "${OCI_REF}"
+
+      - name: Sign SBOM referrer with cosign
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+          COSIGN_YES: "true"
+          COSIGN_REGISTRY_REFERRERS_MODE: oci-1-1
+        run: |
+          set -euo pipefail
+          SBOM_DIGEST=$(oras discover --format json "${OCI_REF}" \
+            | jq -r '.manifests[] | select(.artifactType == "application/spdx+json") | .digest')
+          if [[ -z "${SBOM_DIGEST}" || "${SBOM_DIGEST}" == "null" ]]; then
+            echo "::error::no SBOM referrer found for ${OCI_REF}"
+            exit 1
+          fi
+          cosign sign --yes \
+            --oidc-issuer https://token.actions.githubusercontent.com \
+            "ghcr.io/${GHCR_NAMESPACE}/idlefy-universal@${SBOM_DIGEST}"
+
+      - name: Verify chart cosign signature
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+        run: |
+          set -euo pipefail
+          cosign verify \
+            --certificate-identity-regexp "^https://github.com/${{ github.repository }}/" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "${OCI_REF}" | jq '.[0].critical'
+
+      - name: Resolve chart + SBOM artifact digests
+        id: digest
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+        run: |
+          set -euo pipefail
+          CHART_DIGEST=$(oras manifest fetch --descriptor "${OCI_REF}" | jq -r '.digest')
+          if [[ -z "${CHART_DIGEST}" || "${CHART_DIGEST}" == "null" ]]; then
+            echo "::error::could not resolve chart digest for ${OCI_REF}"
+            exit 1
+          fi
+          echo "chart_digest=${CHART_DIGEST}" >> "$GITHUB_OUTPUT"
+          SBOM_DIGEST=$(oras discover --format json "${OCI_REF}" \
+            | jq -r '.manifests[] | select(.artifactType == "application/spdx+json") | .digest')
+          echo "sbom_digest=${SBOM_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance (chart)
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb  # v2.1.0
+        with:
+          subject-name: ghcr.io/${{ env.GHCR_NAMESPACE }}/idlefy-universal
+          subject-digest: ${{ steps.digest.outputs.chart_digest }}
+
+      - name: Attest build provenance (SBOM)
+        if: steps.digest.outputs.sbom_digest != ''
+        uses: actions/attest-build-provenance@7668571508540a607bdfd90a87a560489fe372eb  # v2.1.0
+        with:
+          subject-name: ghcr.io/${{ env.GHCR_NAMESPACE }}/idlefy-universal
+          subject-digest: ${{ steps.digest.outputs.sbom_digest }}
+
+      - name: Verify SLSA build provenance
+        env:
+          OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh attestation verify "oci://${OCI_REF}" \
+            --owner "${{ github.repository_owner }}" --format json \
+            | jq '.[0].verificationResult.statement.predicate.buildDefinition.externalParameters'
+      # --- end supply-chain hardening --------------------------------------
+
       - name: Tag as latest on GHCR
         # Policy: `latest` follows the most recent stable auto-release on main.
         # Pre-release versions (rc/alpha/beta/pre) MUST NOT move `latest`,
@@ -305,6 +442,10 @@ jobs:
             "ghcr.io/${GHCR_NAMESPACE}/${CHART_NAME}:${VERSION}" \
             latest
 
+  # NOTE: supply-chain hardening (SBOM + cosign + SLSA L3) lives in
+  # `publish-auto-release` only. Manual releases are human-gated and rare;
+  # mirror this block here if/when a manual-release artifact needs the same
+  # machine-verifiable trust chain. See docs/how-to/verify-supply-chain.md.
   publish-manual-release:
     needs: lint-test
     runs-on: ubuntu-latest
