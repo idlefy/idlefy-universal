@@ -61,6 +61,19 @@ A skill that picks a workload kind, suggests `autoCreate*` flags, and
 flags common mistakes — written against `agent-index.json` — works
 against any chart version 1.0+ without bespoke logic per release.
 
+## Trust chain {#trust-chain}
+
+`idlefy-universal` publishes signed artifacts — every OCI chart release
+is accompanied by a Sigstore cosign signature, a SPDX SBOM, and a
+SLSA L3 build provenance attestation. An AI agent must verify all
+three before `helm install`; this is the difference between "I trust
+the registry I pulled from" and "I trust this specific chart, signed
+by this specific workflow, with this specific dependency tree."
+
+See [How-To → Verify the chart's supply chain](../how-to/verify-supply-chain.md#three-command-verification)
+for the three-command verification recipe and the autonomous-agent
+gate script.
+
 ## Reference
 
 - [`reference/agent-metadata`](../reference/agent-metadata.md) — keyword spec

@@ -86,6 +86,7 @@ nav:
       - Multi-container: how-to/multi-container.md
       - Secrets: how-to/secrets.md
       - PDB & HPA: how-to/pdb-hpa.md
+      - Verify the chart's supply chain: how-to/verify-supply-chain.md
   - Reference:
       - Values: reference/values.md
       - Agent metadata: reference/agent-metadata.md
