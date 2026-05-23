@@ -68,7 +68,7 @@ jobs:
           set -euo pipefail
           # Full cert-manager — needed because example 02 (web-with-tls)
           # relies on Certificate reconciliation, not just CRD presence.
-          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.0/cert-manager.yaml
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
           # Wait for the webhook to be Ready before applying any
           # cert-manager.io resource (controller validates against it).
           kubectl wait --for=condition=Available --timeout=180s \
@@ -415,6 +415,11 @@ jobs:
           subject-digest: ${{ steps.digest.outputs.sbom_digest }}
 
       - name: Verify SLSA build provenance
+        # `gh attestation verify oci://<ref>` resolves the chart digest by
+        # reaching out to GHCR; that resolution needs docker-config creds
+        # set by the earlier `oras login` (see "Log in to GHCR (oras)").
+        # If that login step is moved or removed, this step will fail
+        # with a misleading "no attestation found" rather than auth error.
         env:
           OCI_REF: ${{ steps.sbom.outputs.oci_ref }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

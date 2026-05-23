@@ -6,10 +6,10 @@ Terminate TLS for a workload using cert-manager. Setting
 
 ## Prerequisites
 
-- cert-manager v1.15.0+:
+- cert-manager v1.18+:
 
   ```bash
-  kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.0/cert-manager.yaml
+  kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
   ```
 
 - A `ClusterIssuer` (Let's Encrypt staging shown here for safety):
