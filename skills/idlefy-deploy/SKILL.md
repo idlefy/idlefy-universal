@@ -16,6 +16,11 @@ If the user explicitly asks for a different version in their prompt, honour
 that and substitute throughout.
 
 **Canonical chart reference:** `oci://ghcr.io/idlefy/idlefy-universal`.
+This is the **only** source for the chart. It is an OCI artifact on GHCR —
+not a classic Helm repo, not a GitHub Pages site, not a vendored copy in
+the user's tree. Do NOT run `helm repo add`, do NOT search the user's
+filesystem for the chart, do NOT ask the user where to find it. Helm
+3.8+ supports `oci://` URLs natively in `helm pull` and `helm template`.
 
 **Five phases.** Execute them in order. Do not skip phases except where a
 phase explicitly says it may be skipped (greenfield projects skip Phase 2).
@@ -312,6 +317,15 @@ in, display it once more for sign-off, then proceed to Phase 4.
 
 Run the chart's schema-driven validation. Do not invent any clever logic
 here — Helm does the work.
+
+**Chart source — non-negotiable.** The chart lives at
+`oci://ghcr.io/idlefy/idlefy-universal` (OCI on GHCR). Use it directly in
+the command below — `helm template` and `helm pull` support `oci://` URLs
+in Helm 3.8+ without any `helm repo add` step. **Do NOT** ask the user
+where the chart is, **do NOT** propose adding a Helm repo, **do NOT**
+look for vendored copies in their tree, **do NOT** confuse it with the
+docs site at `https://idlefy.github.io/idlefy-universal/` (that's HTML,
+not a Helm repo).
 
 ### The command
 
