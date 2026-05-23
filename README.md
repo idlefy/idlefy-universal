@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/hero.webp" alt="idlefy-universal — schema-first universal Helm chart for Kubernetes workloads" width="820"/>
+</p>
+
 # idlefy-universal
 
 Universal Helm chart for Kubernetes workloads — typed JSON Schema, agent-native metadata, auto-creation, Gateway API.

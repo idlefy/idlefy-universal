@@ -4,6 +4,8 @@ hide:
   - toc
 ---
 
+![idlefy-universal — schema-first universal Helm chart for Kubernetes workloads](assets/hero.webp){ .idlefy-hero }
+
 # idlefy-universal
 
 > Schema-driven, agent-native Helm chart for any Kubernetes workload.

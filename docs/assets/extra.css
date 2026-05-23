@@ -1,0 +1,16 @@
+/*
+ * Center and constrain the homepage hero so it scales on mobile.
+ *
+ * Specificity note: Material's `.md-typeset img` (0,1,1) sets
+ * `max-width: 100%`, which beats a plain `.idlefy-hero` (0,1,0)
+ * and ignores our cap. Tagging the selector with the element
+ * keeps us at (0,1,2) and wins without !important.
+ */
+.md-typeset img.idlefy-hero {
+  display: block;
+  margin: 0 auto 1.5rem;
+  max-width: 640px;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}

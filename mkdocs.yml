@@ -21,6 +21,8 @@ exclude_docs: |
 
 theme:
   name: material
+  logo: assets/logo.webp
+  favicon: assets/logo.webp
   features:
     - navigation.tabs
     - navigation.tabs.sticky
@@ -71,6 +73,9 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/idlefy/idlefy-universal
+
+extra_css:
+  - assets/extra.css
 
 nav:
   - Home: index.md
