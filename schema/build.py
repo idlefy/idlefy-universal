@@ -731,15 +731,29 @@ def _render_metadata(node: dict[str, Any], lines: list[str]) -> None:
         lines.append("")
 
 
-def _render_properties(node: dict[str, Any], lines: list[str], heading_level: int) -> None:
-    """Render nested properties of an object type."""
+def _render_properties(
+    node: dict[str, Any],
+    lines: list[str],
+    heading_level: int,
+    parent_def: str = "",
+) -> None:
+    """Render nested properties of an object type.
+
+    When parent_def is non-empty, emit an explicit {#<defname>-<fieldname>}
+    attr_list anchor under each field heading so docs pages can deep-link
+    to specific fields (e.g. how-to pages targeting #deploymentspec-rbac).
+    """
     props = node.get("properties") or {}
     if not props:
         return
     prefix = "#" * heading_level
     for pname in sorted(props.keys()):
         pnode = props[pname]
-        lines.append(f"{prefix} {pname}")
+        if parent_def:
+            slug = f"{parent_def.lower()}-{pname.lower()}"
+            lines.append(f"{prefix} {pname} {{#{slug}}}")
+        else:
+            lines.append(f"{prefix} {pname}")
         lines.append("")
         if isinstance(pnode, dict) and "type" in pnode:
             lines.append(f"_Type:_ `{pnode['type']}`")
@@ -777,7 +791,7 @@ def render_docs(schema: dict[str, Any], out_path: Path) -> None:
             lines.append(f"### {name}")
             lines.append("")
             _render_metadata(node, lines)
-            _render_properties(node, lines, heading_level=4)
+            _render_properties(node, lines, heading_level=4, parent_def=name)
 
     out_path.write_text("\n".join(lines))
 

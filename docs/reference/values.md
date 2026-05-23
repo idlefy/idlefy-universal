@@ -412,13 +412,13 @@ Certificate not tied to one deployment.
 clusterIssuer: letsencrypt-prod
 ```
 
-#### clusterIssuer
+#### clusterIssuer {#certificateconfig-clusterissuer}
 
 _Type:_ `string`
 
 cert-manager ClusterIssuer name.
 
-#### domains
+#### domains {#certificateconfig-domains}
 
 _Type:_ `array`
 
@@ -433,7 +433,7 @@ wired into ingress, or for wildcard + apex combos.
 - '*.api.example.com'
 ```
 
-#### issuer
+#### issuer {#certificateconfig-issuer}
 
 _Type:_ `string`
 
@@ -452,7 +452,7 @@ data:
 type: configMap
 ```
 
-#### annotations
+#### annotations {#configspec-annotations}
 
 _Type:_ `object`
 
@@ -467,7 +467,7 @@ helm.sh/hook: pre-install
 helm.sh/hook-weight: '-5'
 ```
 
-#### binaryData
+#### binaryData {#configspec-binarydata}
 
 _Type:_ `object`
 
@@ -481,7 +481,7 @@ would corrupt content. Keys still must be DNS subdomain compliant.
 ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t...
 ```
 
-#### data
+#### data {#configspec-data}
 
 _Type:_ `object`
 
@@ -496,7 +496,7 @@ config.yaml: 'log_level: info'
 feature_flags.json: '{"v2": true}'
 ```
 
-#### labels
+#### labels {#configspec-labels}
 
 _Type:_ `object`
 
@@ -509,7 +509,7 @@ config-class: app
 team: platform
 ```
 
-#### type
+#### type {#configspec-type}
 
 _Type:_ `string`
 , _enum:_ `['configMap', 'secret']`
@@ -545,7 +545,7 @@ resources:
     memory: 128Mi
 ```
 
-#### args
+#### args {#containerspec-args}
 
 _Type:_ `array`
 
@@ -561,7 +561,7 @@ override flags but keep the image's ENTRYPOINT.
 - '8080'
 ```
 
-#### command
+#### command {#containerspec-command}
 
 _Type:_ `array`
 
@@ -575,7 +575,7 @@ unless you explicitly include sh/bash as the first element.
 - /app/server
 ```
 
-#### env
+#### env {#containerspec-env}
 
 _Type:_ `array`
 
@@ -593,7 +593,7 @@ Environment variables. Each must use exactly one of value or valueFrom.
       name: db
 ```
 
-#### envFrom
+#### envFrom {#containerspec-envfrom}
 
 _Type:_ `array`
 
@@ -606,7 +606,7 @@ Pulls all keys from a referenced ConfigMap or Secret.
   type: configMap
 ```
 
-#### image
+#### image {#containerspec-image}
 
 _Type:_ `string`
 
@@ -619,7 +619,7 @@ with imageTag and an optional global registry prefix.
 my-app
 ```
 
-#### imagePullPolicy
+#### imagePullPolicy {#containerspec-imagepullpolicy}
 
 _Type:_ `string`
 , _enum:_ `['Always', 'IfNotPresent', 'Never']`
@@ -632,7 +632,7 @@ When to pull the image.
 IfNotPresent
 ```
 
-#### imageTag
+#### imageTag {#containerspec-imagetag}
 
 _Type:_ `string`
 
@@ -644,7 +644,7 @@ Image tag/version. Required (no implicit latest).
 v1.0.0
 ```
 
-#### lifecycle
+#### lifecycle {#containerspec-lifecycle}
 
 Container lifecycle hooks (passthrough to Kubernetes). postStart runs
 immediately after the container starts; preStop runs before SIGTERM
@@ -663,7 +663,7 @@ preStop:
     - sleep 10
 ```
 
-#### ports
+#### ports {#containerspec-ports}
 
 _Type:_ `object`
 
@@ -682,7 +682,7 @@ metrics:
   servicePort: 9090
 ```
 
-#### probes
+#### probes {#containerspec-probes}
 
 _Type:_ `object`
 
@@ -700,11 +700,11 @@ readinessProbe:
   periodSeconds: 10
 ```
 
-#### resources
+#### resources {#containerspec-resources}
 
 CPU/memory requests and limits for this container.
 
-#### secretRefs
+#### secretRefs {#containerspec-secretrefs}
 
 _Type:_ `array`
 
@@ -718,7 +718,7 @@ Each group injects multiple env vars derived from Secret keys.
 - db-secrets
 ```
 
-#### securityContext
+#### securityContext {#containerspec-securitycontext}
 
 Container-level security context (passthrough). Per-container settings
 override pod-level ones. Use to enforce non-root, drop capabilities,
@@ -732,7 +732,7 @@ runAsNonRoot: true
 runAsUser: 1000
 ```
 
-#### volumeMounts
+#### volumeMounts {#containerspec-volumemounts}
 
 _Type:_ `array`
 
@@ -767,11 +767,11 @@ schedule: 0 0 * * *
 timezone: America/New_York
 ```
 
-#### activeDeadlineSeconds
+#### activeDeadlineSeconds {#cronjobspec-activedeadlineseconds}
 
 _Type:_ `integer`
 
-#### affinity
+#### affinity {#cronjobspec-affinity}
 
 Pod affinity / anti-affinity rules for spawned Job pods (passthrough).
 
@@ -789,7 +789,7 @@ nodeAffinity:
     weight: 100
 ```
 
-#### annotations
+#### annotations {#cronjobspec-annotations}
 
 _Type:_ `object`
 
@@ -803,7 +803,7 @@ podAnnotations.
 argocd.argoproj.io/sync-wave: '10'
 ```
 
-#### autoCreateNetworkPolicy
+#### autoCreateNetworkPolicy {#cronjobspec-autocreatenetworkpolicy}
 
 _Type:_ `boolean`
 
@@ -817,7 +817,7 @@ no silent allow/deny defaults. See NetworkPolicySpec.
 true
 ```
 
-#### autoCreateRbac
+#### autoCreateRbac {#cronjobspec-autocreaterbac}
 
 _Type:_ `boolean`
 
@@ -831,16 +831,16 @@ ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
 true
 ```
 
-#### backoffLimit
+#### backoffLimit {#cronjobspec-backofflimit}
 
 _Type:_ `integer`
 
-#### concurrencyPolicy
+#### concurrencyPolicy {#cronjobspec-concurrencypolicy}
 
 _Type:_ `string`
 , _enum:_ `['Allow', 'Forbid', 'Replace']`
 
-#### containers
+#### containers {#cronjobspec-containers}
 
 _Type:_ `object`
 
@@ -858,11 +858,11 @@ main:
   imageTag: v1.0.0
 ```
 
-#### failedJobsHistoryLimit
+#### failedJobsHistoryLimit {#cronjobspec-failedjobshistorylimit}
 
 _Type:_ `integer`
 
-#### labels
+#### labels {#cronjobspec-labels}
 
 _Type:_ `object`
 
@@ -876,11 +876,11 @@ kind: backup
 team: platform
 ```
 
-#### namespace
+#### namespace {#cronjobspec-namespace}
 
 _Type:_ `string`
 
-#### networkPolicy
+#### networkPolicy {#cronjobspec-networkpolicy}
 
 NetworkPolicy configuration for this cronJob. Only rendered when
 autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
@@ -894,7 +894,7 @@ policyTypes:
 - Ingress
 ```
 
-#### nodeSelector
+#### nodeSelector {#cronjobspec-nodeselector}
 
 _Type:_ `object`
 
@@ -906,7 +906,7 @@ Node label constraints applied to spawned Job pods (passthrough).
 kubernetes.io/os: linux
 ```
 
-#### podAnnotations
+#### podAnnotations {#cronjobspec-podannotations}
 
 _Type:_ `object`
 
@@ -920,11 +920,11 @@ prometheus.io/port: '9090'
 prometheus.io/scrape: 'true'
 ```
 
-#### priorityClassName
+#### priorityClassName {#cronjobspec-priorityclassname}
 
 _Type:_ `string`
 
-#### rbac
+#### rbac {#cronjobspec-rbac}
 
 Namespaced RBAC configuration for this cronJob. Only rendered when
 autoCreateRbac is true. See $defs/RbacSpec for full shape and
@@ -944,16 +944,16 @@ rules:
   - watch
 ```
 
-#### restartPolicy
+#### restartPolicy {#cronjobspec-restartpolicy}
 
 _Type:_ `string`
 , _enum:_ `['OnFailure', 'Never']`
 
-#### schedule
+#### schedule {#cronjobspec-schedule}
 
 _Type:_ `string`
 
-#### securityContext
+#### securityContext {#cronjobspec-securitycontext}
 
 Pod-level security context for spawned Job pods (passthrough).
 
@@ -965,27 +965,27 @@ runAsNonRoot: true
 runAsUser: 1000
 ```
 
-#### serviceAccountName
+#### serviceAccountName {#cronjobspec-serviceaccountname}
 
 _Type:_ `string`
 
-#### startingDeadlineSeconds
+#### startingDeadlineSeconds {#cronjobspec-startingdeadlineseconds}
 
 _Type:_ `integer`
 
-#### successfulJobsHistoryLimit
+#### successfulJobsHistoryLimit {#cronjobspec-successfuljobshistorylimit}
 
 _Type:_ `integer`
 
-#### suspend
+#### suspend {#cronjobspec-suspend}
 
 _Type:_ `boolean`
 
-#### timezone
+#### timezone {#cronjobspec-timezone}
 
 _Type:_ `string`
 
-#### tolerations
+#### tolerations {#cronjobspec-tolerations}
 
 _Type:_ `array`
 
@@ -1000,7 +1000,7 @@ Pod tolerations applied to spawned Job pods (passthrough).
   value: batch
 ```
 
-#### volumes
+#### volumes {#cronjobspec-volumes}
 
 _Type:_ `array`
 
@@ -1035,9 +1035,9 @@ tolerations:
 - operator: Exists
 ```
 
-#### affinity
+#### affinity {#daemonsetspec-affinity}
 
-#### annotations
+#### annotations {#daemonsetspec-annotations}
 
 _Type:_ `object`
 
@@ -1051,7 +1051,7 @@ annotations live under podAnnotations.
 argocd.argoproj.io/sync-wave: '5'
 ```
 
-#### autoCreateNetworkPolicy
+#### autoCreateNetworkPolicy {#daemonsetspec-autocreatenetworkpolicy}
 
 _Type:_ `boolean`
 
@@ -1065,11 +1065,11 @@ no silent allow/deny defaults. See NetworkPolicySpec.
 true
 ```
 
-#### autoCreatePdb
+#### autoCreatePdb {#daemonsetspec-autocreatepdb}
 
 _Type:_ `boolean`
 
-#### autoCreateRbac
+#### autoCreateRbac {#daemonsetspec-autocreaterbac}
 
 _Type:_ `boolean`
 
@@ -1083,15 +1083,15 @@ ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
 true
 ```
 
-#### autoCreateServiceAccount
+#### autoCreateServiceAccount {#daemonsetspec-autocreateserviceaccount}
 
 _Type:_ `boolean`
 
-#### autoCreateServiceMonitor
+#### autoCreateServiceMonitor {#daemonsetspec-autocreateservicemonitor}
 
 _Type:_ `boolean`
 
-#### containers
+#### containers {#daemonsetspec-containers}
 
 _Type:_ `object`
 
@@ -1106,9 +1106,9 @@ main:
   imageTag: '2.2'
 ```
 
-#### dnsConfig
+#### dnsConfig {#daemonsetspec-dnsconfig}
 
-#### hostAliases
+#### hostAliases {#daemonsetspec-hostaliases}
 
 _Type:_ `array`
 
@@ -1123,26 +1123,26 @@ entry maps a single IP to one or more hostnames.
   ip: 10.0.0.1
 ```
 
-#### hostIPC
+#### hostIPC {#daemonsetspec-hostipc}
 
 _Type:_ `boolean`
 
 Run pods in the host's IPC namespace.
 
-#### hostNetwork
+#### hostNetwork {#daemonsetspec-hostnetwork}
 
 _Type:_ `boolean`
 
 Run pods in the host's network namespace. Required for some
 node-level agents (CNI plugins, host metrics scrapers).
 
-#### hostPID
+#### hostPID {#daemonsetspec-hostpid}
 
 _Type:_ `boolean`
 
 Run pods in the host's PID namespace.
 
-#### initContainers
+#### initContainers {#daemonsetspec-initcontainers}
 
 _Type:_ `object`
 
@@ -1162,7 +1162,7 @@ prepare-host:
   imageTag: '1.36'
 ```
 
-#### labels
+#### labels {#daemonsetspec-labels}
 
 _Type:_ `object`
 
@@ -1176,17 +1176,17 @@ team: platform
 tier: node-agent
 ```
 
-#### minReadySeconds
+#### minReadySeconds {#daemonsetspec-minreadyseconds}
 
 _Type:_ `integer`
 
 Seconds a pod must be ready before it counts as available.
 
-#### namespace
+#### namespace {#daemonsetspec-namespace}
 
 _Type:_ `string`
 
-#### networkPolicy
+#### networkPolicy {#daemonsetspec-networkpolicy}
 
 NetworkPolicy configuration for this daemonSet. Only rendered when
 autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
@@ -1200,7 +1200,7 @@ policyTypes:
 - Ingress
 ```
 
-#### nodeSelector
+#### nodeSelector {#daemonsetspec-nodeselector}
 
 _Type:_ `object`
 
@@ -1213,9 +1213,9 @@ schedule onto nodes that match all listed labels.
 kubernetes.io/os: linux
 ```
 
-#### pdb
+#### pdb {#daemonsetspec-pdb}
 
-#### podAnnotations
+#### podAnnotations {#daemonsetspec-podannotations}
 
 _Type:_ `object`
 
@@ -1230,7 +1230,7 @@ prometheus.io/port: '9090'
 prometheus.io/scrape: 'true'
 ```
 
-#### podLabels
+#### podLabels {#daemonsetspec-podlabels}
 
 _Type:_ `object`
 
@@ -1244,11 +1244,11 @@ selectors.
 tier: node-agent
 ```
 
-#### priorityClassName
+#### priorityClassName {#daemonsetspec-priorityclassname}
 
 _Type:_ `string`
 
-#### probes
+#### probes {#daemonsetspec-probes}
 
 _Type:_ `object`
 
@@ -1266,7 +1266,7 @@ readinessProbe:
   initialDelaySeconds: 5
 ```
 
-#### rbac
+#### rbac {#daemonsetspec-rbac}
 
 Namespaced RBAC configuration for this daemonSet. Only rendered when
 autoCreateRbac is true. See $defs/RbacSpec for full shape and
@@ -1286,27 +1286,27 @@ rules:
   - watch
 ```
 
-#### revisionHistoryLimit
+#### revisionHistoryLimit {#daemonsetspec-revisionhistorylimit}
 
 _Type:_ `integer`
 
 ControllerRevisions retained for rollback.
 
-#### securityContext
+#### securityContext {#daemonsetspec-securitycontext}
 
-#### serviceAccount
+#### serviceAccount {#daemonsetspec-serviceaccount}
 
-#### serviceAccountName
+#### serviceAccountName {#daemonsetspec-serviceaccountname}
 
 _Type:_ `string`
 
-#### serviceMonitor
+#### serviceMonitor {#daemonsetspec-servicemonitor}
 
-#### terminationGracePeriodSeconds
+#### terminationGracePeriodSeconds {#daemonsetspec-terminationgraceperiodseconds}
 
 _Type:_ `integer`
 
-#### tolerations
+#### tolerations {#daemonsetspec-tolerations}
 
 _Type:_ `array`
 
@@ -1320,7 +1320,7 @@ node.
 - operator: Exists
 ```
 
-#### topologySpreadConstraints
+#### topologySpreadConstraints {#daemonsetspec-topologyspreadconstraints}
 
 _Type:_ `array`
 
@@ -1339,7 +1339,7 @@ for completeness. Passthrough to Kubernetes.
   whenUnsatisfiable: ScheduleAnyway
 ```
 
-#### updateStrategy
+#### updateStrategy {#daemonsetspec-updatestrategy}
 
 _Type:_ `object`
 
@@ -1353,7 +1353,7 @@ rollingUpdate:
 type: RollingUpdate
 ```
 
-#### volumes
+#### volumes {#daemonsetspec-volumes}
 
 _Type:_ `array`
 
@@ -1393,7 +1393,7 @@ securityContext:
   runAsUser: 1000
 ```
 
-#### affinity
+#### affinity {#deploymentdefaultsspec-affinity}
 
 Default pod affinity / anti-affinity rules (passthrough). Use to
 enforce platform-wide scheduling policy (e.g. always spread by
@@ -1412,7 +1412,7 @@ podAntiAffinity:
     weight: 100
 ```
 
-#### annotations
+#### annotations {#deploymentdefaultsspec-annotations}
 
 _Type:_ `object`
 
@@ -1425,45 +1425,45 @@ Per-deployment annotations override matching keys.
 argocd.argoproj.io/sync-wave: '5'
 ```
 
-#### autoCreateCertificate
+#### autoCreateCertificate {#deploymentdefaultsspec-autocreatecertificate}
 
 _Type:_ `boolean`
 
-#### autoCreateHttpRoute
+#### autoCreateHttpRoute {#deploymentdefaultsspec-autocreatehttproute}
 
 _Type:_ `boolean`
 
-#### autoCreateIngress
+#### autoCreateIngress {#deploymentdefaultsspec-autocreateingress}
 
 _Type:_ `boolean`
 
-#### autoCreateNetworkPolicy
+#### autoCreateNetworkPolicy {#deploymentdefaultsspec-autocreatenetworkpolicy}
 
 _Type:_ `boolean`
 
-#### autoCreatePdb
+#### autoCreatePdb {#deploymentdefaultsspec-autocreatepdb}
 
 _Type:_ `boolean`
 
-#### autoCreateService
+#### autoCreateService {#deploymentdefaultsspec-autocreateservice}
 
 _Type:_ `boolean`
 
-#### autoCreateServiceAccount
+#### autoCreateServiceAccount {#deploymentdefaultsspec-autocreateserviceaccount}
 
 _Type:_ `boolean`
 
-#### autoCreateServiceMonitor
+#### autoCreateServiceMonitor {#deploymentdefaultsspec-autocreateservicemonitor}
 
 _Type:_ `boolean`
 
-#### autoCreateSoftAntiAffinity
+#### autoCreateSoftAntiAffinity {#deploymentdefaultsspec-autocreatesoftantiaffinity}
 
 _Type:_ `boolean`
 
-#### certificate
+#### certificate {#deploymentdefaultsspec-certificate}
 
-#### containers
+#### containers {#deploymentdefaultsspec-containers}
 
 _Type:_ `object`
 
@@ -1479,7 +1479,7 @@ main:
   imageTag: '1.25'
 ```
 
-#### dnsConfig
+#### dnsConfig {#deploymentdefaultsspec-dnsconfig}
 
 Default pod DNS overrides applied to every deployment (passthrough).
 Common use: lower `ndots` cluster-wide to reduce DNS amplification.
@@ -1492,7 +1492,7 @@ options:
   value: '2'
 ```
 
-#### hostAliases
+#### hostAliases {#deploymentdefaultsspec-hostaliases}
 
 _Type:_ `array`
 
@@ -1507,13 +1507,13 @@ Per-deployment hostAliases override this entirely.
   ip: 10.0.0.99
 ```
 
-#### hpa
+#### hpa {#deploymentdefaultsspec-hpa}
 
-#### httpRoute
+#### httpRoute {#deploymentdefaultsspec-httproute}
 
-#### ingress
+#### ingress {#deploymentdefaultsspec-ingress}
 
-#### initContainers
+#### initContainers {#deploymentdefaultsspec-initcontainers}
 
 _Type:_ `object`
 
@@ -1533,7 +1533,7 @@ wait-for-vault:
   imageTag: '1.36'
 ```
 
-#### labels
+#### labels {#deploymentdefaultsspec-labels}
 
 _Type:_ `object`
 
@@ -1546,13 +1546,13 @@ labels (app.kubernetes.io/*) are still added automatically.
 team: platform
 ```
 
-#### migrations
+#### migrations {#deploymentdefaultsspec-migrations}
 
-#### namespace
+#### namespace {#deploymentdefaultsspec-namespace}
 
 _Type:_ `string`
 
-#### networkPolicy
+#### networkPolicy {#deploymentdefaultsspec-networkpolicy}
 
 Default networkPolicy block applied to every deployment that sets
 autoCreateNetworkPolicy: true. Per-instance networkPolicy overrides
@@ -1575,7 +1575,7 @@ policyTypes:
 - Egress
 ```
 
-#### nodeSelector
+#### nodeSelector {#deploymentdefaultsspec-nodeselector}
 
 _Type:_ `object`
 
@@ -1588,9 +1588,9 @@ Per-deployment nodeSelector overrides this entirely.
 kubernetes.io/os: linux
 ```
 
-#### pdb
+#### pdb {#deploymentdefaultsspec-pdb}
 
-#### podAnnotations
+#### podAnnotations {#deploymentdefaultsspec-podannotations}
 
 _Type:_ `object`
 
@@ -1604,7 +1604,7 @@ prometheus.io/port: '9090'
 prometheus.io/scrape: 'true'
 ```
 
-#### podLabels
+#### podLabels {#deploymentdefaultsspec-podlabels}
 
 _Type:_ `object`
 
@@ -1617,11 +1617,11 @@ pods and match NetworkPolicy / Service / ServiceMonitor selectors.
 tier: backend
 ```
 
-#### priorityClassName
+#### priorityClassName {#deploymentdefaultsspec-priorityclassname}
 
 _Type:_ `string`
 
-#### probes
+#### probes {#deploymentdefaultsspec-probes}
 
 _Type:_ `object`
 
@@ -1644,11 +1644,11 @@ readinessProbe:
   initialDelaySeconds: 5
 ```
 
-#### replicas
+#### replicas {#deploymentdefaultsspec-replicas}
 
 _Type:_ `integer`
 
-#### securityContext
+#### securityContext {#deploymentdefaultsspec-securitycontext}
 
 Default pod-level security context (passthrough). Set a baseline
 here (runAsNonRoot, runAsUser, fsGroup) and override only where
@@ -1662,26 +1662,26 @@ runAsNonRoot: true
 runAsUser: 1000
 ```
 
-#### serviceAccount
+#### serviceAccount {#deploymentdefaultsspec-serviceaccount}
 
-#### serviceAccountName
+#### serviceAccountName {#deploymentdefaultsspec-serviceaccountname}
 
 _Type:_ `string`
 
-#### serviceMonitor
+#### serviceMonitor {#deploymentdefaultsspec-servicemonitor}
 
-#### serviceType
+#### serviceType {#deploymentdefaultsspec-servicetype}
 
 _Type:_ `string`
 , _enum:_ `['ClusterIP', 'NodePort', 'LoadBalancer']`
 
-#### strategy
+#### strategy {#deploymentdefaultsspec-strategy}
 
-#### terminationGracePeriodSeconds
+#### terminationGracePeriodSeconds {#deploymentdefaultsspec-terminationgraceperiodseconds}
 
 _Type:_ `integer`
 
-#### tolerations
+#### tolerations {#deploymentdefaultsspec-tolerations}
 
 _Type:_ `array`
 
@@ -1697,7 +1697,7 @@ Per-deployment tolerations override this entirely.
   value: backend
 ```
 
-#### topologySpreadConstraints
+#### topologySpreadConstraints {#deploymentdefaultsspec-topologyspreadconstraints}
 
 _Type:_ `array`
 
@@ -1716,7 +1716,7 @@ instead of repeating it on every workload.
   whenUnsatisfiable: ScheduleAnyway
 ```
 
-#### volumes
+#### volumes {#deploymentdefaultsspec-volumes}
 
 _Type:_ `array`
 
@@ -1750,7 +1750,7 @@ containers:
 replicas: 2
 ```
 
-#### affinity
+#### affinity {#deploymentspec-affinity}
 
 Pod affinity / anti-affinity rules (passthrough). The chart's
 `autoCreateSoftAntiAffinity` flag generates a sensible default for
@@ -1770,7 +1770,7 @@ podAntiAffinity:
     weight: 100
 ```
 
-#### annotations
+#### annotations {#deploymentspec-annotations}
 
 _Type:_ `object`
 
@@ -1784,18 +1784,18 @@ Pod-level annotations (on the pod template) live under podAnnotations.
 argocd.argoproj.io/sync-wave: '5'
 ```
 
-#### autoCreateCertificate
+#### autoCreateCertificate {#deploymentspec-autocreatecertificate}
 
 _Type:_ `boolean`
 
 When true, generates a cert-manager Certificate. Requires
 autoCreateIngress: true (enforced via cross-field if/then).
 
-#### autoCreateHttpRoute
+#### autoCreateHttpRoute {#deploymentspec-autocreatehttproute}
 
 _Type:_ `boolean`
 
-#### autoCreateIngress
+#### autoCreateIngress {#deploymentspec-autocreateingress}
 
 _Type:_ `boolean`
 
@@ -1803,7 +1803,7 @@ When true, generates an Ingress using ingress.* and the global
 generic.ingressesGeneral defaults. Requires at least one container
 port (enforced in _validation.tpl).
 
-#### autoCreateNetworkPolicy
+#### autoCreateNetworkPolicy {#deploymentspec-autocreatenetworkpolicy}
 
 _Type:_ `boolean`
 
@@ -1817,11 +1817,11 @@ no silent allow/deny defaults. See NetworkPolicySpec.
 true
 ```
 
-#### autoCreatePdb
+#### autoCreatePdb {#deploymentspec-autocreatepdb}
 
 _Type:_ `boolean`
 
-#### autoCreateRbac
+#### autoCreateRbac {#deploymentspec-autocreaterbac}
 
 _Type:_ `boolean`
 
@@ -1835,27 +1835,27 @@ ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
 true
 ```
 
-#### autoCreateService
+#### autoCreateService {#deploymentspec-autocreateservice}
 
 _Type:_ `boolean`
 
 When true, generates a Service from declared container ports.
 
-#### autoCreateServiceAccount
+#### autoCreateServiceAccount {#deploymentspec-autocreateserviceaccount}
 
 _Type:_ `boolean`
 
-#### autoCreateServiceMonitor
+#### autoCreateServiceMonitor {#deploymentspec-autocreateservicemonitor}
 
 _Type:_ `boolean`
 
-#### autoCreateSoftAntiAffinity
+#### autoCreateSoftAntiAffinity {#deploymentspec-autocreatesoftantiaffinity}
 
 _Type:_ `boolean`
 
-#### certificate
+#### certificate {#deploymentspec-certificate}
 
-#### containers
+#### containers {#deploymentspec-containers}
 
 _Type:_ `object`
 
@@ -1870,7 +1870,7 @@ main:
   imageTag: '1.25'
 ```
 
-#### dnsConfig
+#### dnsConfig {#deploymentspec-dnsconfig}
 
 Pod-level DNS overrides. Passthrough to Kubernetes `podSpec.dnsConfig`:
 nameservers, searches, and options. Combined with the pod's default
@@ -1896,7 +1896,7 @@ searches:
 - my-ns.svc.cluster.local
 ```
 
-#### hostAliases
+#### hostAliases {#deploymentspec-hostaliases}
 
 _Type:_ `array`
 
@@ -1922,15 +1922,15 @@ endpoint without DNS, or a name override for testing.
   ip: 10.0.0.2
 ```
 
-#### hpa
+#### hpa {#deploymentspec-hpa}
 
 Inline HPA configuration. Setting this also creates an HPA tied to this deployment.
 
-#### httpRoute
+#### httpRoute {#deploymentspec-httproute}
 
-#### ingress
+#### ingress {#deploymentspec-ingress}
 
-#### initContainers
+#### initContainers {#deploymentspec-initcontainers}
 
 _Type:_ `object`
 
@@ -1969,7 +1969,7 @@ wait-for-db:
   imageTag: '1.36'
 ```
 
-#### labels
+#### labels {#deploymentspec-labels}
 
 _Type:_ `object`
 
@@ -1984,15 +1984,15 @@ team: platform
 tier: critical
 ```
 
-#### migrations
+#### migrations {#deploymentspec-migrations}
 
 Pre-deploy Job that runs database migrations before the deployment rolls out.
 
-#### namespace
+#### namespace {#deploymentspec-namespace}
 
 _Type:_ `string`
 
-#### networkPolicy
+#### networkPolicy {#deploymentspec-networkpolicy}
 
 NetworkPolicy configuration for this deployment. Only rendered when
 autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
@@ -2006,7 +2006,7 @@ policyTypes:
 - Ingress
 ```
 
-#### nodeSelector
+#### nodeSelector {#deploymentspec-nodeselector}
 
 _Type:_ `object`
 
@@ -2020,9 +2020,9 @@ constraints (anti-affinity, preferences) use affinity instead.
 kubernetes.io/os: linux
 ```
 
-#### pdb
+#### pdb {#deploymentspec-pdb}
 
-#### podAnnotations
+#### podAnnotations {#deploymentspec-podannotations}
 
 _Type:_ `object`
 
@@ -2038,7 +2038,7 @@ prometheus.io/port: '9090'
 prometheus.io/scrape: 'true'
 ```
 
-#### podLabels
+#### podLabels {#deploymentspec-podlabels}
 
 _Type:_ `object`
 
@@ -2053,11 +2053,11 @@ env: prod
 tier: backend
 ```
 
-#### priorityClassName
+#### priorityClassName {#deploymentspec-priorityclassname}
 
 _Type:_ `string`
 
-#### probes
+#### probes {#deploymentspec-probes}
 
 _Type:_ `object`
 
@@ -2080,7 +2080,7 @@ readinessProbe:
   initialDelaySeconds: 5
 ```
 
-#### rbac
+#### rbac {#deploymentspec-rbac}
 
 Namespaced RBAC configuration for this deployment. Only rendered when
 autoCreateRbac is true. See $defs/RbacSpec for full shape and
@@ -2100,7 +2100,7 @@ rules:
   - watch
 ```
 
-#### replicas
+#### replicas {#deploymentspec-replicas}
 
 _Type:_ `integer`
 
@@ -2112,7 +2112,7 @@ Number of pod replicas. Defaults to 1.
 1
 ```
 
-#### securityContext
+#### securityContext {#deploymentspec-securitycontext}
 
 Pod-level security context (passthrough). Settings apply to all
 containers unless a container overrides them. Common use: fsGroup
@@ -2126,24 +2126,24 @@ runAsNonRoot: true
 runAsUser: 1000
 ```
 
-#### serviceAccount
+#### serviceAccount {#deploymentspec-serviceaccount}
 
-#### serviceAccountName
+#### serviceAccountName {#deploymentspec-serviceaccountname}
 
 _Type:_ `string`
 
-#### serviceMonitor
+#### serviceMonitor {#deploymentspec-servicemonitor}
 
-#### serviceType
+#### serviceType {#deploymentspec-servicetype}
 
 _Type:_ `string`
 , _enum:_ `['ClusterIP', 'NodePort', 'LoadBalancer']`
 
-#### strategy
+#### strategy {#deploymentspec-strategy}
 
 Update strategy (RollingUpdate or Recreate).
 
-#### terminationGracePeriodSeconds
+#### terminationGracePeriodSeconds {#deploymentspec-terminationgraceperiodseconds}
 
 _Type:_ `integer`
 
@@ -2164,7 +2164,7 @@ recycle matters more than graceful shutdown.
 30
 ```
 
-#### tolerations
+#### tolerations {#deploymentspec-tolerations}
 
 _Type:_ `array`
 
@@ -2181,7 +2181,7 @@ pod cannot schedule onto nodes carrying that taint.
   value: backend
 ```
 
-#### topologySpreadConstraints
+#### topologySpreadConstraints {#deploymentspec-topologyspreadconstraints}
 
 _Type:_ `array`
 
@@ -2212,7 +2212,7 @@ spreading without blocking scheduling on small clusters.
   whenUnsatisfiable: DoNotSchedule
 ```
 
-#### volumes
+#### volumes {#deploymentspec-volumes}
 
 _Type:_ `array`
 
@@ -2247,19 +2247,19 @@ configName: app-config
 type: configMap
 ```
 
-#### configName
+#### configName {#envfrom-configname}
 
 _Type:_ `string`
 
-#### optional
+#### optional {#envfrom-optional}
 
 _Type:_ `boolean`
 
-#### prefix
+#### prefix {#envfrom-prefix}
 
 _Type:_ `string`
 
-#### type
+#### type {#envfrom-type}
 
 _Type:_ `string`
 , _enum:_ `['configMap', 'secret']`
@@ -2283,15 +2283,15 @@ name: LOG_LEVEL
 value: info
 ```
 
-#### name
+#### name {#envvar-name}
 
 _Type:_ `string`
 
-#### value
+#### value {#envvar-value}
 
 _Type:_ `string`
 
-#### valueFrom
+#### valueFrom {#envvar-valuefrom}
 
 _Type:_ `object`
 
@@ -2323,7 +2323,7 @@ hostnames:
 ip: 10.0.0.1
 ```
 
-#### hostnames
+#### hostnames {#hostalias-hostnames}
 
 _Type:_ `array`
 
@@ -2337,7 +2337,7 @@ case-insensitive.
 - legacy-db.internal
 ```
 
-#### ip
+#### ip {#hostalias-ip}
 
 _Type:_ `string`
 
@@ -2368,7 +2368,7 @@ metrics:
 minReplicas: 2
 ```
 
-#### behavior
+#### behavior {#hpainlineconfig-behavior}
 
 Scale-up/scale-down behavior tuning (passthrough to Kubernetes HPA
 v2 `behavior`). Controls scaling velocity and stabilization windows.
@@ -2385,11 +2385,11 @@ scaleDown:
   stabilizationWindowSeconds: 300
 ```
 
-#### maxReplicas
+#### maxReplicas {#hpainlineconfig-maxreplicas}
 
 _Type:_ `integer`
 
-#### metrics
+#### metrics {#hpainlineconfig-metrics}
 
 _Type:_ `array`
 
@@ -2414,7 +2414,7 @@ count across all metrics. At least one entry is required.
   type: Resource
 ```
 
-#### minReplicas
+#### minReplicas {#hpainlineconfig-minreplicas}
 
 _Type:_ `integer`
 
@@ -2437,7 +2437,7 @@ resource:
 type: Resource
 ```
 
-#### containerResource
+#### containerResource {#hpametric-containerresource}
 
 _Type:_ `object`
 
@@ -2455,7 +2455,7 @@ target:
   type: Utilization
 ```
 
-#### external
+#### external {#hpametric-external}
 
 External metric not tied to a Kubernetes object — cloud queue
 depth, message broker lag, business KPI. Requires the external
@@ -2474,7 +2474,7 @@ target:
   value: '30'
 ```
 
-#### object
+#### object {#hpametric-object}
 
 Metric describing a non-pod Kubernetes object (e.g. Ingress
 requests-per-second on a specific Ingress). Less common than
@@ -2494,7 +2494,7 @@ target:
   value: '1000'
 ```
 
-#### pods
+#### pods {#hpametric-pods}
 
 _Type:_ `object`
 
@@ -2512,7 +2512,7 @@ target:
   type: AverageValue
 ```
 
-#### resource
+#### resource {#hpametric-resource}
 
 _Type:_ `object`
 
@@ -2529,7 +2529,7 @@ target:
   type: Utilization
 ```
 
-#### type
+#### type {#hpametric-type}
 
 _Type:_ `string`
 , _enum:_ `['Resource', 'Pods', 'Object', 'External', 'ContainerResource']`
@@ -2546,20 +2546,20 @@ averageUtilization: 70
 type: Utilization
 ```
 
-#### averageUtilization
+#### averageUtilization {#hpametrictarget-averageutilization}
 
 _Type:_ `integer`
 
-#### averageValue
+#### averageValue {#hpametrictarget-averagevalue}
 
 _Type:_ `string`
 
-#### type
+#### type {#hpametrictarget-type}
 
 _Type:_ `string`
 , _enum:_ `['Utilization', 'Value', 'AverageValue']`
 
-#### value
+#### value {#hpametrictarget-value}
 
 _Type:_ `string`
 
@@ -2576,27 +2576,27 @@ port: 8080
 weight: 90
 ```
 
-#### group
+#### group {#httproutebackendref-group}
 
 _Type:_ `string`
 
-#### kind
+#### kind {#httproutebackendref-kind}
 
 _Type:_ `string`
 
-#### name
+#### name {#httproutebackendref-name}
 
 _Type:_ `string`
 
-#### namespace
+#### namespace {#httproutebackendref-namespace}
 
 _Type:_ `string`
 
-#### port
+#### port {#httproutebackendref-port}
 
 _Type:_ `integer`
 
-#### weight
+#### weight {#httproutebackendref-weight}
 
 _Type:_ `integer`
 
@@ -2626,7 +2626,7 @@ rules:
       value: /
 ```
 
-#### annotations
+#### annotations {#httprouteconfig-annotations}
 
 _Type:_ `object`
 
@@ -2639,7 +2639,7 @@ generally prefers typed fields over annotations.
 argocd.argoproj.io/sync-wave: '10'
 ```
 
-#### hostnames
+#### hostnames {#httprouteconfig-hostnames}
 
 _Type:_ `array`
 
@@ -2654,7 +2654,7 @@ allowed hostnames.
 - subdomain: api
 ```
 
-#### labels
+#### labels {#httprouteconfig-labels}
 
 _Type:_ `object`
 
@@ -2666,7 +2666,7 @@ Extra labels merged onto the HTTPRoute metadata.
 team: platform
 ```
 
-#### parentRefs
+#### parentRefs {#httprouteconfig-parentrefs}
 
 _Type:_ `array`
 
@@ -2681,7 +2681,7 @@ when omitted on a per-deployment route.
   namespace: gateway-system
 ```
 
-#### rules
+#### rules {#httprouteconfig-rules}
 
 _Type:_ `array`
 
@@ -2719,11 +2719,11 @@ Hostname for a Gateway API HTTPRoute. Provide host (FQDN) or subdomain
 host: api.example.com
 ```
 
-#### host
+#### host {#httproutehostname-host}
 
 _Type:_ `string`
 
-#### subdomain
+#### subdomain {#httproutehostname-subdomain}
 
 _Type:_ `string`
 
@@ -2740,7 +2740,7 @@ path:
   value: /api
 ```
 
-#### headers
+#### headers {#httproutematch-headers}
 
 _Type:_ `array`
 
@@ -2755,12 +2755,12 @@ to apply. Standard use: route by Host (canary), by custom headers
   value: 'true'
 ```
 
-#### method
+#### method {#httproutematch-method}
 
 _Type:_ `string`
 , _enum:_ `['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH']`
 
-#### path
+#### path {#httproutematch-path}
 
 _Type:_ `object`
 
@@ -2775,7 +2775,7 @@ type: PathPrefix
 value: /api
 ```
 
-#### queryParams
+#### queryParams {#httproutematch-queryparams}
 
 _Type:_ `array`
 
@@ -2801,27 +2801,27 @@ name: shared-gateway
 namespace: gateway-system
 ```
 
-#### group
+#### group {#httprouteparentref-group}
 
 _Type:_ `string`
 
-#### kind
+#### kind {#httprouteparentref-kind}
 
 _Type:_ `string`
 
-#### name
+#### name {#httprouteparentref-name}
 
 _Type:_ `string`
 
-#### namespace
+#### namespace {#httprouteparentref-namespace}
 
 _Type:_ `string`
 
-#### port
+#### port {#httprouteparentref-port}
 
 _Type:_ `integer`
 
-#### sectionName
+#### sectionName {#httprouteparentref-sectionname}
 
 _Type:_ `string`
 
@@ -2841,7 +2841,7 @@ matches:
     value: /
 ```
 
-#### backendRefs
+#### backendRefs {#httprouterule-backendrefs}
 
 _Type:_ `array`
 
@@ -2856,7 +2856,7 @@ split evenly. At least one backendRef is required.
   port: 8080
 ```
 
-#### filters
+#### filters {#httprouterule-filters}
 
 _Type:_ `array`
 
@@ -2874,7 +2874,7 @@ Gateway API — exact filter set depends on the Gateway implementation.
   type: RequestHeaderModifier
 ```
 
-#### matches
+#### matches {#httprouterule-matches}
 
 _Type:_ `array`
 
@@ -2890,7 +2890,7 @@ rule that takes everything for this hostname.
     value: /api
 ```
 
-#### timeouts
+#### timeouts {#httprouterule-timeouts}
 
 _Type:_ `object`
 
@@ -2918,7 +2918,7 @@ parentRefs:
   namespace: gateway-system
 ```
 
-#### annotations
+#### annotations {#httproutesgeneralconfig-annotations}
 
 _Type:_ `object`
 
@@ -2930,7 +2930,7 @@ Default annotations merged into every HTTPRoute's metadata.
 argocd.argoproj.io/sync-wave: '10'
 ```
 
-#### labels
+#### labels {#httproutesgeneralconfig-labels}
 
 _Type:_ `object`
 
@@ -2942,7 +2942,7 @@ Default labels merged into every HTTPRoute's metadata.
 team: platform
 ```
 
-#### parentRefs
+#### parentRefs {#httproutesgeneralconfig-parentrefs}
 
 _Type:_ `array`
 
@@ -2967,7 +2967,7 @@ Reference to a Secret holding registry credentials.
 name: docker-registry-secret
 ```
 
-#### name
+#### name {#imagepullsecret-name}
 
 _Type:_ `string`
 
@@ -2995,7 +2995,7 @@ tls:
   secretName: api-tls
 ```
 
-#### annotations
+#### annotations {#ingressconfig-annotations}
 
 _Type:_ `object`
 
@@ -3009,7 +3009,7 @@ Merged with generic.ingressesGeneral.annotations.
 nginx.ingress.kubernetes.io/rewrite-target: /
 ```
 
-#### hosts
+#### hosts {#ingressconfig-hosts}
 
 _Type:_ `array`
 
@@ -3025,11 +3025,11 @@ list of path-to-backend mappings. At least one host is required.
   subdomain: api
 ```
 
-#### ingressClassName
+#### ingressClassName {#ingressconfig-ingressclassname}
 
 _Type:_ `string`
 
-#### labels
+#### labels {#ingressconfig-labels}
 
 _Type:_ `object`
 
@@ -3041,7 +3041,7 @@ Extra labels merged onto the Ingress metadata.
 team: platform
 ```
 
-#### tls
+#### tls {#ingressconfig-tls}
 
 _Type:_ `array`
 
@@ -3076,11 +3076,11 @@ paths:
   pathType: Prefix
 ```
 
-#### host
+#### host {#ingresshost-host}
 
 _Type:_ `string`
 
-#### paths
+#### paths {#ingresshost-paths}
 
 _Type:_ `array`
 
@@ -3094,7 +3094,7 @@ requests to a backend Service+port. At least one path is required.
   pathType: Prefix
 ```
 
-#### subdomain
+#### subdomain {#ingresshost-subdomain}
 
 _Type:_ `string`
 
@@ -3112,24 +3112,24 @@ path: /
 pathType: Prefix
 ```
 
-#### path
+#### path {#ingresspath-path}
 
 _Type:_ `string`
 
-#### pathType
+#### pathType {#ingresspath-pathtype}
 
 _Type:_ `string`
 , _enum:_ `['Exact', 'Prefix', 'ImplementationSpecific']`
 
-#### port
+#### port {#ingresspath-port}
 
 _Type:_ `integer`
 
-#### portName
+#### portName {#ingresspath-portname}
 
 _Type:_ `string`
 
-#### service
+#### service {#ingresspath-service}
 
 _Type:_ `string`
 
@@ -3150,7 +3150,7 @@ hosts:
 secretName: api-tls
 ```
 
-#### hosts
+#### hosts {#ingresstls-hosts}
 
 _Type:_ `array`
 
@@ -3164,7 +3164,7 @@ wildcard certificate in the secret.
 - api.example.com
 ```
 
-#### secretName
+#### secretName {#ingresstls-secretname}
 
 _Type:_ `string`
 
@@ -3185,7 +3185,7 @@ domain: example.com
 ingressClassName: nginx
 ```
 
-#### annotations
+#### annotations {#ingressesgeneralconfig-annotations}
 
 _Type:_ `object`
 
@@ -3199,17 +3199,17 @@ like CORS, proxy buffer size, or cert-manager wiring.
 nginx.ingress.kubernetes.io/enable-cors: 'true'
 ```
 
-#### domain
+#### domain {#ingressesgeneralconfig-domain}
 
 _Type:_ `string`
 
 Default domain appended to ingress.hosts[].subdomain.
 
-#### ingressClassName
+#### ingressClassName {#ingressesgeneralconfig-ingressclassname}
 
 _Type:_ `string`
 
-#### labels
+#### labels {#ingressesgeneralconfig-labels}
 
 _Type:_ `object`
 
@@ -3221,7 +3221,7 @@ Default labels merged onto every Ingress metadata.
 team: platform
 ```
 
-#### tls
+#### tls {#ingressesgeneralconfig-tls}
 
 _Type:_ `array`
 
@@ -3251,11 +3251,11 @@ containers:
     imageTag: v1.0.0
 ```
 
-#### activeDeadlineSeconds
+#### activeDeadlineSeconds {#jobspec-activedeadlineseconds}
 
 _Type:_ `integer`
 
-#### affinity
+#### affinity {#jobspec-affinity}
 
 Pod affinity / anti-affinity rules for the Job's pods (passthrough).
 Use when batch pods must colocate with or avoid specific workloads.
@@ -3273,7 +3273,7 @@ nodeAffinity:
         - c5.2xlarge
 ```
 
-#### annotations
+#### annotations {#jobspec-annotations}
 
 _Type:_ `object`
 
@@ -3287,7 +3287,7 @@ helm.sh/hook: post-install
 helm.sh/hook-weight: '1'
 ```
 
-#### autoCreateNetworkPolicy
+#### autoCreateNetworkPolicy {#jobspec-autocreatenetworkpolicy}
 
 _Type:_ `boolean`
 
@@ -3301,7 +3301,7 @@ no silent allow/deny defaults. See NetworkPolicySpec.
 true
 ```
 
-#### autoCreateRbac
+#### autoCreateRbac {#jobspec-autocreaterbac}
 
 _Type:_ `boolean`
 
@@ -3315,15 +3315,15 @@ ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
 true
 ```
 
-#### backoffLimit
+#### backoffLimit {#jobspec-backofflimit}
 
 _Type:_ `integer`
 
-#### completions
+#### completions {#jobspec-completions}
 
 _Type:_ `integer`
 
-#### containers
+#### containers {#jobspec-containers}
 
 _Type:_ `object`
 
@@ -3342,7 +3342,7 @@ main:
   imageTag: v1.0.0
 ```
 
-#### labels
+#### labels {#jobspec-labels}
 
 _Type:_ `object`
 
@@ -3357,11 +3357,11 @@ kind: batch
 team: platform
 ```
 
-#### namespace
+#### namespace {#jobspec-namespace}
 
 _Type:_ `string`
 
-#### networkPolicy
+#### networkPolicy {#jobspec-networkpolicy}
 
 NetworkPolicy configuration for this job. Only rendered when
 autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
@@ -3375,7 +3375,7 @@ policyTypes:
 - Ingress
 ```
 
-#### nodeSelector
+#### nodeSelector {#jobspec-nodeselector}
 
 _Type:_ `object`
 
@@ -3388,11 +3388,11 @@ for routing batch work to a dedicated nodepool or GPU node.
 node-role.kubernetes.io/batch: 'true'
 ```
 
-#### parallelism
+#### parallelism {#jobspec-parallelism}
 
 _Type:_ `integer`
 
-#### podAnnotations
+#### podAnnotations {#jobspec-podannotations}
 
 _Type:_ `object`
 
@@ -3407,11 +3407,11 @@ prometheus.io/port: '9090'
 prometheus.io/scrape: 'true'
 ```
 
-#### priorityClassName
+#### priorityClassName {#jobspec-priorityclassname}
 
 _Type:_ `string`
 
-#### rbac
+#### rbac {#jobspec-rbac}
 
 Namespaced RBAC configuration for this job. Only rendered when
 autoCreateRbac is true. See $defs/RbacSpec for full shape and
@@ -3431,12 +3431,12 @@ rules:
   - watch
 ```
 
-#### restartPolicy
+#### restartPolicy {#jobspec-restartpolicy}
 
 _Type:_ `string`
 , _enum:_ `['OnFailure', 'Never']`
 
-#### securityContext
+#### securityContext {#jobspec-securitycontext}
 
 Pod-level security context for the Job's pods (passthrough).
 Common pattern: enforce non-root for batch jobs too.
@@ -3449,11 +3449,11 @@ runAsNonRoot: true
 runAsUser: 1000
 ```
 
-#### serviceAccountName
+#### serviceAccountName {#jobspec-serviceaccountname}
 
 _Type:_ `string`
 
-#### tolerations
+#### tolerations {#jobspec-tolerations}
 
 _Type:_ `array`
 
@@ -3469,11 +3469,11 @@ when the Job runs on tainted/specialized nodes.
   value: batch
 ```
 
-#### ttlSecondsAfterFinished
+#### ttlSecondsAfterFinished {#jobspec-ttlsecondsafterfinished}
 
 _Type:_ `integer`
 
-#### volumes
+#### volumes {#jobspec-volumes}
 
 _Type:_ `array`
 
@@ -3515,7 +3515,7 @@ backoffLimit: 1
 enabled: true
 ```
 
-#### args
+#### args {#migrationsconfig-args}
 
 _Type:_ `array`
 
@@ -3530,19 +3530,19 @@ to its migration subcommand without changing the image.
 - up
 ```
 
-#### backoffLimit
+#### backoffLimit {#migrationsconfig-backofflimit}
 
 _Type:_ `integer`
 
-#### completions
+#### completions {#migrationsconfig-completions}
 
 _Type:_ `integer`
 
-#### enabled
+#### enabled {#migrationsconfig-enabled}
 
 _Type:_ `boolean`
 
-#### parallelism
+#### parallelism {#migrationsconfig-parallelism}
 
 _Type:_ `integer`
 
@@ -3566,7 +3566,7 @@ policyTypes:
 - Ingress
 ```
 
-#### annotations
+#### annotations {#networkpolicyspec-annotations}
 
 _Type:_ `object`
 
@@ -3579,7 +3579,7 @@ chart-emitted annotations are applied first.
 policy.k8s.io/note: audited 2026-05
 ```
 
-#### egress
+#### egress {#networkpolicyspec-egress}
 
 _Type:_ `array`
 
@@ -3592,7 +3592,7 @@ deny-all-egress. Each rule is a NetworkPolicyEgressRule.
 []
 ```
 
-#### ingress
+#### ingress {#networkpolicyspec-ingress}
 
 _Type:_ `array`
 
@@ -3606,7 +3606,7 @@ rule is a NetworkPolicyIngressRule from networking.k8s.io/v1.
 []
 ```
 
-#### labels
+#### labels {#networkpolicyspec-labels}
 
 _Type:_ `object`
 
@@ -3619,7 +3619,7 @@ labels (app.kubernetes.io/*) are still applied automatically.
 tier: backend
 ```
 
-#### policyTypes
+#### policyTypes {#networkpolicyspec-policytypes}
 
 _Type:_ `array`
 
@@ -3647,7 +3647,7 @@ PodDisruptionBudget. Provide exactly one of minAvailable or maxUnavailable.
 minAvailable: 2
 ```
 
-#### annotations
+#### annotations {#pdbconfig-annotations}
 
 _Type:_ `object`
 
@@ -3659,7 +3659,7 @@ Extra annotations on the PodDisruptionBudget metadata.
 argocd.argoproj.io/sync-wave: '5'
 ```
 
-#### labels
+#### labels {#pdbconfig-labels}
 
 _Type:_ `object`
 
@@ -3673,9 +3673,9 @@ team: platform
 tier: critical
 ```
 
-#### maxUnavailable
+#### maxUnavailable {#pdbconfig-maxunavailable}
 
-#### minAvailable
+#### minAvailable {#pdbconfig-minavailable}
 
 ### PortSpec
 
@@ -3695,7 +3695,7 @@ http:
   servicePort: 80
 ```
 
-#### containerPort
+#### containerPort {#portspec-containerport}
 
 _Type:_ `integer`
 
@@ -3707,7 +3707,7 @@ TCP/UDP port the container listens on inside the pod.
 8080
 ```
 
-#### protocol
+#### protocol {#portspec-protocol}
 
 _Type:_ `string`
 , _enum:_ `['TCP', 'UDP', 'SCTP']`
@@ -3720,7 +3720,7 @@ IP protocol for this port.
 TCP
 ```
 
-#### servicePort
+#### servicePort {#portspec-serviceport}
 
 _Type:_ `integer`
 
@@ -3751,7 +3751,7 @@ initialDelaySeconds: 10
 periodSeconds: 10
 ```
 
-#### exec
+#### exec {#probespec-exec}
 
 _Type:_ `object`
 
@@ -3767,11 +3767,11 @@ command:
 - pg_isready -U postgres
 ```
 
-#### failureThreshold
+#### failureThreshold {#probespec-failurethreshold}
 
 _Type:_ `integer`
 
-#### grpc
+#### grpc {#probespec-grpc}
 
 _Type:_ `object`
 
@@ -3784,7 +3784,7 @@ implement the standard gRPC health service. Available since Kubernetes 1.24.
 port: 9090
 ```
 
-#### httpGet
+#### httpGet {#probespec-httpget}
 
 _Type:_ `object`
 
@@ -3798,19 +3798,19 @@ path: /healthz
 port: http
 ```
 
-#### initialDelaySeconds
+#### initialDelaySeconds {#probespec-initialdelayseconds}
 
 _Type:_ `integer`
 
-#### periodSeconds
+#### periodSeconds {#probespec-periodseconds}
 
 _Type:_ `integer`
 
-#### successThreshold
+#### successThreshold {#probespec-successthreshold}
 
 _Type:_ `integer`
 
-#### tcpSocket
+#### tcpSocket {#probespec-tcpsocket}
 
 _Type:_ `object`
 
@@ -3824,7 +3824,7 @@ health, raw TCP listeners).
 port: 5432
 ```
 
-#### timeoutSeconds
+#### timeoutSeconds {#probespec-timeoutseconds}
 
 _Type:_ `integer`
 
@@ -3844,7 +3844,7 @@ size: 50Gi
 storageClassName: ssd
 ```
 
-#### accessModes
+#### accessModes {#pvcspec-accessmodes}
 
 _Type:_ `array`
 
@@ -3859,7 +3859,7 @@ ReadOnlyMany is rarely useful in practice.
 - ReadWriteOnce
 ```
 
-#### annotations
+#### annotations {#pvcspec-annotations}
 
 _Type:_ `object`
 
@@ -3874,7 +3874,7 @@ helm.sh/resource-policy: keep
 velero.io/exclude-from-backup: 'false'
 ```
 
-#### labels
+#### labels {#pvcspec-labels}
 
 _Type:_ `object`
 
@@ -3888,7 +3888,7 @@ storage-tier: ssd
 team: platform
 ```
 
-#### selector
+#### selector {#pvcspec-selector}
 
 _Type:_ `object`
 
@@ -3903,15 +3903,15 @@ matchLabels:
   volume-tier: nvme
 ```
 
-#### size
+#### size {#pvcspec-size}
 
 _Type:_ `string`
 
-#### storageClassName
+#### storageClassName {#pvcspec-storageclassname}
 
 _Type:_ `string`
 
-#### volumeMode
+#### volumeMode {#pvcspec-volumemode}
 
 _Type:_ `string`
 , _enum:_ `['Filesystem', 'Block']`
@@ -3946,7 +3946,7 @@ rules:
   - watch
 ```
 
-#### annotations
+#### annotations {#rbacspec-annotations}
 
 _Type:_ `object`
 
@@ -3959,7 +3959,7 @@ Standard chart-emitted annotations are applied first.
 policy.k8s.io/scope: namespaced
 ```
 
-#### labels
+#### labels {#rbacspec-labels}
 
 _Type:_ `object`
 
@@ -3972,7 +3972,7 @@ Chart-emitted labels (app.kubernetes.io/*) are still applied automatically.
 tier: backend
 ```
 
-#### rules
+#### rules {#rbacspec-rules}
 
 _Type:_ `array`
 
@@ -4011,7 +4011,7 @@ requests:
   memory: 256Mi
 ```
 
-#### limits
+#### limits {#resourcerequirements-limits}
 
 _Type:_ `object`
 
@@ -4026,7 +4026,7 @@ cpu: 500m
 memory: 512Mi
 ```
 
-#### requests
+#### requests {#resourcerequirements-requests}
 
 _Type:_ `object`
 
@@ -4056,15 +4056,15 @@ key: API_KEY
 name: app-secrets
 ```
 
-#### key
+#### key {#secretkeyref-key}
 
 _Type:_ `string`
 
-#### name
+#### name {#secretkeyref-name}
 
 _Type:_ `string`
 
-#### optional
+#### optional {#secretkeyref-optional}
 
 _Type:_ `boolean`
 
@@ -4081,13 +4081,13 @@ secretKeyRef:
   name: app-secrets
 ```
 
-#### name
+#### name {#secretrefentry-name}
 
 _Type:_ `string`
 
 Environment variable name (POSIX).
 
-#### secretKeyRef
+#### secretKeyRef {#secretrefentry-secretkeyref}
 
 ### ServiceAccountConfig
 
@@ -4104,7 +4104,7 @@ automountServiceAccountToken: false
 name: backend-api-sa
 ```
 
-#### annotations
+#### annotations {#serviceaccountconfig-annotations}
 
 _Type:_ `object`
 
@@ -4117,11 +4117,11 @@ use is wiring up IRSA (EKS) or Workload Identity (GKE).
 eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/backend-api
 ```
 
-#### automountServiceAccountToken
+#### automountServiceAccountToken {#serviceaccountconfig-automountserviceaccounttoken}
 
 _Type:_ `boolean`
 
-#### imagePullSecrets
+#### imagePullSecrets {#serviceaccountconfig-imagepullsecrets}
 
 _Type:_ `array`
 
@@ -4136,7 +4136,7 @@ For chart-wide pull secrets, use generic.extraImagePullSecrets instead.
 - name: dockerhub-pull-secret
 ```
 
-#### labels
+#### labels {#serviceaccountconfig-labels}
 
 _Type:_ `object`
 
@@ -4149,7 +4149,7 @@ chart labels (app.kubernetes.io/*) are added automatically.
 team: platform
 ```
 
-#### name
+#### name {#serviceaccountconfig-name}
 
 _Type:_ `string`
 
@@ -4180,7 +4180,7 @@ path: /metrics
 port: http-metrics
 ```
 
-#### endpoints
+#### endpoints {#servicemonitorconfig-endpoints}
 
 _Type:_ `array`
 
@@ -4201,11 +4201,11 @@ configs (e.g. main app metrics on /metrics + sidecar metrics on
   scrapeTimeout: 10s
 ```
 
-#### interval
+#### interval {#servicemonitorconfig-interval}
 
 _Type:_ `string`
 
-#### labels
+#### labels {#servicemonitorconfig-labels}
 
 _Type:_ `object`
 
@@ -4220,7 +4220,7 @@ well-known label like `prometheus: kube-prometheus`.
 prometheus: kube-prometheus
 ```
 
-#### metricRelabelings
+#### metricRelabelings {#servicemonitorconfig-metricrelabelings}
 
 _Type:_ `array`
 
@@ -4236,7 +4236,7 @@ mode). For per-endpoint use endpoints[i].metricRelabelings.
   - __name__
 ```
 
-#### namespaceSelector
+#### namespaceSelector {#servicemonitorconfig-namespaceselector}
 
 _Type:_ `object`
 
@@ -4252,15 +4252,15 @@ matchNames:
 - my-app-staging
 ```
 
-#### path
+#### path {#servicemonitorconfig-path}
 
 _Type:_ `string`
 
-#### port
+#### port {#servicemonitorconfig-port}
 
 _Type:_ `string`
 
-#### relabelings
+#### relabelings {#servicemonitorconfig-relabelings}
 
 _Type:_ `array`
 
@@ -4275,7 +4275,7 @@ For per-endpoint relabelings use endpoints[i].relabelings instead.
   targetLabel: app
 ```
 
-#### scrapeTimeout
+#### scrapeTimeout {#servicemonitorconfig-scrapetimeout}
 
 _Type:_ `string`
 
@@ -4294,15 +4294,15 @@ path: /metrics
 port: http-metrics
 ```
 
-#### honorLabels
+#### honorLabels {#servicemonitorendpoint-honorlabels}
 
 _Type:_ `boolean`
 
-#### interval
+#### interval {#servicemonitorendpoint-interval}
 
 _Type:_ `string`
 
-#### metricRelabelings
+#### metricRelabelings {#servicemonitorendpoint-metricrelabelings}
 
 _Type:_ `array`
 
@@ -4319,17 +4319,17 @@ or filter test-pod metrics from production aggregations.
   - __name__
 ```
 
-#### path
+#### path {#servicemonitorendpoint-path}
 
 _Type:_ `string`
 
-#### port
+#### port {#servicemonitorendpoint-port}
 
 _Type:_ `string`
 
 Named port on the Service to scrape.
 
-#### relabelings
+#### relabelings {#servicemonitorendpoint-relabelings}
 
 _Type:_ `array`
 
@@ -4346,16 +4346,16 @@ add cluster metadata, rename `__address__`.
   - __meta_kubernetes_pod_label_app
 ```
 
-#### scheme
+#### scheme {#servicemonitorendpoint-scheme}
 
 _Type:_ `string`
 , _enum:_ `['http', 'https']`
 
-#### scrapeTimeout
+#### scrapeTimeout {#servicemonitorendpoint-scrapetimeout}
 
 _Type:_ `string`
 
-#### tlsConfig
+#### tlsConfig {#servicemonitorendpoint-tlsconfig}
 
 _Type:_ `object`
 
@@ -4382,11 +4382,11 @@ labels:
   prometheus: kube-prometheus
 ```
 
-#### interval
+#### interval {#servicemonitorgeneralconfig-interval}
 
 _Type:_ `string`
 
-#### labels
+#### labels {#servicemonitorgeneralconfig-labels}
 
 _Type:_ `object`
 
@@ -4400,7 +4400,7 @@ Typically used to satisfy the Prometheus instance's serviceMonitorSelector
 prometheus: kube-prometheus
 ```
 
-#### namespaceSelector
+#### namespaceSelector {#servicemonitorgeneralconfig-namespaceselector}
 
 _Type:_ `object`
 
@@ -4415,7 +4415,7 @@ matchNames:
 - my-app
 ```
 
-#### scrapeTimeout
+#### scrapeTimeout {#servicemonitorgeneralconfig-scrapetimeout}
 
 _Type:_ `string`
 
@@ -4431,28 +4431,28 @@ port: 80
 targetPort: 8080
 ```
 
-#### appProtocol
+#### appProtocol {#serviceport-appprotocol}
 
 _Type:_ `string`
 
-#### name
+#### name {#serviceport-name}
 
 _Type:_ `string`
 
-#### nodePort
+#### nodePort {#serviceport-nodeport}
 
 _Type:_ `integer`
 
-#### port
+#### port {#serviceport-port}
 
 _Type:_ `integer`
 
-#### protocol
+#### protocol {#serviceport-protocol}
 
 _Type:_ `string`
 , _enum:_ `['TCP', 'UDP', 'SCTP']`
 
-#### targetPort
+#### targetPort {#serviceport-targetport}
 
 ### StandaloneHpaSpec
 
@@ -4474,7 +4474,7 @@ scaleTargetRef:
   name: api
 ```
 
-#### behavior
+#### behavior {#standalonehpaspec-behavior}
 
 Scale-up/scale-down behavior tuning (passthrough to HPA v2
 `behavior`). Controls scaling velocity and stabilization windows.
@@ -4492,11 +4492,11 @@ scaleDown:
   stabilizationWindowSeconds: 300
 ```
 
-#### maxReplicas
+#### maxReplicas {#standalonehpaspec-maxreplicas}
 
 _Type:_ `integer`
 
-#### metrics
+#### metrics {#standalonehpaspec-metrics}
 
 _Type:_ `array`
 
@@ -4521,11 +4521,11 @@ replica count across all metric recommendations.
   type: Resource
 ```
 
-#### minReplicas
+#### minReplicas {#standalonehpaspec-minreplicas}
 
 _Type:_ `integer`
 
-#### scaleTargetRef
+#### scaleTargetRef {#standalonehpaspec-scaletargetref}
 
 _Type:_ `object`
 
@@ -4560,7 +4560,7 @@ selector:
 type: ClusterIP
 ```
 
-#### annotations
+#### annotations {#standaloneservicespec-annotations}
 
 _Type:_ `object`
 
@@ -4574,15 +4574,15 @@ ExternalDNS hints, or service-mesh opt-out.
 service.beta.kubernetes.io/aws-load-balancer-type: nlb
 ```
 
-#### clusterIP
+#### clusterIP {#standaloneservicespec-clusterip}
 
 _Type:_ `string`
 
-#### externalName
+#### externalName {#standaloneservicespec-externalname}
 
 _Type:_ `string`
 
-#### labels
+#### labels {#standaloneservicespec-labels}
 
 _Type:_ `object`
 
@@ -4595,7 +4595,7 @@ added automatically.
 team: platform
 ```
 
-#### ports
+#### ports {#standaloneservicespec-ports}
 
 _Type:_ `array`
 
@@ -4614,7 +4614,7 @@ integer or named container port).
   targetPort: 9090
 ```
 
-#### selector
+#### selector {#standaloneservicespec-selector}
 
 _Type:_ `object`
 
@@ -4628,12 +4628,12 @@ type=ExternalName.
 app: external-redis
 ```
 
-#### sessionAffinity
+#### sessionAffinity {#standaloneservicespec-sessionaffinity}
 
 _Type:_ `string`
 , _enum:_ `['ClientIP', 'None']`
 
-#### type
+#### type {#standaloneservicespec-type}
 
 _Type:_ `string`
 , _enum:_ `['ClusterIP', 'NodePort', 'LoadBalancer', 'ExternalName']`
@@ -4661,9 +4661,9 @@ volumeClaimTemplates:
         storage: 20Gi
 ```
 
-#### affinity
+#### affinity {#statefulsetspec-affinity}
 
-#### annotations
+#### annotations {#statefulsetspec-annotations}
 
 _Type:_ `object`
 
@@ -4677,19 +4677,19 @@ annotations live under podAnnotations.
 argocd.argoproj.io/sync-wave: '5'
 ```
 
-#### autoCreateCertificate
+#### autoCreateCertificate {#statefulsetspec-autocreatecertificate}
 
 _Type:_ `boolean`
 
-#### autoCreateHttpRoute
+#### autoCreateHttpRoute {#statefulsetspec-autocreatehttproute}
 
 _Type:_ `boolean`
 
-#### autoCreateIngress
+#### autoCreateIngress {#statefulsetspec-autocreateingress}
 
 _Type:_ `boolean`
 
-#### autoCreateNetworkPolicy
+#### autoCreateNetworkPolicy {#statefulsetspec-autocreatenetworkpolicy}
 
 _Type:_ `boolean`
 
@@ -4703,11 +4703,11 @@ no silent allow/deny defaults. See NetworkPolicySpec.
 true
 ```
 
-#### autoCreatePdb
+#### autoCreatePdb {#statefulsetspec-autocreatepdb}
 
 _Type:_ `boolean`
 
-#### autoCreateRbac
+#### autoCreateRbac {#statefulsetspec-autocreaterbac}
 
 _Type:_ `boolean`
 
@@ -4721,7 +4721,7 @@ ServiceAccount (see RbacSpec). Strict explicit-only: no silent defaults.
 true
 ```
 
-#### autoCreateService
+#### autoCreateService {#statefulsetspec-autocreateservice}
 
 _Type:_ `boolean`
 
@@ -4730,21 +4730,21 @@ Defaults the service to headless mode (clusterIP=None,
 publishNotReadyAddresses=true). The Service is named after
 serviceName, not the StatefulSet key.
 
-#### autoCreateServiceAccount
+#### autoCreateServiceAccount {#statefulsetspec-autocreateserviceaccount}
 
 _Type:_ `boolean`
 
-#### autoCreateServiceMonitor
+#### autoCreateServiceMonitor {#statefulsetspec-autocreateservicemonitor}
 
 _Type:_ `boolean`
 
-#### autoCreateSoftAntiAffinity
+#### autoCreateSoftAntiAffinity {#statefulsetspec-autocreatesoftantiaffinity}
 
 _Type:_ `boolean`
 
-#### certificate
+#### certificate {#statefulsetspec-certificate}
 
-#### containers
+#### containers {#statefulsetspec-containers}
 
 _Type:_ `object`
 
@@ -4759,9 +4759,9 @@ main:
   imageTag: '16'
 ```
 
-#### dnsConfig
+#### dnsConfig {#statefulsetspec-dnsconfig}
 
-#### hostAliases
+#### hostAliases {#statefulsetspec-hostaliases}
 
 _Type:_ `array`
 
@@ -4776,13 +4776,13 @@ Each entry maps a single IP to one or more hostnames.
   ip: 10.0.0.1
 ```
 
-#### hpa
+#### hpa {#statefulsetspec-hpa}
 
-#### httpRoute
+#### httpRoute {#statefulsetspec-httproute}
 
-#### ingress
+#### ingress {#statefulsetspec-ingress}
 
-#### initContainers
+#### initContainers {#statefulsetspec-initcontainers}
 
 _Type:_ `object`
 
@@ -4802,7 +4802,7 @@ wait-for-pv:
   imageTag: '1.36'
 ```
 
-#### labels
+#### labels {#statefulsetspec-labels}
 
 _Type:_ `object`
 
@@ -4816,19 +4816,19 @@ team: data
 tier: critical
 ```
 
-#### minReadySeconds
+#### minReadySeconds {#statefulsetspec-minreadyseconds}
 
 _Type:_ `integer`
 
 Seconds a pod must be ready before it counts as available.
 
-#### namespace
+#### namespace {#statefulsetspec-namespace}
 
 _Type:_ `string`
 
 Override the release namespace for this resource.
 
-#### networkPolicy
+#### networkPolicy {#statefulsetspec-networkpolicy}
 
 NetworkPolicy configuration for this statefulSet. Only rendered when
 autoCreateNetworkPolicy is true. See $defs/NetworkPolicySpec for
@@ -4842,7 +4842,7 @@ policyTypes:
 - Ingress
 ```
 
-#### nodeSelector
+#### nodeSelector {#statefulsetspec-nodeselector}
 
 _Type:_ `object`
 
@@ -4855,9 +4855,9 @@ schedule onto nodes that match all listed labels.
 kubernetes.io/os: linux
 ```
 
-#### pdb
+#### pdb {#statefulsetspec-pdb}
 
-#### persistentVolumeClaimRetentionPolicy
+#### persistentVolumeClaimRetentionPolicy {#statefulsetspec-persistentvolumeclaimretentionpolicy}
 
 _Type:_ `object`
 
@@ -4871,7 +4871,7 @@ whenDeleted: Retain
 whenScaled: Delete
 ```
 
-#### podAnnotations
+#### podAnnotations {#statefulsetspec-podannotations}
 
 _Type:_ `object`
 
@@ -4886,7 +4886,7 @@ prometheus.io/port: '9090'
 prometheus.io/scrape: 'true'
 ```
 
-#### podLabels
+#### podLabels {#statefulsetspec-podlabels}
 
 _Type:_ `object`
 
@@ -4901,7 +4901,7 @@ env: prod
 tier: data
 ```
 
-#### podManagementPolicy
+#### podManagementPolicy {#statefulsetspec-podmanagementpolicy}
 
 _Type:_ `string`
 , _enum:_ `['OrderedReady', 'Parallel']`
@@ -4909,11 +4909,11 @@ _Type:_ `string`
 OrderedReady (default) creates/deletes pods one at a time in
 ordinal order. Parallel creates/deletes all pods simultaneously.
 
-#### priorityClassName
+#### priorityClassName {#statefulsetspec-priorityclassname}
 
 _Type:_ `string`
 
-#### probes
+#### probes {#statefulsetspec-probes}
 
 _Type:_ `object`
 
@@ -4931,7 +4931,7 @@ readinessProbe:
   initialDelaySeconds: 5
 ```
 
-#### rbac
+#### rbac {#statefulsetspec-rbac}
 
 Namespaced RBAC configuration for this statefulSet. Only rendered when
 autoCreateRbac is true. See $defs/RbacSpec for full shape and
@@ -4951,27 +4951,27 @@ rules:
   - watch
 ```
 
-#### replicas
+#### replicas {#statefulsetspec-replicas}
 
 _Type:_ `integer`
 
 Desired pod count. Defaults to 1.
 
-#### revisionHistoryLimit
+#### revisionHistoryLimit {#statefulsetspec-revisionhistorylimit}
 
 _Type:_ `integer`
 
 ControllerRevisions retained for rollback.
 
-#### securityContext
+#### securityContext {#statefulsetspec-securitycontext}
 
-#### serviceAccount
+#### serviceAccount {#statefulsetspec-serviceaccount}
 
-#### serviceAccountName
+#### serviceAccountName {#statefulsetspec-serviceaccountname}
 
 _Type:_ `string`
 
-#### serviceHeadless
+#### serviceHeadless {#statefulsetspec-serviceheadless}
 
 _Type:_ `boolean`
 
@@ -4979,9 +4979,9 @@ When true (the chart's default when autoCreateService=true),
 emit a headless Service (clusterIP=None, publishNotReadyAddresses=true).
 Set to false to get a regular ClusterIP Service for the STS.
 
-#### serviceMonitor
+#### serviceMonitor {#statefulsetspec-servicemonitor}
 
-#### serviceName
+#### serviceName {#statefulsetspec-servicename}
 
 _Type:_ `string`
 
@@ -4990,16 +4990,16 @@ network identity. Required by Kubernetes. When
 autoCreateService=true, the chart creates a Service of this
 name with clusterIP=None.
 
-#### serviceType
+#### serviceType {#statefulsetspec-servicetype}
 
 _Type:_ `string`
 , _enum:_ `['ClusterIP', 'NodePort', 'LoadBalancer']`
 
-#### terminationGracePeriodSeconds
+#### terminationGracePeriodSeconds {#statefulsetspec-terminationgraceperiodseconds}
 
 _Type:_ `integer`
 
-#### tolerations
+#### tolerations {#statefulsetspec-tolerations}
 
 _Type:_ `array`
 
@@ -5015,7 +5015,7 @@ tolerates a specific taint key/value/effect.
   value: data
 ```
 
-#### topologySpreadConstraints
+#### topologySpreadConstraints {#statefulsetspec-topologyspreadconstraints}
 
 _Type:_ `array`
 
@@ -5033,7 +5033,7 @@ Constraints that spread pod replicas across failure domains
   whenUnsatisfiable: ScheduleAnyway
 ```
 
-#### updateStrategy
+#### updateStrategy {#statefulsetspec-updatestrategy}
 
 _Type:_ `object`
 
@@ -5048,7 +5048,7 @@ rollingUpdate:
 type: RollingUpdate
 ```
 
-#### volumeClaimTemplates
+#### volumeClaimTemplates {#statefulsetspec-volumeclaimtemplates}
 
 _Type:_ `array`
 
@@ -5069,7 +5069,7 @@ via container.volumeMounts.
         storage: 20Gi
 ```
 
-#### volumes
+#### volumes {#statefulsetspec-volumes}
 
 _Type:_ `array`
 
@@ -5102,7 +5102,7 @@ rollingUpdate:
 type: RollingUpdate
 ```
 
-#### rollingUpdate
+#### rollingUpdate {#strategyspec-rollingupdate}
 
 _Type:_ `object`
 
@@ -5118,7 +5118,7 @@ maxSurge: 25%
 maxUnavailable: 25%
 ```
 
-#### type
+#### type {#strategyspec-type}
 
 _Type:_ `string`
 , _enum:_ `['RollingUpdate', 'Recreate']`
@@ -5138,23 +5138,23 @@ name: config-volume
 readOnly: true
 ```
 
-#### mountPath
+#### mountPath {#volumemount-mountpath}
 
 _Type:_ `string`
 
-#### name
+#### name {#volumemount-name}
 
 _Type:_ `string`
 
-#### readOnly
+#### readOnly {#volumemount-readonly}
 
 _Type:_ `boolean`
 
-#### subPath
+#### subPath {#volumemount-subpath}
 
 _Type:_ `string`
 
-#### subPathExpr
+#### subPathExpr {#volumemount-subpathexpr}
 
 _Type:_ `string`
 
@@ -5194,11 +5194,11 @@ rollingUpdate:
 type: RollingUpdate
 ```
 
-#### rollingUpdate
+#### rollingUpdate {#k8s.io.api.apps.v1.deploymentstrategy-rollingupdate}
 
 Rolling update config params. Present only if DeploymentStrategyType = RollingUpdate.
 
-#### type
+#### type {#k8s.io.api.apps.v1.deploymentstrategy-type}
 
 _Type:_ `string`
 
@@ -5239,11 +5239,11 @@ maxSurge: 25%
 maxUnavailable: 0
 ```
 
-#### maxSurge
+#### maxSurge {#k8s.io.api.apps.v1.rollingupdatedeployment-maxsurge}
 
 The maximum number of pods that can be scheduled above the desired number of pods. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). This can not be 0 if MaxUnavailable is 0. Absolute number is calculated from percentage by rounding up. Defaults to 25%. Example: when this is set to 30%, the new ReplicaSet can be scaled up immediately when the rolling update starts, such that the total number of old and new pods do not exceed 130% of desired pods. Once old pods have been killed, new ReplicaSet can be scaled up further, ensuring that total number of pods running at any time during the update is at most 130% of desired pods.
 
-#### maxUnavailable
+#### maxUnavailable {#k8s.io.api.apps.v1.rollingupdatedeployment-maxunavailable}
 
 The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Defaults to 25%. Example: when this is set to 30%, the old ReplicaSet can be scaled down to 70% of desired pods immediately when the rolling update starts. Once new pods are ready, old ReplicaSet can be scaled down further, followed by scaling up the new ReplicaSet, ensuring that the total number of pods available at all times during the update is at least 70% of desired pods.
 
@@ -5284,19 +5284,19 @@ target:
   type: Utilization
 ```
 
-#### container
+#### container {#k8s.io.api.autoscaling.v2.containerresourcemetricsource-container}
 
 _Type:_ `string`
 
 container is the name of the container in the pods of the scaling target
 
-#### name
+#### name {#k8s.io.api.autoscaling.v2.containerresourcemetricsource-name}
 
 _Type:_ `string`
 
 name is the name of the resource in question.
 
-#### target
+#### target {#k8s.io.api.autoscaling.v2.containerresourcemetricsource-target}
 
 target specifies the target value for the given metric
 
@@ -5334,19 +5334,19 @@ kind: Ingress
 name: my-ingress
 ```
 
-#### apiVersion
+#### apiVersion {#k8s.io.api.autoscaling.v2.crossversionobjectreference-apiversion}
 
 _Type:_ `string`
 
 apiVersion is the API version of the referent
 
-#### kind
+#### kind {#k8s.io.api.autoscaling.v2.crossversionobjectreference-kind}
 
 _Type:_ `string`
 
 kind is the kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
 
-#### name
+#### name {#k8s.io.api.autoscaling.v2.crossversionobjectreference-name}
 
 _Type:_ `string`
 
@@ -5394,11 +5394,11 @@ target:
   type: AverageValue
 ```
 
-#### metric
+#### metric {#k8s.io.api.autoscaling.v2.externalmetricsource-metric}
 
 metric identifies the target metric by name and selector
 
-#### target
+#### target {#k8s.io.api.autoscaling.v2.externalmetricsource-target}
 
 target specifies the target value for the given metric
 
@@ -5436,19 +5436,19 @@ type: Percent
 value: 100
 ```
 
-#### periodSeconds
+#### periodSeconds {#k8s.io.api.autoscaling.v2.hpascalingpolicy-periodseconds}
 
 _Type:_ `integer`
 
 periodSeconds specifies the window of time for which the policy should hold true. PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).
 
-#### type
+#### type {#k8s.io.api.autoscaling.v2.hpascalingpolicy-type}
 
 _Type:_ `string`
 
 type is used to specify the scaling policy.
 
-#### value
+#### value {#k8s.io.api.autoscaling.v2.hpascalingpolicy-value}
 
 _Type:_ `integer`
 
@@ -5497,25 +5497,25 @@ selectPolicy: Min
 stabilizationWindowSeconds: 300
 ```
 
-#### policies
+#### policies {#k8s.io.api.autoscaling.v2.hpascalingrules-policies}
 
 _Type:_ `array`
 
 policies is a list of potential scaling polices which can be used during scaling. If not set, use the default values: - For scale up: allow doubling the number of pods, or an absolute change of 4 pods in a 15s window. - For scale down: allow all pods to be removed in a 15s window.
 
-#### selectPolicy
+#### selectPolicy {#k8s.io.api.autoscaling.v2.hpascalingrules-selectpolicy}
 
 _Type:_ `string`
 
 selectPolicy is used to specify which policy should be used. If not set, the default value Max is used.
 
-#### stabilizationWindowSeconds
+#### stabilizationWindowSeconds {#k8s.io.api.autoscaling.v2.hpascalingrules-stabilizationwindowseconds}
 
 _Type:_ `integer`
 
 stabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while scaling up or scaling down. StabilizationWindowSeconds must be greater than or equal to zero and less than or equal to 3600 (one hour). If not set, use the default values: - For scale up: 0 (i.e. no stabilization is done). - For scale down: 300 (i.e. the stabilization window is 300 seconds long).
 
-#### tolerance
+#### tolerance {#k8s.io.api.autoscaling.v2.hpascalingrules-tolerance}
 
 tolerance is the tolerance on the ratio between the current and desired metric value under which no updates are made to the desired number of replicas (e.g. 0.01 for 1%). Must be greater than or equal to zero. If not set, the default cluster-wide tolerance is applied (by default 10%).
 
@@ -5566,11 +5566,11 @@ scaleUp:
   stabilizationWindowSeconds: 0
 ```
 
-#### scaleDown
+#### scaleDown {#k8s.io.api.autoscaling.v2.horizontalpodautoscalerbehavior-scaledown}
 
 scaleDown is scaling policy for scaling Down. If not set, the default value is to allow to scale down to minReplicas pods, with a 300 second stabilization window (i.e., the highest recommendation for the last 300sec is used).
 
-#### scaleUp
+#### scaleUp {#k8s.io.api.autoscaling.v2.horizontalpodautoscalerbehavior-scaleup}
 
 scaleUp is scaling policy for scaling Up. If not set, the default value is the higher of:
   * increase no more than 4 pods per 60 seconds
@@ -5607,13 +5607,13 @@ to read — for example, picking one queue out of many.
 name: http_requests_per_second
 ```
 
-#### name
+#### name {#k8s.io.api.autoscaling.v2.metricidentifier-name}
 
 _Type:_ `string`
 
 name is the name of the given metric
 
-#### selector
+#### selector {#k8s.io.api.autoscaling.v2.metricidentifier-selector}
 
 selector is the string-encoded form of a standard kubernetes label selector for the given metric When set, it is passed as an additional parameter to the metrics server for more specific metrics scoping. When unset, just the metricName will be used to gather metrics.
 
@@ -5656,27 +5656,27 @@ resource:
 type: Resource
 ```
 
-#### containerResource
+#### containerResource {#k8s.io.api.autoscaling.v2.metricspec-containerresource}
 
 containerResource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing a single container in each pod of the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the "pods" source.
 
-#### external
+#### external {#k8s.io.api.autoscaling.v2.metricspec-external}
 
 external refers to a global metric that is not associated with any Kubernetes object. It allows autoscaling based on information coming from components running outside of cluster (for example length of queue in cloud messaging service, or QPS from loadbalancer running outside of cluster).
 
-#### object
+#### object {#k8s.io.api.autoscaling.v2.metricspec-object}
 
 object refers to a metric describing a single kubernetes object (for example, hits-per-second on an Ingress object).
 
-#### pods
+#### pods {#k8s.io.api.autoscaling.v2.metricspec-pods}
 
 pods refers to a metric describing each pod in the current scale target (for example, transactions-processed-per-second).  The values will be averaged together before being compared to the target value.
 
-#### resource
+#### resource {#k8s.io.api.autoscaling.v2.metricspec-resource}
 
 resource refers to a resource metric (such as those specified in requests and limits) known to Kubernetes describing each pod in the current scale target (e.g. CPU or memory). Such metrics are built in to Kubernetes, and have special scaling options on top of those available to normal per-pod metrics using the "pods" source.
 
-#### type
+#### type {#k8s.io.api.autoscaling.v2.metricspec-type}
 
 _Type:_ `string`
 
@@ -5716,23 +5716,23 @@ averageUtilization: 70
 type: Utilization
 ```
 
-#### averageUtilization
+#### averageUtilization {#k8s.io.api.autoscaling.v2.metrictarget-averageutilization}
 
 _Type:_ `integer`
 
 averageUtilization is the target value of the average of the resource metric across all relevant pods, represented as a percentage of the requested value of the resource for the pods. Currently only valid for Resource metric source type
 
-#### averageValue
+#### averageValue {#k8s.io.api.autoscaling.v2.metrictarget-averagevalue}
 
 averageValue is the target value of the average of the metric across all relevant pods (as a quantity)
 
-#### type
+#### type {#k8s.io.api.autoscaling.v2.metrictarget-type}
 
 _Type:_ `string`
 
 type represents whether the metric type is Utilization, Value, or AverageValue
 
-#### value
+#### value {#k8s.io.api.autoscaling.v2.metrictarget-value}
 
 value is the target value of the metric (as a quantity).
 
@@ -5776,15 +5776,15 @@ target:
   value: '1000'
 ```
 
-#### describedObject
+#### describedObject {#k8s.io.api.autoscaling.v2.objectmetricsource-describedobject}
 
 describedObject specifies the descriptions of a object,such as kind,name apiVersion
 
-#### metric
+#### metric {#k8s.io.api.autoscaling.v2.objectmetricsource-metric}
 
 metric identifies the target metric by name and selector
 
-#### target
+#### target {#k8s.io.api.autoscaling.v2.objectmetricsource-target}
 
 target specifies the target value for the given metric
 
@@ -5824,11 +5824,11 @@ target:
   type: AverageValue
 ```
 
-#### metric
+#### metric {#k8s.io.api.autoscaling.v2.podsmetricsource-metric}
 
 metric identifies the target metric by name and selector
 
-#### target
+#### target {#k8s.io.api.autoscaling.v2.podsmetricsource-target}
 
 target specifies the target value for the given metric
 
@@ -5867,13 +5867,13 @@ target:
   type: Utilization
 ```
 
-#### name
+#### name {#k8s.io.api.autoscaling.v2.resourcemetricsource-name}
 
 _Type:_ `string`
 
 name is the name of the resource in question.
 
-#### target
+#### target {#k8s.io.api.autoscaling.v2.resourcemetricsource-target}
 
 target specifies the target value for the given metric
 
@@ -5888,25 +5888,25 @@ new workloads prefer the CSI ebs.csi.aws.com driver.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.awselasticblockstorevolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is the filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore
 
-#### partition
+#### partition {#k8s.io.api.core.v1.awselasticblockstorevolumesource-partition}
 
 _Type:_ `integer`
 
 partition is the partition in the volume that you want to mount. If omitted, the default is to mount by volume name. Examples: For volume /dev/sda1, you specify the partition as "1". Similarly, the volume partition for /dev/sda is "0" (or you can leave the property empty).
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.awselasticblockstorevolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly value true will force the readOnly setting in VolumeMounts. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore
 
-#### volumeID
+#### volumeID {#k8s.io.api.core.v1.awselasticblockstorevolumesource-volumeid}
 
 _Type:_ `string`
 
@@ -5951,15 +5951,15 @@ nodeAffinity:
         - memory-optimized
 ```
 
-#### nodeAffinity
+#### nodeAffinity {#k8s.io.api.core.v1.affinity-nodeaffinity}
 
 Describes node affinity scheduling rules for the pod.
 
-#### podAffinity
+#### podAffinity {#k8s.io.api.core.v1.affinity-podaffinity}
 
 Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
 
-#### podAntiAffinity
+#### podAntiAffinity {#k8s.io.api.core.v1.affinity-podantiaffinity}
 
 Describes pod anti-affinity scheduling rules (e.g. avoid putting this pod in the same node, zone, etc. as some other pod(s)).
 
@@ -5997,13 +5997,13 @@ and the field becomes a no-op.
 type: RuntimeDefault
 ```
 
-#### localhostProfile
+#### localhostProfile {#k8s.io.api.core.v1.apparmorprofile-localhostprofile}
 
 _Type:_ `string`
 
 localhostProfile indicates a profile loaded on the node that should be used. The profile must be preconfigured on the node to work. Must match the loaded name of the profile. Must be set if and only if type is "Localhost".
 
-#### type
+#### type {#k8s.io.api.core.v1.apparmorprofile-type}
 
 _Type:_ `string`
 
@@ -6023,37 +6023,37 @@ in-tree driver; prefer the disk.csi.azure.com CSI driver for new work.
 {}
 ```
 
-#### cachingMode
+#### cachingMode {#k8s.io.api.core.v1.azurediskvolumesource-cachingmode}
 
 _Type:_ `string`
 
 cachingMode is the Host Caching mode: None, Read Only, Read Write.
 
-#### diskName
+#### diskName {#k8s.io.api.core.v1.azurediskvolumesource-diskname}
 
 _Type:_ `string`
 
 diskName is the Name of the data disk in the blob storage
 
-#### diskURI
+#### diskURI {#k8s.io.api.core.v1.azurediskvolumesource-diskuri}
 
 _Type:_ `string`
 
 diskURI is the URI of data disk in the blob storage
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.azurediskvolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is Filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
 
-#### kind
+#### kind {#k8s.io.api.core.v1.azurediskvolumesource-kind}
 
 _Type:_ `string`
 
 kind expected values are Shared: multiple blob disks per storage account  Dedicated: single blob disk per storage account  Managed: azure managed data disk (only in managed availability set). defaults to shared
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.azurediskvolumesource-readonly}
 
 _Type:_ `boolean`
 
@@ -6070,19 +6070,19 @@ with the storage account name and key.
 {}
 ```
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.azurefilevolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.
 
-#### secretName
+#### secretName {#k8s.io.api.core.v1.azurefilevolumesource-secretname}
 
 _Type:_ `string`
 
 secretName is the  name of secret that contains Azure Storage Account Name and Key
 
-#### shareName
+#### shareName {#k8s.io.api.core.v1.azurefilevolumesource-sharename}
 
 _Type:_ `string`
 
@@ -6125,29 +6125,29 @@ volumeAttributes:
   secretProviderClass: my-app-secrets
 ```
 
-#### driver
+#### driver {#k8s.io.api.core.v1.csivolumesource-driver}
 
 _Type:_ `string`
 
 driver is the name of the CSI driver that handles this volume. Consult with your admin for the correct name as registered in the cluster.
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.csivolumesource-fstype}
 
 _Type:_ `string`
 
 fsType to mount. Ex. "ext4", "xfs", "ntfs". If not provided, the empty value is passed to the associated CSI driver which will determine the default filesystem to apply.
 
-#### nodePublishSecretRef
+#### nodePublishSecretRef {#k8s.io.api.core.v1.csivolumesource-nodepublishsecretref}
 
 nodePublishSecretRef is a reference to the secret object containing sensitive information to pass to the CSI driver to complete the CSI NodePublishVolume and NodeUnpublishVolume calls. This field is optional, and  may be empty if no secret is required. If the secret object contains more than one secret, all secret references are passed.
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.csivolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly specifies a read-only configuration for the volume. Defaults to false (read/write).
 
-#### volumeAttributes
+#### volumeAttributes {#k8s.io.api.core.v1.csivolumesource-volumeattributes}
 
 _Type:_ `object`
 
@@ -6191,13 +6191,13 @@ drop:
 - ALL
 ```
 
-#### add
+#### add {#k8s.io.api.core.v1.capabilities-add}
 
 _Type:_ `array`
 
 Added capabilities
 
-#### drop
+#### drop {#k8s.io.api.core.v1.capabilities-drop}
 
 _Type:_ `array`
 
@@ -6214,35 +6214,35 @@ authentication secret or keyring file.
 {}
 ```
 
-#### monitors
+#### monitors {#k8s.io.api.core.v1.cephfsvolumesource-monitors}
 
 _Type:_ `array`
 
 monitors is Required: Monitors is a collection of Ceph monitors More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it
 
-#### path
+#### path {#k8s.io.api.core.v1.cephfsvolumesource-path}
 
 _Type:_ `string`
 
 path is Optional: Used as the mounted root, rather than the full Ceph tree, default is /
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.cephfsvolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly is Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts. More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it
 
-#### secretFile
+#### secretFile {#k8s.io.api.core.v1.cephfsvolumesource-secretfile}
 
 _Type:_ `string`
 
 secretFile is Optional: SecretFile is the path to key ring for User, default is /etc/ceph/user.secret More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it
 
-#### secretRef
+#### secretRef {#k8s.io.api.core.v1.cephfsvolumesource-secretref}
 
 secretRef is Optional: SecretRef is reference to the authentication secret for User, default is empty. More info: https://examples.k8s.io/volumes/cephfs/README.md#how-to-use-it
 
-#### user
+#### user {#k8s.io.api.core.v1.cephfsvolumesource-user}
 
 _Type:_ `string`
 
@@ -6259,23 +6259,23 @@ in-tree driver; prefer the cinder.csi.openstack.org CSI driver.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.cindervolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Examples: "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified. More info: https://examples.k8s.io/mysql-cinder-pd/README.md
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.cindervolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts. More info: https://examples.k8s.io/mysql-cinder-pd/README.md
 
-#### secretRef
+#### secretRef {#k8s.io.api.core.v1.cindervolumesource-secretref}
 
 secretRef is optional: points to a secret object containing parameters used to connect to OpenStack.
 
-#### volumeID
+#### volumeID {#k8s.io.api.core.v1.cindervolumesource-volumeid}
 
 _Type:_ `string`
 
@@ -6292,29 +6292,29 @@ certificates into the Pod's filesystem, selected by name or signer.
 {}
 ```
 
-#### labelSelector
+#### labelSelector {#k8s.io.api.core.v1.clustertrustbundleprojection-labelselector}
 
 Select all ClusterTrustBundles that match this label selector.  Only has effect if signerName is set.  Mutually-exclusive with name.  If unset, interpreted as "match nothing".  If set but empty, interpreted as "match everything".
 
-#### name
+#### name {#k8s.io.api.core.v1.clustertrustbundleprojection-name}
 
 _Type:_ `string`
 
 Select a single ClusterTrustBundle by object name.  Mutually-exclusive with signerName and labelSelector.
 
-#### optional
+#### optional {#k8s.io.api.core.v1.clustertrustbundleprojection-optional}
 
 _Type:_ `boolean`
 
 If true, don't block pod startup if the referenced ClusterTrustBundle(s) aren't available.  If using name, then the named ClusterTrustBundle is allowed not to exist.  If using signerName, then the combination of signerName and labelSelector is allowed to match zero ClusterTrustBundles.
 
-#### path
+#### path {#k8s.io.api.core.v1.clustertrustbundleprojection-path}
 
 _Type:_ `string`
 
 Relative path from the volume root to write the bundle.
 
-#### signerName
+#### signerName {#k8s.io.api.core.v1.clustertrustbundleprojection-signername}
 
 _Type:_ `string`
 
@@ -6351,19 +6351,19 @@ key: log_level
 name: app-config
 ```
 
-#### key
+#### key {#k8s.io.api.core.v1.configmapkeyselector-key}
 
 _Type:_ `string`
 
 The key to select.
 
-#### name
+#### name {#k8s.io.api.core.v1.configmapkeyselector-name}
 
 _Type:_ `string`
 
 Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
 
-#### optional
+#### optional {#k8s.io.api.core.v1.configmapkeyselector-optional}
 
 _Type:_ `boolean`
 
@@ -6399,19 +6399,19 @@ use ConfigMapVolumeSource directly.
 name: app-config
 ```
 
-#### items
+#### items {#k8s.io.api.core.v1.configmapprojection-items}
 
 _Type:_ `array`
 
 items if unspecified, each key-value pair in the Data field of the referenced ConfigMap will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the ConfigMap, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.
 
-#### name
+#### name {#k8s.io.api.core.v1.configmapprojection-name}
 
 _Type:_ `string`
 
 Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
 
-#### optional
+#### optional {#k8s.io.api.core.v1.configmapprojection-optional}
 
 _Type:_ `boolean`
 
@@ -6454,25 +6454,25 @@ propagate.
 name: app-config
 ```
 
-#### defaultMode
+#### defaultMode {#k8s.io.api.core.v1.configmapvolumesource-defaultmode}
 
 _Type:_ `integer`
 
 defaultMode is optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.
 
-#### items
+#### items {#k8s.io.api.core.v1.configmapvolumesource-items}
 
 _Type:_ `array`
 
 items if unspecified, each key-value pair in the Data field of the referenced ConfigMap will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the ConfigMap, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.
 
-#### name
+#### name {#k8s.io.api.core.v1.configmapvolumesource-name}
 
 _Type:_ `string`
 
 Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
 
-#### optional
+#### optional {#k8s.io.api.core.v1.configmapvolumesource-optional}
 
 _Type:_ `boolean`
 
@@ -6514,7 +6514,7 @@ items:
   path: pod-namespace
 ```
 
-#### items
+#### items {#k8s.io.api.core.v1.downwardapiprojection-items}
 
 _Type:_ `array`
 
@@ -6556,23 +6556,23 @@ fieldRef:
 path: pod-name
 ```
 
-#### fieldRef
+#### fieldRef {#k8s.io.api.core.v1.downwardapivolumefile-fieldref}
 
 Required: Selects a field of the pod: only annotations, labels, name, namespace and uid are supported.
 
-#### mode
+#### mode {#k8s.io.api.core.v1.downwardapivolumefile-mode}
 
 _Type:_ `integer`
 
 Optional: mode bits used to set permissions on this file, must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. If not specified, the volume defaultMode will be used. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.
 
-#### path
+#### path {#k8s.io.api.core.v1.downwardapivolumefile-path}
 
 _Type:_ `string`
 
 Required: Path is  the relative path name of the file to be created. Must not be absolute or contain the '..' path. Must be utf-8 encoded. The first item of the relative path must not start with '..'
 
-#### resourceFieldRef
+#### resourceFieldRef {#k8s.io.api.core.v1.downwardapivolumefile-resourcefieldref}
 
 Selects a resource of the container: only resources limits and requests (limits.cpu, limits.memory, requests.cpu and requests.memory) are currently supported.
 
@@ -6616,13 +6616,13 @@ items:
   path: labels
 ```
 
-#### defaultMode
+#### defaultMode {#k8s.io.api.core.v1.downwardapivolumesource-defaultmode}
 
 _Type:_ `integer`
 
 Optional: mode bits to use on created files by default. Must be a Optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.
 
-#### items
+#### items {#k8s.io.api.core.v1.downwardapivolumesource-items}
 
 _Type:_ `array`
 
@@ -6663,13 +6663,13 @@ memory counts against the container limit.
 {}
 ```
 
-#### medium
+#### medium {#k8s.io.api.core.v1.emptydirvolumesource-medium}
 
 _Type:_ `string`
 
 medium represents what type of storage medium should back this directory. The default is "" which means to use the node's default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
 
-#### sizeLimit
+#### sizeLimit {#k8s.io.api.core.v1.emptydirvolumesource-sizelimit}
 
 sizeLimit is the total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
 
@@ -6716,7 +6716,7 @@ volumeClaimTemplate:
     storageClassName: standard
 ```
 
-#### volumeClaimTemplate
+#### volumeClaimTemplate {#k8s.io.api.core.v1.ephemeralvolumesource-volumeclaimtemplate}
 
 Will be used to create a stand-alone PVC to provision the volume. The pod in which this EphemeralVolumeSource is embedded will be the owner of the PVC, i.e. the PVC will be deleted together with the pod.  The name of the PVC will be `<pod name>-<volume name>` where `<volume name>` is the name from the `PodSpec.Volumes` array entry. Pod validation will reject the pod if the concatenated name is not valid for a PVC (for example, too long).
 
@@ -6761,7 +6761,7 @@ command:
 - /tmp/healthy
 ```
 
-#### command
+#### command {#k8s.io.api.core.v1.execaction-command}
 
 _Type:_ `array`
 
@@ -6778,31 +6778,31 @@ and the LUN number to attach.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.fcvolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
 
-#### lun
+#### lun {#k8s.io.api.core.v1.fcvolumesource-lun}
 
 _Type:_ `integer`
 
 lun is Optional: FC target lun number
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.fcvolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly is Optional: Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.
 
-#### targetWWNs
+#### targetWWNs {#k8s.io.api.core.v1.fcvolumesource-targetwwns}
 
 _Type:_ `array`
 
 targetWWNs is Optional: FC target worldwide names (WWNs)
 
-#### wwids
+#### wwids {#k8s.io.api.core.v1.fcvolumesource-wwids}
 
 _Type:_ `array`
 
@@ -6819,31 +6819,31 @@ CSI; retained for backwards compatibility only.
 {}
 ```
 
-#### driver
+#### driver {#k8s.io.api.core.v1.flexvolumesource-driver}
 
 _Type:_ `string`
 
 driver is the name of the driver to use for this volume.
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.flexvolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. "ext4", "xfs", "ntfs". The default filesystem depends on FlexVolume script.
 
-#### options
+#### options {#k8s.io.api.core.v1.flexvolumesource-options}
 
 _Type:_ `object`
 
 options is Optional: this field holds extra command options if any.
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.flexvolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly is Optional: defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.
 
-#### secretRef
+#### secretRef {#k8s.io.api.core.v1.flexvolumesource-secretref}
 
 secretRef is Optional: secretRef is reference to the secret object containing sensitive information to pass to the plugin scripts. This may be empty if no secret object is specified. If the secret object contains more than one secret, all secrets are passed to the plugin scripts.
 
@@ -6858,13 +6858,13 @@ retained as an in-tree volume source for historical clusters.
 {}
 ```
 
-#### datasetName
+#### datasetName {#k8s.io.api.core.v1.flockervolumesource-datasetname}
 
 _Type:_ `string`
 
 datasetName is Name of the dataset stored as metadata -> name on the dataset for Flocker should be considered as deprecated
 
-#### datasetUUID
+#### datasetUUID {#k8s.io.api.core.v1.flockervolumesource-datasetuuid}
 
 _Type:_ `string`
 
@@ -6881,25 +6881,25 @@ prefer the pd.csi.storage.gke.io CSI driver for new workloads.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.gcepersistentdiskvolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk
 
-#### partition
+#### partition {#k8s.io.api.core.v1.gcepersistentdiskvolumesource-partition}
 
 _Type:_ `integer`
 
 partition is the partition in the volume that you want to mount. If omitted, the default is to mount by volume name. Examples: For volume /dev/sda1, you specify the partition as "1". Similarly, the volume partition for /dev/sda is "0" (or you can leave the property empty). More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk
 
-#### pdName
+#### pdName {#k8s.io.api.core.v1.gcepersistentdiskvolumesource-pdname}
 
 _Type:_ `string`
 
 pdName is unique name of the PD resource in GCE. Used to identify the disk in GCE. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.gcepersistentdiskvolumesource-readonly}
 
 _Type:_ `boolean`
 
@@ -6916,19 +6916,19 @@ Pod startup. Use an initContainer with git clone instead.
 {}
 ```
 
-#### directory
+#### directory {#k8s.io.api.core.v1.gitrepovolumesource-directory}
 
 _Type:_ `string`
 
 directory is the target directory name. Must not contain or start with '..'.  If '.' is supplied, the volume directory will be the git repository.  Otherwise, if specified, the volume will contain the git repository in the subdirectory with the given name.
 
-#### repository
+#### repository {#k8s.io.api.core.v1.gitrepovolumesource-repository}
 
 _Type:_ `string`
 
 repository is the URL
 
-#### revision
+#### revision {#k8s.io.api.core.v1.gitrepovolumesource-revision}
 
 _Type:_ `string`
 
@@ -6945,19 +6945,19 @@ a volume path, and an optional read-only flag.
 {}
 ```
 
-#### endpoints
+#### endpoints {#k8s.io.api.core.v1.glusterfsvolumesource-endpoints}
 
 _Type:_ `string`
 
 endpoints is the endpoint name that details Glusterfs topology.
 
-#### path
+#### path {#k8s.io.api.core.v1.glusterfsvolumesource-path}
 
 _Type:_ `string`
 
 path is the Glusterfs volume path. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.glusterfsvolumesource-readonly}
 
 _Type:_ `boolean`
 
@@ -7000,29 +7000,29 @@ port: http
 scheme: HTTP
 ```
 
-#### host
+#### host {#k8s.io.api.core.v1.httpgetaction-host}
 
 _Type:_ `string`
 
 Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead.
 
-#### httpHeaders
+#### httpHeaders {#k8s.io.api.core.v1.httpgetaction-httpheaders}
 
 _Type:_ `array`
 
 Custom headers to set in the request. HTTP allows repeated headers.
 
-#### path
+#### path {#k8s.io.api.core.v1.httpgetaction-path}
 
 _Type:_ `string`
 
 Path to access on the HTTP server.
 
-#### port
+#### port {#k8s.io.api.core.v1.httpgetaction-port}
 
 Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
 
-#### scheme
+#### scheme {#k8s.io.api.core.v1.httpgetaction-scheme}
 
 _Type:_ `string`
 
@@ -7059,13 +7059,13 @@ name: Authorization
 value: Bearer probe-token
 ```
 
-#### name
+#### name {#k8s.io.api.core.v1.httpheader-name}
 
 _Type:_ `string`
 
 The header field name. This will be canonicalized upon output, so case-variant names will be understood as the same header.
 
-#### value
+#### value {#k8s.io.api.core.v1.httpheader-value}
 
 _Type:_ `string`
 
@@ -7107,13 +7107,13 @@ path: /var/log
 type: Directory
 ```
 
-#### path
+#### path {#k8s.io.api.core.v1.hostpathvolumesource-path}
 
 _Type:_ `string`
 
 path of the directory on the host. If the path is a symlink, it will follow the link to the real path. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath
 
-#### type
+#### type {#k8s.io.api.core.v1.hostpathvolumesource-type}
 
 _Type:_ `string`
 
@@ -7130,65 +7130,65 @@ optional CHAP authentication via a referenced Secret.
 {}
 ```
 
-#### chapAuthDiscovery
+#### chapAuthDiscovery {#k8s.io.api.core.v1.iscsivolumesource-chapauthdiscovery}
 
 _Type:_ `boolean`
 
 chapAuthDiscovery defines whether support iSCSI Discovery CHAP authentication
 
-#### chapAuthSession
+#### chapAuthSession {#k8s.io.api.core.v1.iscsivolumesource-chapauthsession}
 
 _Type:_ `boolean`
 
 chapAuthSession defines whether support iSCSI Session CHAP authentication
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.iscsivolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is the filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#iscsi
 
-#### initiatorName
+#### initiatorName {#k8s.io.api.core.v1.iscsivolumesource-initiatorname}
 
 _Type:_ `string`
 
 initiatorName is the custom iSCSI Initiator Name. If initiatorName is specified with iscsiInterface simultaneously, new iSCSI interface <target portal>:<volume name> will be created for the connection.
 
-#### iqn
+#### iqn {#k8s.io.api.core.v1.iscsivolumesource-iqn}
 
 _Type:_ `string`
 
 iqn is the target iSCSI Qualified Name.
 
-#### iscsiInterface
+#### iscsiInterface {#k8s.io.api.core.v1.iscsivolumesource-iscsiinterface}
 
 _Type:_ `string`
 
 iscsiInterface is the interface Name that uses an iSCSI transport. Defaults to 'default' (tcp).
 
-#### lun
+#### lun {#k8s.io.api.core.v1.iscsivolumesource-lun}
 
 _Type:_ `integer`
 
 lun represents iSCSI Target Lun number.
 
-#### portals
+#### portals {#k8s.io.api.core.v1.iscsivolumesource-portals}
 
 _Type:_ `array`
 
 portals is the iSCSI Target Portal List. The portal is either an IP or ip_addr:port if the port is other than default (typically TCP ports 860 and 3260).
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.iscsivolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly here will force the ReadOnly setting in VolumeMounts. Defaults to false.
 
-#### secretRef
+#### secretRef {#k8s.io.api.core.v1.iscsivolumesource-secretref}
 
 secretRef is the CHAP Secret for iSCSI target and initiator authentication
 
-#### targetPortal
+#### targetPortal {#k8s.io.api.core.v1.iscsivolumesource-targetportal}
 
 _Type:_ `string`
 
@@ -7205,13 +7205,13 @@ exposed as a read-only filesystem inside the Pod.
 {}
 ```
 
-#### pullPolicy
+#### pullPolicy {#k8s.io.api.core.v1.imagevolumesource-pullpolicy}
 
 _Type:_ `string`
 
 Policy for pulling OCI objects. Possible values are: Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails. Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present. IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails. Defaults to Always if :latest tag is specified, or IfNotPresent otherwise.
 
-#### reference
+#### reference {#k8s.io.api.core.v1.imagevolumesource-reference}
 
 _Type:_ `string`
 
@@ -7249,19 +7249,19 @@ key: app.yaml
 path: config/app.yaml
 ```
 
-#### key
+#### key {#k8s.io.api.core.v1.keytopath-key}
 
 _Type:_ `string`
 
 key is the key to project.
 
-#### mode
+#### mode {#k8s.io.api.core.v1.keytopath-mode}
 
 _Type:_ `integer`
 
 mode is Optional: mode bits used to set permissions on this file. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. If not specified, the volume defaultMode will be used. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.
 
-#### path
+#### path {#k8s.io.api.core.v1.keytopath-path}
 
 _Type:_ `string`
 
@@ -7307,15 +7307,15 @@ preStop:
     - sleep 15
 ```
 
-#### postStart
+#### postStart {#k8s.io.api.core.v1.lifecycle-poststart}
 
 PostStart is called immediately after a container is created. If the handler fails, the container is terminated and restarted according to its restart policy. Other management of the container blocks until the hook completes. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks
 
-#### preStop
+#### preStop {#k8s.io.api.core.v1.lifecycle-prestop}
 
 PreStop is called immediately before a container is terminated due to an API request or management event such as liveness/startup probe failure, preemption, resource contention, etc. The handler is not called if the container crashes or exits. The Pod's termination grace period countdown begins before the PreStop hook is executed. Regardless of the outcome of the handler, the container will eventually terminate within the Pod's termination grace period (unless delayed by finalizers). Other management of the container blocks until the hook completes or until the termination grace period is reached. More info: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks
 
-#### stopSignal
+#### stopSignal {#k8s.io.api.core.v1.lifecycle-stopsignal}
 
 _Type:_ `string`
 
@@ -7355,19 +7355,19 @@ sleep:
   seconds: 15
 ```
 
-#### exec
+#### exec {#k8s.io.api.core.v1.lifecyclehandler-exec}
 
 Exec specifies a command to execute in the container.
 
-#### httpGet
+#### httpGet {#k8s.io.api.core.v1.lifecyclehandler-httpget}
 
 HTTPGet specifies an HTTP GET request to perform.
 
-#### sleep
+#### sleep {#k8s.io.api.core.v1.lifecyclehandler-sleep}
 
 Sleep represents a duration that the container should sleep.
 
-#### tcpSocket
+#### tcpSocket {#k8s.io.api.core.v1.lifecyclehandler-tcpsocket}
 
 Deprecated. TCPSocket is NOT supported as a LifecycleHandler and kept for backward compatibility. There is no validation of this field and lifecycle hooks will fail at runtime when it is specified.
 
@@ -7402,7 +7402,7 @@ envFrom shape; for ConfigMaps similarly.
 name: my-registry-secret
 ```
 
-#### name
+#### name {#k8s.io.api.core.v1.localobjectreference-name}
 
 _Type:_ `string`
 
@@ -7419,19 +7419,19 @@ and an optional read-only flag.
 {}
 ```
 
-#### path
+#### path {#k8s.io.api.core.v1.nfsvolumesource-path}
 
 _Type:_ `string`
 
 path that is exported by the NFS server. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.nfsvolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly here will force the NFS export to be mounted with read-only permissions. Defaults to false. More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs
 
-#### server
+#### server {#k8s.io.api.core.v1.nfsvolumesource-server}
 
 _Type:_ `string`
 
@@ -7476,13 +7476,13 @@ requiredDuringSchedulingIgnoredDuringExecution:
       - gpu
 ```
 
-#### preferredDuringSchedulingIgnoredDuringExecution
+#### preferredDuringSchedulingIgnoredDuringExecution {#k8s.io.api.core.v1.nodeaffinity-preferredduringschedulingignoredduringexecution}
 
 _Type:_ `array`
 
 The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred.
 
-#### requiredDuringSchedulingIgnoredDuringExecution
+#### requiredDuringSchedulingIgnoredDuringExecution {#k8s.io.api.core.v1.nodeaffinity-requiredduringschedulingignoredduringexecution}
 
 If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to an update), the system may or may not try to eventually evict the pod from its node.
 
@@ -7524,7 +7524,7 @@ nodeSelectorTerms:
     - tpu
 ```
 
-#### nodeSelectorTerms
+#### nodeSelectorTerms {#k8s.io.api.core.v1.nodeselector-nodeselectorterms}
 
 _Type:_ `array`
 
@@ -7566,19 +7566,19 @@ values:
 - tpu
 ```
 
-#### key
+#### key {#k8s.io.api.core.v1.nodeselectorrequirement-key}
 
 _Type:_ `string`
 
 The label key that the selector applies to.
 
-#### operator
+#### operator {#k8s.io.api.core.v1.nodeselectorrequirement-operator}
 
 _Type:_ `string`
 
 Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
 
-#### values
+#### values {#k8s.io.api.core.v1.nodeselectorrequirement-values}
 
 _Type:_ `array`
 
@@ -7625,13 +7625,13 @@ matchExpressions:
   - us-east-1b
 ```
 
-#### matchExpressions
+#### matchExpressions {#k8s.io.api.core.v1.nodeselectorterm-matchexpressions}
 
 _Type:_ `array`
 
 A list of node selector requirements by node's labels.
 
-#### matchFields
+#### matchFields {#k8s.io.api.core.v1.nodeselectorterm-matchfields}
 
 _Type:_ `array`
 
@@ -7670,13 +7670,13 @@ different env-var name.
 fieldPath: metadata.name
 ```
 
-#### apiVersion
+#### apiVersion {#k8s.io.api.core.v1.objectfieldselector-apiversion}
 
 _Type:_ `string`
 
 Version of the schema the FieldPath is written in terms of, defaults to "v1".
 
-#### fieldPath
+#### fieldPath {#k8s.io.api.core.v1.objectfieldselector-fieldpath}
 
 _Type:_ `string`
 
@@ -7723,17 +7723,17 @@ resources:
 storageClassName: standard
 ```
 
-#### accessModes
+#### accessModes {#k8s.io.api.core.v1.persistentvolumeclaimspec-accessmodes}
 
 _Type:_ `array`
 
 accessModes contains the desired access modes the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
 
-#### dataSource
+#### dataSource {#k8s.io.api.core.v1.persistentvolumeclaimspec-datasource}
 
 dataSource field can be used to specify either: * An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot) * An existing PVC (PersistentVolumeClaim) If the provisioner or an external controller can support the specified data source, it will create a new volume based on the contents of the specified data source. When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef, and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified. If the namespace is specified, then dataSourceRef will not be copied to dataSource.
 
-#### dataSourceRef
+#### dataSourceRef {#k8s.io.api.core.v1.persistentvolumeclaimspec-datasourceref}
 
 dataSourceRef specifies the object from which to populate the volume with data, if a non-empty volume is desired. This may be any object from a non-empty API group (non core object) or a PersistentVolumeClaim object. When this field is specified, volume binding will only succeed if the type of the specified object matches some installed volume populator or dynamic provisioner. This field will replace the functionality of the dataSource field and as such if both fields are non-empty, they must have the same value. For backwards compatibility, when namespace isn't specified in dataSourceRef, both fields (dataSource and dataSourceRef) will be set to the same value automatically if one of them is empty and the other is non-empty. When namespace is specified in dataSourceRef, dataSource isn't set to the same value and must be empty. There are three important differences between dataSource and dataSourceRef: * While dataSource only allows two specific types of objects, dataSourceRef
   allows any non-core object, as well as PersistentVolumeClaim objects.
@@ -7744,33 +7744,33 @@ dataSourceRef specifies the object from which to populate the volume with data, 
   in any namespaces.
 (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled. (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.
 
-#### resources
+#### resources {#k8s.io.api.core.v1.persistentvolumeclaimspec-resources}
 
 resources represents the minimum resources the volume should have. Users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources
 
-#### selector
+#### selector {#k8s.io.api.core.v1.persistentvolumeclaimspec-selector}
 
 selector is a label query over volumes to consider for binding.
 
-#### storageClassName
+#### storageClassName {#k8s.io.api.core.v1.persistentvolumeclaimspec-storageclassname}
 
 _Type:_ `string`
 
 storageClassName is the name of the StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1
 
-#### volumeAttributesClassName
+#### volumeAttributesClassName {#k8s.io.api.core.v1.persistentvolumeclaimspec-volumeattributesclassname}
 
 _Type:_ `string`
 
 volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim. If specified, the CSI driver will create or update the volume with the attributes defined in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName, it can be changed after the claim is created. An empty string or nil value indicates that no VolumeAttributesClass will be applied to the claim. If the claim enters an Infeasible error state, this field can be reset to its previous value (including nil) to cancel the modification. If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/
 
-#### volumeMode
+#### volumeMode {#k8s.io.api.core.v1.persistentvolumeclaimspec-volumemode}
 
 _Type:_ `string`
 
 volumeMode defines what type of volume is required by the claim. Value of Filesystem is implied when not included in claim spec.
 
-#### volumeName
+#### volumeName {#k8s.io.api.core.v1.persistentvolumeclaimspec-volumename}
 
 _Type:_ `string`
 
@@ -7815,11 +7815,11 @@ spec:
   storageClassName: standard
 ```
 
-#### metadata
+#### metadata {#k8s.io.api.core.v1.persistentvolumeclaimtemplate-metadata}
 
 May contain labels and annotations that will be copied into the PVC when creating it. No other fields are allowed and will be rejected during validation.
 
-#### spec
+#### spec {#k8s.io.api.core.v1.persistentvolumeclaimtemplate-spec}
 
 The specification for the PersistentVolumeClaim. The entire content is copied unchanged into the PVC that gets created from this template. The same fields as in a PersistentVolumeClaim are also valid here.
 
@@ -7859,13 +7859,13 @@ and destroyed with the Pod), use an `EphemeralVolumeSource` instead.
 claimName: app-data
 ```
 
-#### claimName
+#### claimName {#k8s.io.api.core.v1.persistentvolumeclaimvolumesource-claimname}
 
 _Type:_ `string`
 
 claimName is the name of a PersistentVolumeClaim in the same namespace as the pod using this volume. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.persistentvolumeclaimvolumesource-readonly}
 
 _Type:_ `boolean`
 
@@ -7882,13 +7882,13 @@ vendor-specific in-tree driver retained for compatibility.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.photonpersistentdiskvolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
 
-#### pdID
+#### pdID {#k8s.io.api.core.v1.photonpersistentdiskvolumesource-pdid}
 
 _Type:_ `string`
 
@@ -7935,13 +7935,13 @@ preferredDuringSchedulingIgnoredDuringExecution:
   weight: 50
 ```
 
-#### preferredDuringSchedulingIgnoredDuringExecution
+#### preferredDuringSchedulingIgnoredDuringExecution {#k8s.io.api.core.v1.podaffinity-preferredduringschedulingignoredduringexecution}
 
 _Type:_ `array`
 
 The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
 
-#### requiredDuringSchedulingIgnoredDuringExecution
+#### requiredDuringSchedulingIgnoredDuringExecution {#k8s.io.api.core.v1.podaffinity-requiredduringschedulingignoredduringexecution}
 
 _Type:_ `array`
 
@@ -7985,33 +7985,33 @@ labelSelector:
 topologyKey: kubernetes.io/hostname
 ```
 
-#### labelSelector
+#### labelSelector {#k8s.io.api.core.v1.podaffinityterm-labelselector}
 
 A label query over a set of resources, in this case pods. If it's null, this PodAffinityTerm matches with no Pods.
 
-#### matchLabelKeys
+#### matchLabelKeys {#k8s.io.api.core.v1.podaffinityterm-matchlabelkeys}
 
 _Type:_ `array`
 
 MatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `labelSelector` as `key in (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both matchLabelKeys and labelSelector. Also, matchLabelKeys cannot be set when labelSelector isn't set.
 
-#### mismatchLabelKeys
+#### mismatchLabelKeys {#k8s.io.api.core.v1.podaffinityterm-mismatchlabelkeys}
 
 _Type:_ `array`
 
 MismatchLabelKeys is a set of pod label keys to select which pods will be taken into consideration. The keys are used to lookup values from the incoming pod labels, those key-value labels are merged with `labelSelector` as `key notin (value)` to select the group of existing pods which pods will be taken into consideration for the incoming pod's pod (anti) affinity. Keys that don't exist in the incoming pod labels will be ignored. The default value is empty. The same key is forbidden to exist in both mismatchLabelKeys and labelSelector. Also, mismatchLabelKeys cannot be set when labelSelector isn't set.
 
-#### namespaceSelector
+#### namespaceSelector {#k8s.io.api.core.v1.podaffinityterm-namespaceselector}
 
 A label query over the set of namespaces that the term applies to. The term is applied to the union of the namespaces selected by this field and the ones listed in the namespaces field. null selector and null or empty namespaces list means "this pod's namespace". An empty selector ({}) matches all namespaces.
 
-#### namespaces
+#### namespaces {#k8s.io.api.core.v1.podaffinityterm-namespaces}
 
 _Type:_ `array`
 
 namespaces specifies a static list of namespace names that the term applies to. The term is applied to the union of the namespaces listed in this field and the ones selected by namespaceSelector. null or empty namespaces list and null namespaceSelector means "this pod's namespace".
 
-#### topologyKey
+#### topologyKey {#k8s.io.api.core.v1.podaffinityterm-topologykey}
 
 _Type:_ `string`
 
@@ -8059,13 +8059,13 @@ preferredDuringSchedulingIgnoredDuringExecution:
   weight: 100
 ```
 
-#### preferredDuringSchedulingIgnoredDuringExecution
+#### preferredDuringSchedulingIgnoredDuringExecution {#k8s.io.api.core.v1.podantiaffinity-preferredduringschedulingignoredduringexecution}
 
 _Type:_ `array`
 
 The scheduler will prefer to schedule pods to nodes that satisfy the anti-affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling anti-affinity expressions, etc.), compute a sum by iterating through the elements of this field and subtracting "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred.
 
-#### requiredDuringSchedulingIgnoredDuringExecution
+#### requiredDuringSchedulingIgnoredDuringExecution {#k8s.io.api.core.v1.podantiaffinity-requiredduringschedulingignoredduringexecution}
 
 _Type:_ `array`
 
@@ -8082,7 +8082,7 @@ bound to the Pod identity and writes it to a path.
 {}
 ```
 
-#### certificateChainPath
+#### certificateChainPath {#k8s.io.api.core.v1.podcertificateprojection-certificatechainpath}
 
 _Type:_ `string`
 
@@ -8090,7 +8090,7 @@ Write the certificate chain at this path in the projected volume.
 
 Most applications should use credentialBundlePath.  When using keyPath and certificateChainPath, your application needs to check that the key and leaf certificate are consistent, because it is possible to read the files mid-rotation.
 
-#### credentialBundlePath
+#### credentialBundlePath {#k8s.io.api.core.v1.podcertificateprojection-credentialbundlepath}
 
 _Type:_ `string`
 
@@ -8102,7 +8102,7 @@ The remaining blocks are CERTIFICATE blocks, containing the issued certificate c
 
 Using credentialBundlePath lets your Pod's application code make a single atomic read that retrieves a consistent key and certificate chain.  If you project them to separate files, your application code will need to additionally check that the leaf certificate was issued to the key.
 
-#### keyPath
+#### keyPath {#k8s.io.api.core.v1.podcertificateprojection-keypath}
 
 _Type:_ `string`
 
@@ -8110,7 +8110,7 @@ Write the key at this path in the projected volume.
 
 Most applications should use credentialBundlePath.  When using keyPath and certificateChainPath, your application needs to check that the key and leaf certificate are consistent, because it is possible to read the files mid-rotation.
 
-#### keyType
+#### keyType {#k8s.io.api.core.v1.podcertificateprojection-keytype}
 
 _Type:_ `string`
 
@@ -8118,7 +8118,7 @@ The type of keypair Kubelet will generate for the pod.
 
 Valid values are "RSA3072", "RSA4096", "ECDSAP256", "ECDSAP384", "ECDSAP521", and "ED25519".
 
-#### maxExpirationSeconds
+#### maxExpirationSeconds {#k8s.io.api.core.v1.podcertificateprojection-maxexpirationseconds}
 
 _Type:_ `integer`
 
@@ -8130,13 +8130,13 @@ If omitted, kube-apiserver will set it to 86400(24 hours). kube-apiserver will r
 
 The signer implementation is then free to issue a certificate with any lifetime *shorter* than MaxExpirationSeconds, but no shorter than 3600 seconds (1 hour).  This constraint is enforced by kube-apiserver. `kubernetes.io` signers will never issue certificates with a lifetime longer than 24 hours.
 
-#### signerName
+#### signerName {#k8s.io.api.core.v1.podcertificateprojection-signername}
 
 _Type:_ `string`
 
 Kubelet's generated CSRs will be addressed to this signer.
 
-#### userAnnotations
+#### userAnnotations {#k8s.io.api.core.v1.podcertificateprojection-userannotations}
 
 _Type:_ `object`
 
@@ -8190,19 +8190,19 @@ options:
   value: '1'
 ```
 
-#### nameservers
+#### nameservers {#k8s.io.api.core.v1.poddnsconfig-nameservers}
 
 _Type:_ `array`
 
 A list of DNS name server IP addresses. This will be appended to the base nameservers generated from DNSPolicy. Duplicated nameservers will be removed.
 
-#### options
+#### options {#k8s.io.api.core.v1.poddnsconfig-options}
 
 _Type:_ `array`
 
 A list of DNS resolver options. This will be merged with the base options generated from DNSPolicy. Duplicated entries will be removed. Resolution options given in Options will override those that appear in the base DNSPolicy.
 
-#### searches
+#### searches {#k8s.io.api.core.v1.poddnsconfig-searches}
 
 _Type:_ `array`
 
@@ -8241,13 +8241,13 @@ name: ndots
 value: '2'
 ```
 
-#### name
+#### name {#k8s.io.api.core.v1.poddnsconfigoption-name}
 
 _Type:_ `string`
 
 Name is this DNS resolver option's name. Required.
 
-#### value
+#### value {#k8s.io.api.core.v1.poddnsconfigoption-value}
 
 _Type:_ `string`
 
@@ -8295,11 +8295,11 @@ seccompProfile:
   type: RuntimeDefault
 ```
 
-#### appArmorProfile
+#### appArmorProfile {#k8s.io.api.core.v1.podsecuritycontext-apparmorprofile}
 
 appArmorProfile is the AppArmor options to use by the containers in this pod. Note that this field cannot be set when spec.os.name is windows.
 
-#### fsGroup
+#### fsGroup {#k8s.io.api.core.v1.podsecuritycontext-fsgroup}
 
 _Type:_ `integer`
 
@@ -8309,31 +8309,31 @@ A special supplemental group that applies to all containers in a pod. Some volum
 
 If unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows.
 
-#### fsGroupChangePolicy
+#### fsGroupChangePolicy {#k8s.io.api.core.v1.podsecuritycontext-fsgroupchangepolicy}
 
 _Type:_ `string`
 
 fsGroupChangePolicy defines behavior of changing ownership and permission of the volume before being exposed inside Pod. This field will only apply to volume types which support fsGroup based ownership(and permissions). It will have no effect on ephemeral volume types such as: secret, configmaps and emptydir. Valid values are "OnRootMismatch" and "Always". If not specified, "Always" is used. Note that this field cannot be set when spec.os.name is windows.
 
-#### runAsGroup
+#### runAsGroup {#k8s.io.api.core.v1.podsecuritycontext-runasgroup}
 
 _Type:_ `integer`
 
 The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.
 
-#### runAsNonRoot
+#### runAsNonRoot {#k8s.io.api.core.v1.podsecuritycontext-runasnonroot}
 
 _Type:_ `boolean`
 
 Indicates that the container must run as a non-root user. If true, the Kubelet will validate the image at runtime to ensure that it does not run as UID 0 (root) and fail to start the container if it does. If unset or false, no such validation will be performed. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
 
-#### runAsUser
+#### runAsUser {#k8s.io.api.core.v1.podsecuritycontext-runasuser}
 
 _Type:_ `integer`
 
 The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.
 
-#### seLinuxChangePolicy
+#### seLinuxChangePolicy {#k8s.io.api.core.v1.podsecuritycontext-selinuxchangepolicy}
 
 _Type:_ `string`
 
@@ -8349,33 +8349,33 @@ This field affects only Pods that have SELinux label set, either in PodSecurityC
 
 All Pods that use the same volume should use the same seLinuxChangePolicy, otherwise some pods can get stuck in ContainerCreating state. Note that this field cannot be set when spec.os.name is windows.
 
-#### seLinuxOptions
+#### seLinuxOptions {#k8s.io.api.core.v1.podsecuritycontext-selinuxoptions}
 
 The SELinux context to be applied to all containers. If unspecified, the container runtime will allocate a random SELinux context for each container.  May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container. Note that this field cannot be set when spec.os.name is windows.
 
-#### seccompProfile
+#### seccompProfile {#k8s.io.api.core.v1.podsecuritycontext-seccompprofile}
 
 The seccomp options to use by the containers in this pod. Note that this field cannot be set when spec.os.name is windows.
 
-#### supplementalGroups
+#### supplementalGroups {#k8s.io.api.core.v1.podsecuritycontext-supplementalgroups}
 
 _Type:_ `array`
 
 A list of groups applied to the first process run in each container, in addition to the container's primary GID and fsGroup (if specified).  If the SupplementalGroupsPolicy feature is enabled, the supplementalGroupsPolicy field determines whether these are in addition to or instead of any group memberships defined in the container image. If unspecified, no additional groups are added, though group memberships defined in the container image may still be used, depending on the supplementalGroupsPolicy field. Note that this field cannot be set when spec.os.name is windows.
 
-#### supplementalGroupsPolicy
+#### supplementalGroupsPolicy {#k8s.io.api.core.v1.podsecuritycontext-supplementalgroupspolicy}
 
 _Type:_ `string`
 
 Defines how supplemental groups of the first container processes are calculated. Valid values are "Merge" and "Strict". If not specified, "Merge" is used. (Alpha) Using the field requires the SupplementalGroupsPolicy feature gate to be enabled and the container runtime must implement support for this feature. Note that this field cannot be set when spec.os.name is windows.
 
-#### sysctls
+#### sysctls {#k8s.io.api.core.v1.podsecuritycontext-sysctls}
 
 _Type:_ `array`
 
 Sysctls hold a list of namespaced sysctls used for the pod. Pods with unsupported sysctls (by the container runtime) might fail to launch. Note that this field cannot be set when spec.os.name is windows.
 
-#### windowsOptions
+#### windowsOptions {#k8s.io.api.core.v1.podsecuritycontext-windowsoptions}
 
 The Windows specific settings applied to all containers. If unspecified, the options within a container's SecurityContext will be used. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is linux.
 
@@ -8390,19 +8390,19 @@ ID with optional fsType and read-only flag.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.portworxvolumesource-fstype}
 
 _Type:_ `string`
 
 fSType represents the filesystem type to mount Must be a filesystem type supported by the host operating system. Ex. "ext4", "xfs". Implicitly inferred to be "ext4" if unspecified.
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.portworxvolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.
 
-#### volumeID
+#### volumeID {#k8s.io.api.core.v1.portworxvolumesource-volumeid}
 
 _Type:_ `string`
 
@@ -8446,11 +8446,11 @@ preference:
 weight: 80
 ```
 
-#### preference
+#### preference {#k8s.io.api.core.v1.preferredschedulingterm-preference}
 
 A node selector term, associated with the corresponding weight.
 
-#### weight
+#### weight {#k8s.io.api.core.v1.preferredschedulingterm-weight}
 
 _Type:_ `integer`
 
@@ -8502,13 +8502,13 @@ sources:
     name: app-config
 ```
 
-#### defaultMode
+#### defaultMode {#k8s.io.api.core.v1.projectedvolumesource-defaultmode}
 
 _Type:_ `integer`
 
 defaultMode are the mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.
 
-#### sources
+#### sources {#k8s.io.api.core.v1.projectedvolumesource-sources}
 
 _Type:_ `array`
 
@@ -8525,37 +8525,37 @@ registry endpoints, volume name, user/group, and optional tenant.
 {}
 ```
 
-#### group
+#### group {#k8s.io.api.core.v1.quobytevolumesource-group}
 
 _Type:_ `string`
 
 group to map volume access to Default is no group
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.quobytevolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly here will force the Quobyte volume to be mounted with read-only permissions. Defaults to false.
 
-#### registry
+#### registry {#k8s.io.api.core.v1.quobytevolumesource-registry}
 
 _Type:_ `string`
 
 registry represents a single or multiple Quobyte Registry services specified as a string as host:port pair (multiple entries are separated with commas) which acts as the central registry for volumes
 
-#### tenant
+#### tenant {#k8s.io.api.core.v1.quobytevolumesource-tenant}
 
 _Type:_ `string`
 
 tenant owning the given Quobyte volume in the Backend Used with dynamically provisioned Quobyte volumes, value is set by the plugin
 
-#### user
+#### user {#k8s.io.api.core.v1.quobytevolumesource-user}
 
 _Type:_ `string`
 
 user to map volume access to Defaults to serivceaccount user
 
-#### volume
+#### volume {#k8s.io.api.core.v1.quobytevolumesource-volume}
 
 _Type:_ `string`
 
@@ -8572,47 +8572,47 @@ pool, user, keyring or auth secret, and fsType.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.rbdvolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is the filesystem type of the volume that you want to mount. Tip: Ensure that the filesystem type is supported by the host operating system. Examples: "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified. More info: https://kubernetes.io/docs/concepts/storage/volumes#rbd
 
-#### image
+#### image {#k8s.io.api.core.v1.rbdvolumesource-image}
 
 _Type:_ `string`
 
 image is the rados image name. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it
 
-#### keyring
+#### keyring {#k8s.io.api.core.v1.rbdvolumesource-keyring}
 
 _Type:_ `string`
 
 keyring is the path to key ring for RBDUser. Default is /etc/ceph/keyring. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it
 
-#### monitors
+#### monitors {#k8s.io.api.core.v1.rbdvolumesource-monitors}
 
 _Type:_ `array`
 
 monitors is a collection of Ceph monitors. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it
 
-#### pool
+#### pool {#k8s.io.api.core.v1.rbdvolumesource-pool}
 
 _Type:_ `string`
 
 pool is the rados pool name. Default is rbd. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.rbdvolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly here will force the ReadOnly setting in VolumeMounts. Defaults to false. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it
 
-#### secretRef
+#### secretRef {#k8s.io.api.core.v1.rbdvolumesource-secretref}
 
 secretRef is name of the authentication secret for RBDUser. If provided overrides keyring. Default is nil. More info: https://examples.k8s.io/volumes/rbd/README.md#how-to-use-it
 
-#### user
+#### user {#k8s.io.api.core.v1.rbdvolumesource-user}
 
 _Type:_ `string`
 
@@ -8653,17 +8653,17 @@ divisor: 1m
 resource: limits.cpu
 ```
 
-#### containerName
+#### containerName {#k8s.io.api.core.v1.resourcefieldselector-containername}
 
 _Type:_ `string`
 
 Container name: required for volumes, optional for env vars
 
-#### divisor
+#### divisor {#k8s.io.api.core.v1.resourcefieldselector-divisor}
 
 Specifies the output format of the exposed resources, defaults to "1"
 
-#### resource
+#### resource {#k8s.io.api.core.v1.resourcefieldselector-resource}
 
 _Type:_ `string`
 
@@ -8703,25 +8703,25 @@ silently ignored. For workloads that need to bypass SELinux entirely,
 level: s0:c123,c456
 ```
 
-#### level
+#### level {#k8s.io.api.core.v1.selinuxoptions-level}
 
 _Type:_ `string`
 
 Level is SELinux level label that applies to the container.
 
-#### role
+#### role {#k8s.io.api.core.v1.selinuxoptions-role}
 
 _Type:_ `string`
 
 Role is a SELinux role label that applies to the container.
 
-#### type
+#### type {#k8s.io.api.core.v1.selinuxoptions-type}
 
 _Type:_ `string`
 
 Type is a SELinux type label that applies to the container.
 
-#### user
+#### user {#k8s.io.api.core.v1.selinuxoptions-user}
 
 _Type:_ `string`
 
@@ -8738,59 +8738,59 @@ driver retained for backwards compatibility.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.scaleiovolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. "ext4", "xfs", "ntfs". Default is "xfs".
 
-#### gateway
+#### gateway {#k8s.io.api.core.v1.scaleiovolumesource-gateway}
 
 _Type:_ `string`
 
 gateway is the host address of the ScaleIO API Gateway.
 
-#### protectionDomain
+#### protectionDomain {#k8s.io.api.core.v1.scaleiovolumesource-protectiondomain}
 
 _Type:_ `string`
 
 protectionDomain is the name of the ScaleIO Protection Domain for the configured storage.
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.scaleiovolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly Defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.
 
-#### secretRef
+#### secretRef {#k8s.io.api.core.v1.scaleiovolumesource-secretref}
 
 secretRef references to the secret for ScaleIO user and other sensitive information. If this is not provided, Login operation will fail.
 
-#### sslEnabled
+#### sslEnabled {#k8s.io.api.core.v1.scaleiovolumesource-sslenabled}
 
 _Type:_ `boolean`
 
 sslEnabled Flag enable/disable SSL communication with Gateway, default false
 
-#### storageMode
+#### storageMode {#k8s.io.api.core.v1.scaleiovolumesource-storagemode}
 
 _Type:_ `string`
 
 storageMode indicates whether the storage for a volume should be ThickProvisioned or ThinProvisioned. Default is ThinProvisioned.
 
-#### storagePool
+#### storagePool {#k8s.io.api.core.v1.scaleiovolumesource-storagepool}
 
 _Type:_ `string`
 
 storagePool is the ScaleIO Storage Pool associated with the protection domain.
 
-#### system
+#### system {#k8s.io.api.core.v1.scaleiovolumesource-system}
 
 _Type:_ `string`
 
 system is the name of the storage system as configured in ScaleIO.
 
-#### volumeName
+#### volumeName {#k8s.io.api.core.v1.scaleiovolumesource-volumename}
 
 _Type:_ `string`
 
@@ -8831,13 +8831,13 @@ genuinely privileged workloads (debugging tools, runtimes-in-runtime).
 type: RuntimeDefault
 ```
 
-#### localhostProfile
+#### localhostProfile {#k8s.io.api.core.v1.seccompprofile-localhostprofile}
 
 _Type:_ `string`
 
 localhostProfile indicates a profile defined in a file on the node should be used. The profile must be preconfigured on the node to work. Must be a descending path, relative to the kubelet's configured seccomp profile location. Must be set if type is "Localhost". Must NOT be set for any other type.
 
-#### type
+#### type {#k8s.io.api.core.v1.seccompprofile-type}
 
 _Type:_ `string`
 
@@ -8879,19 +8879,19 @@ key: password
 name: db-credentials
 ```
 
-#### key
+#### key {#k8s.io.api.core.v1.secretkeyselector-key}
 
 _Type:_ `string`
 
 The key of the secret to select from.  Must be a valid secret key.
 
-#### name
+#### name {#k8s.io.api.core.v1.secretkeyselector-name}
 
 _Type:_ `string`
 
 Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
 
-#### optional
+#### optional {#k8s.io.api.core.v1.secretkeyselector-optional}
 
 _Type:_ `boolean`
 
@@ -8932,19 +8932,19 @@ items:
 name: tls-cert
 ```
 
-#### items
+#### items {#k8s.io.api.core.v1.secretprojection-items}
 
 _Type:_ `array`
 
 items if unspecified, each key-value pair in the Data field of the referenced Secret will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the Secret, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.
 
-#### name
+#### name {#k8s.io.api.core.v1.secretprojection-name}
 
 _Type:_ `string`
 
 Name of the referent. This field is effectively required, but due to backwards compatibility is allowed to be empty. Instances of this type with an empty value here are almost certainly wrong. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
 
-#### optional
+#### optional {#k8s.io.api.core.v1.secretprojection-optional}
 
 _Type:_ `boolean`
 
@@ -8985,25 +8985,25 @@ volume mounts when only one or two values are needed.
 secretName: db-credentials
 ```
 
-#### defaultMode
+#### defaultMode {#k8s.io.api.core.v1.secretvolumesource-defaultmode}
 
 _Type:_ `integer`
 
 defaultMode is Optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.
 
-#### items
+#### items {#k8s.io.api.core.v1.secretvolumesource-items}
 
 _Type:_ `array`
 
 items If unspecified, each key-value pair in the Data field of the referenced Secret will be projected into the volume as a file whose name is the key and content is the value. If specified, the listed keys will be projected into the specified paths, and unlisted keys will not be present. If a key is specified which is not present in the Secret, the volume setup will error unless it is marked optional. Paths must be relative and may not contain the '..' path or start with '..'.
 
-#### optional
+#### optional {#k8s.io.api.core.v1.secretvolumesource-optional}
 
 _Type:_ `boolean`
 
 optional field specify whether the Secret or its keys must be defined
 
-#### secretName
+#### secretName {#k8s.io.api.core.v1.secretvolumesource-secretname}
 
 _Type:_ `string`
 
@@ -9050,65 +9050,65 @@ readOnlyRootFilesystem: true
 runAsNonRoot: true
 ```
 
-#### allowPrivilegeEscalation
+#### allowPrivilegeEscalation {#k8s.io.api.core.v1.securitycontext-allowprivilegeescalation}
 
 _Type:_ `boolean`
 
 AllowPrivilegeEscalation controls whether a process can gain more privileges than its parent process. This bool directly controls if the no_new_privs flag will be set on the container process. AllowPrivilegeEscalation is true always when the container is: 1) run as Privileged 2) has CAP_SYS_ADMIN Note that this field cannot be set when spec.os.name is windows.
 
-#### appArmorProfile
+#### appArmorProfile {#k8s.io.api.core.v1.securitycontext-apparmorprofile}
 
 appArmorProfile is the AppArmor options to use by this container. If set, this profile overrides the pod's appArmorProfile. Note that this field cannot be set when spec.os.name is windows.
 
-#### capabilities
+#### capabilities {#k8s.io.api.core.v1.securitycontext-capabilities}
 
 The capabilities to add/drop when running containers. Defaults to the default set of capabilities granted by the container runtime. Note that this field cannot be set when spec.os.name is windows.
 
-#### privileged
+#### privileged {#k8s.io.api.core.v1.securitycontext-privileged}
 
 _Type:_ `boolean`
 
 Run container in privileged mode. Processes in privileged containers are essentially equivalent to root on the host. Defaults to false. Note that this field cannot be set when spec.os.name is windows.
 
-#### procMount
+#### procMount {#k8s.io.api.core.v1.securitycontext-procmount}
 
 _Type:_ `string`
 
 procMount denotes the type of proc mount to use for the containers. The default value is Default which uses the container runtime defaults for readonly paths and masked paths. This requires the ProcMountType feature flag to be enabled. Note that this field cannot be set when spec.os.name is windows.
 
-#### readOnlyRootFilesystem
+#### readOnlyRootFilesystem {#k8s.io.api.core.v1.securitycontext-readonlyrootfilesystem}
 
 _Type:_ `boolean`
 
 Whether this container has a read-only root filesystem. Default is false. Note that this field cannot be set when spec.os.name is windows.
 
-#### runAsGroup
+#### runAsGroup {#k8s.io.api.core.v1.securitycontext-runasgroup}
 
 _Type:_ `integer`
 
 The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is windows.
 
-#### runAsNonRoot
+#### runAsNonRoot {#k8s.io.api.core.v1.securitycontext-runasnonroot}
 
 _Type:_ `boolean`
 
 Indicates that the container must run as a non-root user. If true, the Kubelet will validate the image at runtime to ensure that it does not run as UID 0 (root) and fail to start the container if it does. If unset or false, no such validation will be performed. May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.
 
-#### runAsUser
+#### runAsUser {#k8s.io.api.core.v1.securitycontext-runasuser}
 
 _Type:_ `integer`
 
 The UID to run the entrypoint of the container process. Defaults to user specified in image metadata if unspecified. May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is windows.
 
-#### seLinuxOptions
+#### seLinuxOptions {#k8s.io.api.core.v1.securitycontext-selinuxoptions}
 
 The SELinux context to be applied to the container. If unspecified, the container runtime will allocate a random SELinux context for each container.  May also be set in PodSecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is windows.
 
-#### seccompProfile
+#### seccompProfile {#k8s.io.api.core.v1.securitycontext-seccompprofile}
 
 The seccomp options to use by this container. If seccomp options are provided at both the pod & container level, the container options override the pod options. Note that this field cannot be set when spec.os.name is windows.
 
-#### windowsOptions
+#### windowsOptions {#k8s.io.api.core.v1.securitycontext-windowsoptions}
 
 The Windows specific settings applied to all containers. If unspecified, the options from the PodSecurityContext will be used. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. Note that this field cannot be set when spec.os.name is linux.
 
@@ -9149,19 +9149,19 @@ expirationSeconds: 3600
 path: vault-token
 ```
 
-#### audience
+#### audience {#k8s.io.api.core.v1.serviceaccounttokenprojection-audience}
 
 _Type:_ `string`
 
 audience is the intended audience of the token. A recipient of a token must identify itself with an identifier specified in the audience of the token, and otherwise should reject the token. The audience defaults to the identifier of the apiserver.
 
-#### expirationSeconds
+#### expirationSeconds {#k8s.io.api.core.v1.serviceaccounttokenprojection-expirationseconds}
 
 _Type:_ `integer`
 
 expirationSeconds is the requested duration of validity of the service account token. As the token approaches expiration, the kubelet volume plugin will proactively rotate the service account token. The kubelet will start trying to rotate the token if the token is older than 80 percent of its time to live or if the token is older than 24 hours.Defaults to 1 hour and must be at least 10 minutes.
 
-#### path
+#### path {#k8s.io.api.core.v1.serviceaccounttokenprojection-path}
 
 _Type:_ `string`
 
@@ -9199,7 +9199,7 @@ time` or SIGKILL preempts the work.
 seconds: 15
 ```
 
-#### seconds
+#### seconds {#k8s.io.api.core.v1.sleepaction-seconds}
 
 _Type:_ `integer`
 
@@ -9216,29 +9216,29 @@ with optional fsType, read-only flag, and credentials secret.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.storageosvolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is the filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
 
-#### readOnly
+#### readOnly {#k8s.io.api.core.v1.storageosvolumesource-readonly}
 
 _Type:_ `boolean`
 
 readOnly defaults to false (read/write). ReadOnly here will force the ReadOnly setting in VolumeMounts.
 
-#### secretRef
+#### secretRef {#k8s.io.api.core.v1.storageosvolumesource-secretref}
 
 secretRef specifies the secret to use for obtaining the StorageOS API credentials.  If not specified, default values will be attempted.
 
-#### volumeName
+#### volumeName {#k8s.io.api.core.v1.storageosvolumesource-volumename}
 
 _Type:_ `string`
 
 volumeName is the human-readable name of the StorageOS volume.  Volume names are only unique within a namespace.
 
-#### volumeNamespace
+#### volumeNamespace {#k8s.io.api.core.v1.storageosvolumesource-volumenamespace}
 
 _Type:_ `string`
 
@@ -9279,13 +9279,13 @@ name: net.ipv4.ip_local_port_range
 value: 1024 65535
 ```
 
-#### name
+#### name {#k8s.io.api.core.v1.sysctl-name}
 
 _Type:_ `string`
 
 Name of a property to set
 
-#### value
+#### value {#k8s.io.api.core.v1.sysctl-value}
 
 _Type:_ `string`
 
@@ -9324,13 +9324,13 @@ health checking; prefer that over TCP for gRPC.
 port: 5432
 ```
 
-#### host
+#### host {#k8s.io.api.core.v1.tcpsocketaction-host}
 
 _Type:_ `string`
 
 Optional: Host name to connect to, defaults to the pod IP.
 
-#### port
+#### port {#k8s.io.api.core.v1.tcpsocketaction-port}
 
 Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME.
 
@@ -9372,31 +9372,31 @@ operator: Equal
 value: gpu
 ```
 
-#### effect
+#### effect {#k8s.io.api.core.v1.toleration-effect}
 
 _Type:_ `string`
 
 Effect indicates the taint effect to match. Empty means match all taint effects. When specified, allowed values are NoSchedule, PreferNoSchedule and NoExecute.
 
-#### key
+#### key {#k8s.io.api.core.v1.toleration-key}
 
 _Type:_ `string`
 
 Key is the taint key that the toleration applies to. Empty means match all taint keys. If the key is empty, operator must be Exists; this combination means to match all values and all keys.
 
-#### operator
+#### operator {#k8s.io.api.core.v1.toleration-operator}
 
 _Type:_ `string`
 
 Operator represents a key's relationship to the value. Valid operators are Exists, Equal, Lt, and Gt. Defaults to Equal. Exists is equivalent to wildcard for value, so that a pod can tolerate all taints of a particular category. Lt and Gt perform numeric comparisons (requires feature gate TaintTolerationComparisonOperators).
 
-#### tolerationSeconds
+#### tolerationSeconds {#k8s.io.api.core.v1.toleration-tolerationseconds}
 
 _Type:_ `integer`
 
 TolerationSeconds represents the period of time the toleration (which must be of effect NoExecute, otherwise this field is ignored) tolerates the taint. By default, it is not set, which means tolerate the taint forever (do not evict). Zero and negative values will be treated as 0 (evict immediately) by the system.
 
-#### value
+#### value {#k8s.io.api.core.v1.toleration-value}
 
 _Type:_ `string`
 
@@ -9442,11 +9442,11 @@ topologyKey: topology.kubernetes.io/zone
 whenUnsatisfiable: DoNotSchedule
 ```
 
-#### labelSelector
+#### labelSelector {#k8s.io.api.core.v1.topologyspreadconstraint-labelselector}
 
 LabelSelector is used to find matching pods. Pods that match this label selector are counted to determine the number of pods in their corresponding topology domain.
 
-#### matchLabelKeys
+#### matchLabelKeys {#k8s.io.api.core.v1.topologyspreadconstraint-matchlabelkeys}
 
 _Type:_ `array`
 
@@ -9454,13 +9454,13 @@ MatchLabelKeys is a set of pod label keys to select the pods over which spreadin
 
 This is a beta field and requires the MatchLabelKeysInPodTopologySpread feature gate to be enabled (enabled by default).
 
-#### maxSkew
+#### maxSkew {#k8s.io.api.core.v1.topologyspreadconstraint-maxskew}
 
 _Type:_ `integer`
 
 MaxSkew describes the degree to which pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference between the number of matching pods in the target topology and the global minimum. The global minimum is the minimum number of matching pods in an eligible domain or zero if the number of eligible domains is less than MinDomains. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 2/2/1: In this case, the global minimum is 1. | zone1 | zone2 | zone3 | |  P P  |  P P  |   P   | - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 2/2/2; scheduling it onto zone1(zone2) would make the ActualSkew(3-1) on zone1(zone2) violate MaxSkew(1). - if MaxSkew is 2, incoming pod can be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence to topologies that satisfy it. It's a required field. Default value is 1 and 0 is not allowed.
 
-#### minDomains
+#### minDomains {#k8s.io.api.core.v1.topologyspreadconstraint-mindomains}
 
 _Type:_ `integer`
 
@@ -9468,7 +9468,7 @@ MinDomains indicates a minimum number of eligible domains. When the number of el
 
 For example, in a 3-zone cluster, MaxSkew is set to 2, MinDomains is set to 5 and pods with the same labelSelector spread as 2/2/2: | zone1 | zone2 | zone3 | |  P P  |  P P  |  P P  | The number of domains is less than 5(MinDomains), so "global minimum" is treated as 0. In this situation, new pod with the same labelSelector cannot be scheduled, because computed skew will be 3(3 - 0) if new Pod is scheduled to any of the three zones, it will violate MaxSkew.
 
-#### nodeAffinityPolicy
+#### nodeAffinityPolicy {#k8s.io.api.core.v1.topologyspreadconstraint-nodeaffinitypolicy}
 
 _Type:_ `string`
 
@@ -9476,7 +9476,7 @@ NodeAffinityPolicy indicates how we will treat Pod's nodeAffinity/nodeSelector w
 
 If this value is nil, the behavior is equivalent to the Honor policy.
 
-#### nodeTaintsPolicy
+#### nodeTaintsPolicy {#k8s.io.api.core.v1.topologyspreadconstraint-nodetaintspolicy}
 
 _Type:_ `string`
 
@@ -9484,13 +9484,13 @@ NodeTaintsPolicy indicates how we will treat node taints when calculating pod to
 
 If this value is nil, the behavior is equivalent to the Ignore policy.
 
-#### topologyKey
+#### topologyKey {#k8s.io.api.core.v1.topologyspreadconstraint-topologykey}
 
 _Type:_ `string`
 
 TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a "bucket", and try to put balanced number of pods into each bucket. We define a domain as a particular instance of a topology. Also, we define an eligible domain as a domain whose nodes meet the requirements of nodeAffinityPolicy and nodeTaintsPolicy. e.g. If TopologyKey is "kubernetes.io/hostname", each Node is a domain of that topology. And, if TopologyKey is "topology.kubernetes.io/zone", each zone is a domain of that topology. It's a required field.
 
-#### whenUnsatisfiable
+#### whenUnsatisfiable {#k8s.io.api.core.v1.topologyspreadconstraint-whenunsatisfiable}
 
 _Type:_ `string`
 
@@ -9510,19 +9510,19 @@ kind. Used by features like PVC dataSource.
 {}
 ```
 
-#### apiGroup
+#### apiGroup {#k8s.io.api.core.v1.typedlocalobjectreference-apigroup}
 
 _Type:_ `string`
 
 APIGroup is the group for the resource being referenced. If APIGroup is not specified, the specified Kind must be in the core API group. For any other third-party types, APIGroup is required.
 
-#### kind
+#### kind {#k8s.io.api.core.v1.typedlocalobjectreference-kind}
 
 _Type:_ `string`
 
 Kind is the type of resource being referenced
 
-#### name
+#### name {#k8s.io.api.core.v1.typedlocalobjectreference-name}
 
 _Type:_ `string`
 
@@ -9539,25 +9539,25 @@ apiGroup, kind, name, and optional namespace.
 {}
 ```
 
-#### apiGroup
+#### apiGroup {#k8s.io.api.core.v1.typedobjectreference-apigroup}
 
 _Type:_ `string`
 
 APIGroup is the group for the resource being referenced. If APIGroup is not specified, the specified Kind must be in the core API group. For any other third-party types, APIGroup is required.
 
-#### kind
+#### kind {#k8s.io.api.core.v1.typedobjectreference-kind}
 
 _Type:_ `string`
 
 Kind is the type of resource being referenced
 
-#### name
+#### name {#k8s.io.api.core.v1.typedobjectreference-name}
 
 _Type:_ `string`
 
 Name is the name of resource being referenced
 
-#### namespace
+#### namespace {#k8s.io.api.core.v1.typedobjectreference-namespace}
 
 _Type:_ `string`
 
@@ -9602,43 +9602,43 @@ configMap:
 name: config
 ```
 
-#### awsElasticBlockStore
+#### awsElasticBlockStore {#k8s.io.api.core.v1.volume-awselasticblockstore}
 
 awsElasticBlockStore represents an AWS Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: AWSElasticBlockStore is deprecated. All operations for the in-tree awsElasticBlockStore type are redirected to the ebs.csi.aws.com CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#awselasticblockstore
 
-#### azureDisk
+#### azureDisk {#k8s.io.api.core.v1.volume-azuredisk}
 
 azureDisk represents an Azure Data Disk mount on the host and bind mount to the pod. Deprecated: AzureDisk is deprecated. All operations for the in-tree azureDisk type are redirected to the disk.csi.azure.com CSI driver.
 
-#### azureFile
+#### azureFile {#k8s.io.api.core.v1.volume-azurefile}
 
 azureFile represents an Azure File Service mount on the host and bind mount to the pod. Deprecated: AzureFile is deprecated. All operations for the in-tree azureFile type are redirected to the file.csi.azure.com CSI driver.
 
-#### cephfs
+#### cephfs {#k8s.io.api.core.v1.volume-cephfs}
 
 cephFS represents a Ceph FS mount on the host that shares a pod's lifetime. Deprecated: CephFS is deprecated and the in-tree cephfs type is no longer supported.
 
-#### cinder
+#### cinder {#k8s.io.api.core.v1.volume-cinder}
 
 cinder represents a cinder volume attached and mounted on kubelets host machine. Deprecated: Cinder is deprecated. All operations for the in-tree cinder type are redirected to the cinder.csi.openstack.org CSI driver. More info: https://examples.k8s.io/mysql-cinder-pd/README.md
 
-#### configMap
+#### configMap {#k8s.io.api.core.v1.volume-configmap}
 
 configMap represents a configMap that should populate this volume
 
-#### csi
+#### csi {#k8s.io.api.core.v1.volume-csi}
 
 csi (Container Storage Interface) represents ephemeral storage that is handled by certain external CSI drivers.
 
-#### downwardAPI
+#### downwardAPI {#k8s.io.api.core.v1.volume-downwardapi}
 
 downwardAPI represents downward API about the pod that should populate this volume
 
-#### emptyDir
+#### emptyDir {#k8s.io.api.core.v1.volume-emptydir}
 
 emptyDir represents a temporary directory that shares a pod's lifetime. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
 
-#### ephemeral
+#### ephemeral {#k8s.io.api.core.v1.volume-ephemeral}
 
 ephemeral represents a volume that is handled by a cluster storage driver. The volume's lifecycle is tied to the pod that defines it - it will be created before the pod starts, and deleted when the pod is removed.
 
@@ -9655,35 +9655,35 @@ Use CSI for light-weight local ephemeral volumes if the CSI driver is meant to b
 
 A pod can use both types of ephemeral volumes and persistent volumes at the same time.
 
-#### fc
+#### fc {#k8s.io.api.core.v1.volume-fc}
 
 fc represents a Fibre Channel resource that is attached to a kubelet's host machine and then exposed to the pod.
 
-#### flexVolume
+#### flexVolume {#k8s.io.api.core.v1.volume-flexvolume}
 
 flexVolume represents a generic volume resource that is provisioned/attached using an exec based plugin. Deprecated: FlexVolume is deprecated. Consider using a CSIDriver instead.
 
-#### flocker
+#### flocker {#k8s.io.api.core.v1.volume-flocker}
 
 flocker represents a Flocker volume attached to a kubelet's host machine. This depends on the Flocker control service being running. Deprecated: Flocker is deprecated and the in-tree flocker type is no longer supported.
 
-#### gcePersistentDisk
+#### gcePersistentDisk {#k8s.io.api.core.v1.volume-gcepersistentdisk}
 
 gcePersistentDisk represents a GCE Disk resource that is attached to a kubelet's host machine and then exposed to the pod. Deprecated: GCEPersistentDisk is deprecated. All operations for the in-tree gcePersistentDisk type are redirected to the pd.csi.storage.gke.io CSI driver. More info: https://kubernetes.io/docs/concepts/storage/volumes#gcepersistentdisk
 
-#### gitRepo
+#### gitRepo {#k8s.io.api.core.v1.volume-gitrepo}
 
 gitRepo represents a git repository at a particular revision. Deprecated: GitRepo is deprecated. To provision a container with a git repo, mount an EmptyDir into an InitContainer that clones the repo using git, then mount the EmptyDir into the Pod's container.
 
-#### glusterfs
+#### glusterfs {#k8s.io.api.core.v1.volume-glusterfs}
 
 glusterfs represents a Glusterfs mount on the host that shares a pod's lifetime. Deprecated: Glusterfs is deprecated and the in-tree glusterfs type is no longer supported.
 
-#### hostPath
+#### hostPath {#k8s.io.api.core.v1.volume-hostpath}
 
 hostPath represents a pre-existing file or directory on the host machine that is directly exposed to the container. This is generally used for system agents or other privileged things that are allowed to see the host machine. Most containers will NOT need this. More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath
 
-#### image
+#### image {#k8s.io.api.core.v1.volume-image}
 
 image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine. The volume is resolved at pod startup depending on which PullPolicy value is provided:
 
@@ -9691,57 +9691,57 @@ image represents an OCI object (a container image or artifact) pulled and mounte
 
 The volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation. A failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message. The types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field. The OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images. The volume will be mounted read-only (ro) and non-executable files (noexec). Sub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33. The field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.
 
-#### iscsi
+#### iscsi {#k8s.io.api.core.v1.volume-iscsi}
 
 iscsi represents an ISCSI Disk resource that is attached to a kubelet's host machine and then exposed to the pod. More info: https://kubernetes.io/docs/concepts/storage/volumes/#iscsi
 
-#### name
+#### name {#k8s.io.api.core.v1.volume-name}
 
 _Type:_ `string`
 
 name of the volume. Must be a DNS_LABEL and unique within the pod. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
 
-#### nfs
+#### nfs {#k8s.io.api.core.v1.volume-nfs}
 
 nfs represents an NFS mount on the host that shares a pod's lifetime More info: https://kubernetes.io/docs/concepts/storage/volumes#nfs
 
-#### persistentVolumeClaim
+#### persistentVolumeClaim {#k8s.io.api.core.v1.volume-persistentvolumeclaim}
 
 persistentVolumeClaimVolumeSource represents a reference to a PersistentVolumeClaim in the same namespace. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims
 
-#### photonPersistentDisk
+#### photonPersistentDisk {#k8s.io.api.core.v1.volume-photonpersistentdisk}
 
 photonPersistentDisk represents a PhotonController persistent disk attached and mounted on kubelets host machine. Deprecated: PhotonPersistentDisk is deprecated and the in-tree photonPersistentDisk type is no longer supported.
 
-#### portworxVolume
+#### portworxVolume {#k8s.io.api.core.v1.volume-portworxvolume}
 
 portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.
 
-#### projected
+#### projected {#k8s.io.api.core.v1.volume-projected}
 
 projected items for all in one resources secrets, configmaps, and downward API
 
-#### quobyte
+#### quobyte {#k8s.io.api.core.v1.volume-quobyte}
 
 quobyte represents a Quobyte mount on the host that shares a pod's lifetime. Deprecated: Quobyte is deprecated and the in-tree quobyte type is no longer supported.
 
-#### rbd
+#### rbd {#k8s.io.api.core.v1.volume-rbd}
 
 rbd represents a Rados Block Device mount on the host that shares a pod's lifetime. Deprecated: RBD is deprecated and the in-tree rbd type is no longer supported.
 
-#### scaleIO
+#### scaleIO {#k8s.io.api.core.v1.volume-scaleio}
 
 scaleIO represents a ScaleIO persistent volume attached and mounted on Kubernetes nodes. Deprecated: ScaleIO is deprecated and the in-tree scaleIO type is no longer supported.
 
-#### secret
+#### secret {#k8s.io.api.core.v1.volume-secret}
 
 secret represents a secret that should populate this volume. More info: https://kubernetes.io/docs/concepts/storage/volumes#secret
 
-#### storageos
+#### storageos {#k8s.io.api.core.v1.volume-storageos}
 
 storageOS represents a StorageOS volume attached and mounted on Kubernetes nodes. Deprecated: StorageOS is deprecated and the in-tree storageos type is no longer supported.
 
-#### vsphereVolume
+#### vsphereVolume {#k8s.io.api.core.v1.volume-vspherevolume}
 
 vsphereVolume represents a vSphere volume attached and mounted on kubelets host machine. Deprecated: VsphereVolume is deprecated. All operations for the in-tree vsphereVolume type are redirected to the csi.vsphere.vmware.com CSI driver.
 
@@ -9782,7 +9782,7 @@ serviceAccountToken:
   path: token
 ```
 
-#### clusterTrustBundle
+#### clusterTrustBundle {#k8s.io.api.core.v1.volumeprojection-clustertrustbundle}
 
 ClusterTrustBundle allows a pod to access the `.spec.trustBundle` field of ClusterTrustBundle objects in an auto-updating file.
 
@@ -9792,15 +9792,15 @@ ClusterTrustBundle objects can either be selected by name, or by the combination
 
 Kubelet performs aggressive normalization of the PEM contents written into the pod filesystem.  Esoteric PEM features such as inter-block comments and block headers are stripped.  Certificates are deduplicated. The ordering of certificates within the file is arbitrary, and Kubelet may change the order over time.
 
-#### configMap
+#### configMap {#k8s.io.api.core.v1.volumeprojection-configmap}
 
 configMap information about the configMap data to project
 
-#### downwardAPI
+#### downwardAPI {#k8s.io.api.core.v1.volumeprojection-downwardapi}
 
 downwardAPI information about the downwardAPI data to project
 
-#### podCertificate
+#### podCertificate {#k8s.io.api.core.v1.volumeprojection-podcertificate}
 
 Projects an auto-rotating credential bundle (private key and certificate chain) that the pod can use either as a TLS client or server.
 
@@ -9816,11 +9816,11 @@ Prefer using the credential bundle format, since your application code can read 
 
 The named signer controls chooses the format of the certificate it issues; consult the signer implementation's documentation to learn how to use the certificates it issues.
 
-#### secret
+#### secret {#k8s.io.api.core.v1.volumeprojection-secret}
 
 secret information about the secret data to project
 
-#### serviceAccountToken
+#### serviceAccountToken {#k8s.io.api.core.v1.volumeprojection-serviceaccounttoken}
 
 serviceAccountToken is information about the serviceAccountToken data to project
 
@@ -9857,13 +9857,13 @@ requests:
   storage: 10Gi
 ```
 
-#### limits
+#### limits {#k8s.io.api.core.v1.volumeresourcerequirements-limits}
 
 _Type:_ `object`
 
 Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 
-#### requests
+#### requests {#k8s.io.api.core.v1.volumeresourcerequirements-requests}
 
 _Type:_ `object`
 
@@ -9880,25 +9880,25 @@ workloads prefer the csi.vsphere.vmware.com CSI driver.
 {}
 ```
 
-#### fsType
+#### fsType {#k8s.io.api.core.v1.vspherevirtualdiskvolumesource-fstype}
 
 _Type:_ `string`
 
 fsType is filesystem type to mount. Must be a filesystem type supported by the host operating system. Ex. "ext4", "xfs", "ntfs". Implicitly inferred to be "ext4" if unspecified.
 
-#### storagePolicyID
+#### storagePolicyID {#k8s.io.api.core.v1.vspherevirtualdiskvolumesource-storagepolicyid}
 
 _Type:_ `string`
 
 storagePolicyID is the storage Policy Based Management (SPBM) profile ID associated with the StoragePolicyName.
 
-#### storagePolicyName
+#### storagePolicyName {#k8s.io.api.core.v1.vspherevirtualdiskvolumesource-storagepolicyname}
 
 _Type:_ `string`
 
 storagePolicyName is the storage Policy Based Management (SPBM) profile name.
 
-#### volumePath
+#### volumePath {#k8s.io.api.core.v1.vspherevirtualdiskvolumesource-volumepath}
 
 _Type:_ `string`
 
@@ -9944,11 +9944,11 @@ podAffinityTerm:
 weight: 100
 ```
 
-#### podAffinityTerm
+#### podAffinityTerm {#k8s.io.api.core.v1.weightedpodaffinityterm-podaffinityterm}
 
 Required. A pod affinity term, associated with the corresponding weight.
 
-#### weight
+#### weight {#k8s.io.api.core.v1.weightedpodaffinityterm-weight}
 
 _Type:_ `integer`
 
@@ -9965,25 +9965,25 @@ and hostProcess flag for Pods running on Windows nodes.
 {}
 ```
 
-#### gmsaCredentialSpec
+#### gmsaCredentialSpec {#k8s.io.api.core.v1.windowssecuritycontextoptions-gmsacredentialspec}
 
 _Type:_ `string`
 
 GMSACredentialSpec is where the GMSA admission webhook (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the GMSA credential spec named by the GMSACredentialSpecName field.
 
-#### gmsaCredentialSpecName
+#### gmsaCredentialSpecName {#k8s.io.api.core.v1.windowssecuritycontextoptions-gmsacredentialspecname}
 
 _Type:_ `string`
 
 GMSACredentialSpecName is the name of the GMSA credential spec to use.
 
-#### hostProcess
+#### hostProcess {#k8s.io.api.core.v1.windowssecuritycontextoptions-hostprocess}
 
 _Type:_ `boolean`
 
 HostProcess determines if a container should be run as a 'Host Process' container. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers). In addition, if HostProcess is true then HostNetwork must also be set to true.
 
-#### runAsUserName
+#### runAsUserName {#k8s.io.api.core.v1.windowssecuritycontextoptions-runasusername}
 
 _Type:_ `string`
 
@@ -9993,13 +9993,13 @@ The UserName in Windows to run the entrypoint of the container process. Defaults
 
 IPBlock describes a particular CIDR (Ex. "192.168.1.0/24","2001:db8::/64") that is allowed to the pods matched by a NetworkPolicySpec's podSelector. The except entry describes CIDRs that should not be included within this rule.
 
-#### cidr
+#### cidr {#k8s.io.api.networking.v1.ipblock-cidr}
 
 _Type:_ `string`
 
 cidr is a string representing the IPBlock Valid examples are "192.168.1.0/24" or "2001:db8::/64"
 
-#### except
+#### except {#k8s.io.api.networking.v1.ipblock-except}
 
 _Type:_ `array`
 
@@ -10009,13 +10009,13 @@ except is a slice of CIDRs that should not be included within an IPBlock Valid e
 
 NetworkPolicyEgressRule describes a particular set of traffic that is allowed out of pods matched by a NetworkPolicySpec's podSelector. The traffic must match both ports and to. This type is beta-level in 1.8
 
-#### ports
+#### ports {#k8s.io.api.networking.v1.networkpolicyegressrule-ports}
 
 _Type:_ `array`
 
 ports is a list of destination ports for outgoing traffic. Each item in this list is combined using a logical OR. If this field is empty or missing, this rule matches all ports (traffic not restricted by port). If this field is present and contains at least one item, then this rule allows traffic only if the traffic matches at least one port in the list.
 
-#### to
+#### to {#k8s.io.api.networking.v1.networkpolicyegressrule-to}
 
 _Type:_ `array`
 
@@ -10025,13 +10025,13 @@ to is a list of destinations for outgoing traffic of pods selected for this rule
 
 NetworkPolicyIngressRule describes a particular set of traffic that is allowed to the pods matched by a NetworkPolicySpec's podSelector. The traffic must match both ports and from.
 
-#### from
+#### from {#k8s.io.api.networking.v1.networkpolicyingressrule-from}
 
 _Type:_ `array`
 
 from is a list of sources which should be able to access the pods selected for this rule. Items in this list are combined using a logical OR operation. If this field is empty or missing, this rule matches all sources (traffic not restricted by source). If this field is present and contains at least one item, this rule allows traffic only if the traffic matches at least one item in the from list.
 
-#### ports
+#### ports {#k8s.io.api.networking.v1.networkpolicyingressrule-ports}
 
 _Type:_ `array`
 
@@ -10041,17 +10041,17 @@ ports is a list of ports which should be made accessible on the pods selected fo
 
 NetworkPolicyPeer describes a peer to allow traffic to/from. Only certain combinations of fields are allowed
 
-#### ipBlock
+#### ipBlock {#k8s.io.api.networking.v1.networkpolicypeer-ipblock}
 
 ipBlock defines policy on a particular IPBlock. If this field is set then neither of the other fields can be.
 
-#### namespaceSelector
+#### namespaceSelector {#k8s.io.api.networking.v1.networkpolicypeer-namespaceselector}
 
 namespaceSelector selects namespaces using cluster-scoped labels. This field follows standard label selector semantics; if present but empty, it selects all namespaces.
 
 If podSelector is also set, then the NetworkPolicyPeer as a whole selects the pods matching podSelector in the namespaces selected by namespaceSelector. Otherwise it selects all pods in the namespaces selected by namespaceSelector.
 
-#### podSelector
+#### podSelector {#k8s.io.api.networking.v1.networkpolicypeer-podselector}
 
 podSelector is a label selector which selects pods. This field follows standard label selector semantics; if present but empty, it selects all pods.
 
@@ -10061,17 +10061,17 @@ If namespaceSelector is also set, then the NetworkPolicyPeer as a whole selects 
 
 NetworkPolicyPort describes a port to allow traffic on
 
-#### endPort
+#### endPort {#k8s.io.api.networking.v1.networkpolicyport-endport}
 
 _Type:_ `integer`
 
 endPort indicates that the range of ports from port to endPort if set, inclusive, should be allowed by the policy. This field cannot be defined if the port field is not defined or if the port field is defined as a named (string) port. The endPort must be equal or greater than port.
 
-#### port
+#### port {#k8s.io.api.networking.v1.networkpolicyport-port}
 
 port represents the port on the given protocol. This can either be a numerical or named port on a pod. If this field is not provided, this matches all port names and numbers. If present, only traffic on the specified protocol AND port will be matched.
 
-#### protocol
+#### protocol {#k8s.io.api.networking.v1.networkpolicyport-protocol}
 
 _Type:_ `string`
 
@@ -10081,23 +10081,23 @@ protocol represents the protocol (TCP, UDP, or SCTP) which traffic must match. I
 
 NetworkPolicySpec provides the specification of a NetworkPolicy
 
-#### egress
+#### egress {#k8s.io.api.networking.v1.networkpolicyspec-egress}
 
 _Type:_ `array`
 
 egress is a list of egress rules to be applied to the selected pods. Outgoing traffic is allowed if there are no NetworkPolicies selecting the pod (and cluster policy otherwise allows the traffic), OR if the traffic matches at least one egress rule across all of the NetworkPolicy objects whose podSelector matches the pod. If this field is empty then this NetworkPolicy limits all outgoing traffic (and serves solely to ensure that the pods it selects are isolated by default). This field is beta-level in 1.8
 
-#### ingress
+#### ingress {#k8s.io.api.networking.v1.networkpolicyspec-ingress}
 
 _Type:_ `array`
 
 ingress is a list of ingress rules to be applied to the selected pods. Traffic is allowed to a pod if there are no NetworkPolicies selecting the pod (and cluster policy otherwise allows the traffic), OR if the traffic source is the pod's local node, OR if the traffic matches at least one ingress rule across all of the NetworkPolicy objects whose podSelector matches the pod. If this field is empty then this NetworkPolicy does not allow any traffic (and serves solely to ensure that the pods it selects are isolated by default)
 
-#### podSelector
+#### podSelector {#k8s.io.api.networking.v1.networkpolicyspec-podselector}
 
 podSelector selects the pods to which this NetworkPolicy object applies. The array of rules is applied to any pods selected by this field. An empty selector matches all pods in the policy's namespace. Multiple network policies can select the same set of pods. In this case, the ingress rules for each are combined additively. This field is optional. If it is not specified, it defaults to an empty selector.
 
-#### policyTypes
+#### policyTypes {#k8s.io.api.networking.v1.networkpolicyspec-policytypes}
 
 _Type:_ `array`
 
@@ -10107,31 +10107,31 @@ policyTypes is a list of rule types that the NetworkPolicy relates to. Valid opt
 
 PolicyRule holds information that describes a policy rule, but does not contain information about who the rule applies to or which namespace the rule applies to.
 
-#### apiGroups
+#### apiGroups {#k8s.io.api.rbac.v1.policyrule-apigroups}
 
 _Type:_ `array`
 
 APIGroups is the name of the APIGroup that contains the resources.  If multiple API groups are specified, any action requested against one of the enumerated resources in any API group will be allowed. "" represents the core API group and "*" represents all API groups.
 
-#### nonResourceURLs
+#### nonResourceURLs {#k8s.io.api.rbac.v1.policyrule-nonresourceurls}
 
 _Type:_ `array`
 
 NonResourceURLs is a set of partial urls that a user should have access to.  *s are allowed, but only as the full, final step in the path Since non-resource URLs are not namespaced, this field is only applicable for ClusterRoles referenced from a ClusterRoleBinding. Rules can either apply to API resources (such as "pods" or "secrets") or non-resource URL paths (such as "/api"),  but not both.
 
-#### resourceNames
+#### resourceNames {#k8s.io.api.rbac.v1.policyrule-resourcenames}
 
 _Type:_ `array`
 
 ResourceNames is an optional white list of names that the rule applies to.  An empty set means that everything is allowed.
 
-#### resources
+#### resources {#k8s.io.api.rbac.v1.policyrule-resources}
 
 _Type:_ `array`
 
 Resources is a list of resources this rule applies to. '*' represents all resources.
 
-#### verbs
+#### verbs {#k8s.io.api.rbac.v1.policyrule-verbs}
 
 _Type:_ `array`
 
@@ -10184,13 +10184,13 @@ matchLabels:
   tier: backend
 ```
 
-#### matchExpressions
+#### matchExpressions {#k8s.io.apimachinery.pkg.apis.meta.v1.labelselector-matchexpressions}
 
 _Type:_ `array`
 
 matchExpressions is a list of label selector requirements. The requirements are ANDed.
 
-#### matchLabels
+#### matchLabels {#k8s.io.apimachinery.pkg.apis.meta.v1.labelselector-matchlabels}
 
 _Type:_ `object`
 
@@ -10231,19 +10231,19 @@ values:
 - staging
 ```
 
-#### key
+#### key {#k8s.io.apimachinery.pkg.apis.meta.v1.labelselectorrequirement-key}
 
 _Type:_ `string`
 
 key is the label key that the selector applies to.
 
-#### operator
+#### operator {#k8s.io.apimachinery.pkg.apis.meta.v1.labelselectorrequirement-operator}
 
 _Type:_ `string`
 
 operator represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists and DoesNotExist.
 
-#### values
+#### values {#k8s.io.apimachinery.pkg.apis.meta.v1.labelselectorrequirement-values}
 
 _Type:_ `array`
 
@@ -10292,41 +10292,41 @@ operation: Update
 time: '2026-01-15T10:30:00Z'
 ```
 
-#### apiVersion
+#### apiVersion {#k8s.io.apimachinery.pkg.apis.meta.v1.managedfieldsentry-apiversion}
 
 _Type:_ `string`
 
 APIVersion defines the version of this resource that this field set applies to. The format is "group/version" just like the top-level APIVersion field. It is necessary to track the version of a field set because it cannot be automatically converted.
 
-#### fieldsType
+#### fieldsType {#k8s.io.apimachinery.pkg.apis.meta.v1.managedfieldsentry-fieldstype}
 
 _Type:_ `string`
 
 FieldsType is the discriminator for the different fields format and version. There is currently only one possible value: "FieldsV1"
 
-#### fieldsV1
+#### fieldsV1 {#k8s.io.apimachinery.pkg.apis.meta.v1.managedfieldsentry-fieldsv1}
 
 FieldsV1 holds the first JSON version format as described in the "FieldsV1" type.
 
-#### manager
+#### manager {#k8s.io.apimachinery.pkg.apis.meta.v1.managedfieldsentry-manager}
 
 _Type:_ `string`
 
 Manager is an identifier of the workflow managing these fields.
 
-#### operation
+#### operation {#k8s.io.apimachinery.pkg.apis.meta.v1.managedfieldsentry-operation}
 
 _Type:_ `string`
 
 Operation is the type of operation which lead to this ManagedFieldsEntry being created. The only valid values for this field are 'Apply' and 'Update'.
 
-#### subresource
+#### subresource {#k8s.io.apimachinery.pkg.apis.meta.v1.managedfieldsentry-subresource}
 
 _Type:_ `string`
 
 Subresource is the name of the subresource used to update that object, or empty string if the object was updated through the main resource. The value of this field is used to distinguish between managers, even if they share the same name. For example, a status update will be distinct from a regular update using the same manager name. Note that the APIVersion field is not related to the Subresource field and it always corresponds to the version of the main resource.
 
-#### time
+#### time {#k8s.io.apimachinery.pkg.apis.meta.v1.managedfieldsentry-time}
 
 Time is the timestamp of when the ManagedFields entry was added. The timestamp will also be updated if a field is added, the manager changes any of the owned fields value or removes a field. The timestamp does not update when a field is removed from the entry because another manager took it over.
 
@@ -10372,37 +10372,37 @@ name: my-app
 namespace: default
 ```
 
-#### annotations
+#### annotations {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-annotations}
 
 _Type:_ `object`
 
 Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
 
-#### creationTimestamp
+#### creationTimestamp {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-creationtimestamp}
 
 CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
 
 Populated by the system. Read-only. Null for lists. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 
-#### deletionGracePeriodSeconds
+#### deletionGracePeriodSeconds {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-deletiongraceperiodseconds}
 
 _Type:_ `integer`
 
 Number of seconds allowed for this object to gracefully terminate before it will be removed from the system. Only set when deletionTimestamp is also set. May only be shortened. Read-only.
 
-#### deletionTimestamp
+#### deletionTimestamp {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-deletiontimestamp}
 
 DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This field is set by the server when a graceful deletion is requested by the user, and is not directly settable by a client. The resource is expected to be deleted (no longer visible from resource lists, and not reachable by name) after the time in this field, once the finalizers list is empty. As long as the finalizers list contains items, deletion is blocked. Once the deletionTimestamp is set, this value may not be unset or be set further into the future, although it may be shortened or the resource may be deleted prior to this time. For example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react by sending a graceful termination signal to the containers in the pod. After that 30 seconds, the Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup, remove the pod from the API. In the presence of network partitions, this object may still exist after this timestamp, until an administrator or automated process can determine the resource is fully terminated. If not set, graceful deletion of the object has not been requested.
 
 Populated by the system when a graceful deletion is requested. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 
-#### finalizers
+#### finalizers {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-finalizers}
 
 _Type:_ `array`
 
 Must be empty before the object is deleted from the registry. Each entry is an identifier for the responsible component that will remove the entry from the list. If the deletionTimestamp of the object is non-nil, entries in this list can only be removed. Finalizers may be processed and removed in any order.  Order is NOT enforced because it introduces significant risk of stuck finalizers. finalizers is a shared field, any actor with permission can reorder it. If the finalizer list is processed in order, then this can lead to a situation in which the component responsible for the first finalizer in the list is waiting for a signal (field value, external system, or other) produced by a component responsible for a finalizer later in the list, resulting in a deadlock. Without enforced ordering finalizers are free to order amongst themselves and are not vulnerable to ordering changes in the list.
 
-#### generateName
+#### generateName {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-generatename}
 
 _Type:_ `string`
 
@@ -10412,31 +10412,31 @@ If this field is specified and the generated name exists, the server will return
 
 Applied only if Name is not specified. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
 
-#### generation
+#### generation {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-generation}
 
 _Type:_ `integer`
 
 A sequence number representing a specific generation of the desired state. Populated by the system. Read-only.
 
-#### labels
+#### labels {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-labels}
 
 _Type:_ `object`
 
 Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
 
-#### managedFields
+#### managedFields {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-managedfields}
 
 _Type:_ `array`
 
 ManagedFields maps workflow-id and version to the set of fields that are managed by that workflow. This is mostly for internal housekeeping, and users typically shouldn't need to set or understand this field. A workflow can be the user's name, a controller's name, or the name of a specific apply path like "ci-cd". The set of fields is always in the version that the workflow used when modifying the object.
 
-#### name
+#### name {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-name}
 
 _Type:_ `string`
 
 Name must be unique within a namespace. Is required when creating resources, although some resources may allow a client to request the generation of an appropriate name automatically. Name is primarily intended for creation idempotence and configuration definition. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names
 
-#### namespace
+#### namespace {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-namespace}
 
 _Type:_ `string`
 
@@ -10444,13 +10444,13 @@ Namespace defines the space within which each name must be unique. An empty name
 
 Must be a DNS_LABEL. Cannot be updated. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces
 
-#### ownerReferences
+#### ownerReferences {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-ownerreferences}
 
 _Type:_ `array`
 
 List of objects depended by this object. If ALL objects in the list have been deleted, this object will be garbage collected. If this object is managed by a controller, then an entry in this list will point to this controller, with the controller field set to true. There cannot be more than one managing controller.
 
-#### resourceVersion
+#### resourceVersion {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-resourceversion}
 
 _Type:_ `string`
 
@@ -10458,13 +10458,13 @@ An opaque value that represents the internal version of this object that can be 
 
 Populated by the system. Read-only. Value must be treated as opaque by clients and . More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
 
-#### selfLink
+#### selfLink {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-selflink}
 
 _Type:_ `string`
 
 Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.
 
-#### uid
+#### uid {#k8s.io.apimachinery.pkg.apis.meta.v1.objectmeta-uid}
 
 _Type:_ `string`
 
@@ -10511,37 +10511,37 @@ name: my-app
 uid: 12345678-1234-1234-1234-123456789abc
 ```
 
-#### apiVersion
+#### apiVersion {#k8s.io.apimachinery.pkg.apis.meta.v1.ownerreference-apiversion}
 
 _Type:_ `string`
 
 API version of the referent.
 
-#### blockOwnerDeletion
+#### blockOwnerDeletion {#k8s.io.apimachinery.pkg.apis.meta.v1.ownerreference-blockownerdeletion}
 
 _Type:_ `boolean`
 
 If true, AND if the owner has the "foregroundDeletion" finalizer, then the owner cannot be deleted from the key-value store until this reference is removed. See https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion for how the garbage collector interacts with this field and enforces the foreground deletion. Defaults to false. To set this field, a user needs "delete" permission of the owner, otherwise 422 (Unprocessable Entity) will be returned.
 
-#### controller
+#### controller {#k8s.io.apimachinery.pkg.apis.meta.v1.ownerreference-controller}
 
 _Type:_ `boolean`
 
 If true, this reference points to the managing controller.
 
-#### kind
+#### kind {#k8s.io.apimachinery.pkg.apis.meta.v1.ownerreference-kind}
 
 _Type:_ `string`
 
 Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
 
-#### name
+#### name {#k8s.io.apimachinery.pkg.apis.meta.v1.ownerreference-name}
 
 _Type:_ `string`
 
 Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names
 
-#### uid
+#### uid {#k8s.io.apimachinery.pkg.apis.meta.v1.ownerreference-uid}
 
 _Type:_ `string`
 
