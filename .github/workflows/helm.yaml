@@ -62,11 +62,35 @@ jobs:
           node_image: kindest/node:v1.35.0@sha256:452d707d4862f52530247495d180205e029056831160e22870e37e3f6c1ac31f
           wait: 180s
 
-      - name: Install cert-manager CRDs
+      - name: Install cert-manager (CRDs + controller + webhook + cainjector)
         if: steps.list-changed.outputs.changed == 'true'
         run: |
           set -euo pipefail
-          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.0/cert-manager.crds.yaml
+          # Full cert-manager — needed because example 02 (web-with-tls)
+          # relies on Certificate reconciliation, not just CRD presence.
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.0/cert-manager.yaml
+          # Wait for the webhook to be Ready before applying any
+          # cert-manager.io resource (controller validates against it).
+          kubectl wait --for=condition=Available --timeout=180s \
+            -n cert-manager \
+            deployment/cert-manager \
+            deployment/cert-manager-webhook \
+            deployment/cert-manager-cainjector
+
+      - name: Install selfsigned ClusterIssuer
+        if: steps.list-changed.outputs.changed == 'true'
+        # Used by examples/02-web-with-tls. Apply AFTER cert-manager is
+        # Ready (otherwise the webhook rejects the CR).
+        run: |
+          set -euo pipefail
+          cat <<'EOF' | kubectl apply -f -
+          apiVersion: cert-manager.io/v1
+          kind: ClusterIssuer
+          metadata:
+            name: selfsigned
+          spec:
+            selfSigned: {}
+          EOF
 
       - name: Install Prometheus Operator ServiceMonitor CRD
         if: steps.list-changed.outputs.changed == 'true'
