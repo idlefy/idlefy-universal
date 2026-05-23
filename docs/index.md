@@ -10,9 +10,65 @@ hide:
 
 > Schema-driven, agent-native Helm chart for any Kubernetes workload.
 
-[Get started](tutorials/your-first-app.md){ .md-button .md-button--primary }
+[Get started](#deploy-with-an-ai-agent){ .md-button .md-button--primary }
 [Reference](reference/values.md){ .md-button }
 [GitHub](https://github.com/idlefy/idlefy-universal){ .md-button }
+
+## Deploy with an AI agent
+
+`idlefy-universal` is built for AI-driven deployment. The chart bundles
+[`agent-index.json`](reference/agent-metadata.md#agent-indexjson) — a flat,
+machine-readable description of every value with `whenToUse`,
+`relatedFields`, `commonMistakes`, and `exampleUseCase`. Every release is
+signed (cosign keyless), SBOM-attached, and carries SLSA L3 provenance,
+so an agent can self-verify the artifact before installing it.
+
+Paste the prompt below into any agent that can run shell commands
+(Claude Code, Cursor, Cline, an MCP-equipped harness, a custom runner — all
+work; the chart ships data, not an integration). Replace `<DESCRIBE YOUR
+WORKLOAD>` with what you actually want deployed.
+
+````text
+You are deploying idlefy-universal for the following workload:
+  <DESCRIBE YOUR WORKLOAD>
+
+Use VERSION=1.0.0 throughout this prompt. Every command below that
+references a chart version MUST use that same value.
+
+1. Verify the chart's supply chain before pulling it. Run the three
+   commands documented at
+   https://idlefy.github.io/idlefy-universal/how-to/verify-supply-chain/#three-command-verification
+   with CHART_REF="oci://ghcr.io/idlefy/idlefy-universal:${VERSION}".
+   Refuse to proceed if any command exits non-zero.
+
+2. After verification passes, pull the chart locally so you can read
+   its agent metadata:
+     helm pull oci://ghcr.io/idlefy/idlefy-universal --version "${VERSION}" --untar
+   Read idlefy-universal/agent-index.json — that file is your
+   authoritative list of fields, with whenToUse, relatedFields,
+   commonMistakes, and exampleUseCase for each.
+
+3. Build a minimal values.yaml for the workload above. Honor every
+   commonMistakes warning. Enable autoCreate* flags only for resources
+   the workload actually needs (Service, Ingress, Certificate, RBAC,
+   ServiceMonitor, NetworkPolicy, PodDisruptionBudget, ServiceAccount).
+
+4. Validate locally before touching the cluster:
+     helm template demo ./idlefy-universal -f values.yaml
+   The chart ships values.schema.json (JSON Schema 2020-12). Typos and
+   cross-field violations fail with a JSON Pointer path. Fix and retry
+   until the template renders cleanly.
+
+5. Install:
+     helm install demo oci://ghcr.io/idlefy/idlefy-universal \
+       --version "${VERSION}" -f values.yaml
+````
+
+Further reading:
+
+- [How-To → Verify the chart's supply chain](how-to/verify-supply-chain.md) — the three-command gate, plus a single-script autonomous form
+- [Concepts → Agent-native](concepts/agent-native.md) — why the metadata lives inside the schema, not in a sidecar
+- [Reference → Agent metadata](reference/agent-metadata.md) — the `x-agent-*` keyword spec and `agent-index.json` shape
 
 ## Why idlefy-universal
 
@@ -21,9 +77,9 @@ hide:
 - **Batteries-included auto-creation.** One flag each for Service, Ingress, Certificate, ServiceMonitor, PodDisruptionBudget, NetworkPolicy, RBAC (Role + RoleBinding), and ServiceAccount. Defaults wire through `*General` for chart-wide composition.
 - **Modern Kubernetes.** Gateway API HTTPRoute alongside classic Ingress. StatefulSet and DaemonSet are first-class workload kinds. Requires Kubernetes 1.31+; CI-tested on 1.35.
 
-## Quickstart
+## Deploy by hand
 
-A four-line `values.yaml`:
+If you'd rather drive the install yourself, a four-line `values.yaml`:
 
 ```yaml
 deployments:
