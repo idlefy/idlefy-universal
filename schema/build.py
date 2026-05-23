@@ -795,7 +795,7 @@ def cmd_render_docs(args: argparse.Namespace) -> int:
         "$defs": merged["$defs"],
         "properties": merged["properties"],
     }
-    out = Path(args.output) if args.output else SCHEMA_DIR.parent / "docs" / "values-reference.md"
+    out = Path(args.output) if args.output else SCHEMA_DIR.parent / "docs" / "reference" / "values.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     render_docs(schema, out)
     print(f"wrote {out}")
@@ -858,7 +858,7 @@ def main(argv: list[str] | None = None) -> int:
     p_vf.add_argument("--values", default=None, help="path to a single values file to validate")
     p_vf.set_defaults(func=cmd_validate_fixtures)
 
-    p_doc = sub.add_parser("render-docs", help="generate docs/values-reference.md")
+    p_doc = sub.add_parser("render-docs", help="generate docs/reference/values.md")
     p_doc.add_argument("--output", "-o", default=None)
     p_doc.set_defaults(func=cmd_render_docs)
 

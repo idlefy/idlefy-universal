@@ -1,5 +1,9 @@
 deploymentsGeneral: {}
 deployments: {}
+statefulSetsGeneral: {}
+statefulSets: {}
+daemonSetsGeneral: {}
+daemonSets: {}
 configs: {}
 services: {}
 ingresses: {}

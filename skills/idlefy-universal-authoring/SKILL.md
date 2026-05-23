@@ -60,14 +60,14 @@ Discard the output once you have what you need. Do NOT `Read` the file in full.
 | Per-domain types | `schema/structure/<domain>.yaml` (small, ~3 KB each) |
 | Field descriptions, examples, agent metadata | `schema/docs/<domain>.yaml` |
 | K8s primitive types ($ref targets) | `schema/docs/k8s_primitives.yaml` (large — grep first) |
-| Auto-creation features | `docs/auto-creation.md` |
-| Hand-written recipes (longer than what's in the index) | `docs/recipes/*.md` |
-| Full reference | `docs/values-reference.md` (large — do not Read whole) |
+| Auto-creation features | `docs/how-to/auto-creation.md` |
+| Hand-written recipes (longer than what's in the index) | `docs/how-to/*.md` |
+| Full reference | `docs/reference/values.md` (large — do not Read whole) |
 
 ## Anti-patterns
 
 - **Reading `values.schema.json` in full.** It's 458 KB / ~117 k tokens. Use `agent-index.json` for navigation, slice the schema only when needed.
-- **Reading `docs/values-reference.md` in full.** Same — use the index, grep for the field name.
+- **Reading `docs/reference/values.md` in full.** Same — use the index, grep for the field name.
 - **Inventing field names.** Every chart-owned property is in the schema with `additionalProperties: false`. If you guess and the field doesn't exist, `helm install` will reject it. When unsure, grep `schema/docs/` first.
 - **Skipping `imageTag`.** This chart never relies on `:latest`; `imageTag` is required on every container.
 - **Mixing `pdb.minAvailable` and `pdb.maxUnavailable`.** Pick exactly one — the schema rejects both.

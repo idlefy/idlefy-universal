@@ -5,18 +5,19 @@ on:
     branches: [ main ]
     paths:
       - 'charts/**'
+      - 'examples/**'
       - '.github/workflows/helm.yaml'
   pull_request:
     branches: [ main ]
     paths:
       - 'charts/**'
+      - 'examples/**'
       - '.github/workflows/helm.yaml'
   release:
     types: [created]
 
 env:
   CHART_DIR: charts/idlefy-universal
-  CHART_REPOSITORY: https://${{ github.repository_owner }}.github.io/$(echo ${{ github.repository }} | cut -d'/' -f2)
 
 jobs:
   lint-test:
@@ -26,6 +27,9 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+
+      - name: Check example mirrors are in sync
+        run: scripts/check-example-mirrors.sh
 
       - name: Set up Helm
         uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
@@ -56,13 +60,35 @@ jobs:
         if: steps.list-changed.outputs.changed == 'true'
         with:
           node_image: kindest/node:v1.35.0@sha256:452d707d4862f52530247495d180205e029056831160e22870e37e3f6c1ac31f
-          wait: 120s
+          wait: 180s
 
-      - name: Install required CRDs (cert-manager, prometheus-operator)
+      - name: Install cert-manager CRDs
         if: steps.list-changed.outputs.changed == 'true'
         run: |
+          set -euo pipefail
           kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.0/cert-manager.crds.yaml
+
+      - name: Install Prometheus Operator ServiceMonitor CRD
+        if: steps.list-changed.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
           kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/v0.74.0/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+
+      - name: Install Gateway API standard CRDs (v1.5.1)
+        if: steps.list-changed.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          # Standard channel: HTTPRoute, Gateway, GatewayClass, ReferenceGrant, etc.
+          kubectl apply --server-side=true \
+            -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.1/standard-install.yaml
+          # Wait for Gateway API CRDs to be Established before any chart that
+          # references them runs. Default `helm/kind-action` waits 120s for the
+          # cluster only; CRDs take additional time after `--server-side` apply.
+          kubectl wait --for=condition=Established --timeout=120s \
+            crd/httproutes.gateway.networking.k8s.io \
+            crd/gateways.gateway.networking.k8s.io \
+            crd/gatewayclasses.gateway.networking.k8s.io \
+            crd/referencegrants.gateway.networking.k8s.io
 
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
@@ -146,205 +172,170 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
-      pages: write
-      id-token: write
       contents: read
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      packages: write
+    # Serialize publish jobs so the `latest` retag from an older commit cannot
+    # overwrite the `latest` retag from a newer commit when two merges land
+    # close together. `cancel-in-progress: false` waits for the in-flight job
+    # rather than killing it (kill would skip the retag entirely).
+    concurrency:
+      group: ghcr-publish
+      cancel-in-progress: false
+    env:
+      # Force lowercase + literal `idlefy`. `github.repository_owner` is
+      # MixedCase on GitHub but GHCR namespaces are lowercase only; pinning
+      # to a literal also defends against forks accidentally publishing to
+      # the wrong namespace (the publish step is gated by `ref == main` but
+      # ref filtering does not constrain `repository_owner`).
+      GHCR_NAMESPACE: idlefy
     steps:
       - name: Checkout
+        # Default behavior on `push` events checks out the triggering SHA,
+        # which is guaranteed to match the commit `create-release` ran against
+        # (and therefore the chart-version output we use for the `latest`
+        # retag). Forcing `ref: main` would re-resolve at job-execution time
+        # and race with newer merges.
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          ref: main
+
+      - name: Guard — only the `idlefy` org may publish
+        run: |
+          set -euo pipefail
+          actual=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          if [[ "$actual" != "idlefy" ]]; then
+            echo "::error::publish-auto-release ran under namespace '$actual' but only 'idlefy' may publish."
+            exit 1
+          fi
 
       - name: Set up Helm
         uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         with:
           version: v3.17.3
 
-      - name: Configure Git
+      - name: Install oras
+        # `oras` is NOT in the default ubuntu-latest toolset. Install
+        # unconditionally; the download is ~3 MB and adds <2s. The runner
+        # may add `oras` to its toolset in the future, but defaulting to
+        # install is the safe choice.
         run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          set -euo pipefail
+          ORAS_VERSION=1.2.0
+          curl -sSL "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin oras
+          oras version
 
-      - name: Install Charts Museum
+      - name: Package chart
+        id: package
         run: |
-          wget https://get.helm.sh/chartmuseum-v0.16.2-linux-amd64.tar.gz
-          tar xzvf chartmuseum-v0.16.2-linux-amd64.tar.gz
-          chmod +x linux-amd64/chartmuseum
-          sudo mv linux-amd64/chartmuseum /usr/local/bin/chartmuseum
-
-      - name: Package and Index Charts
-        run: |
-          # Create temporary directory for charts and pages
+          set -euo pipefail
           mkdir -p .cr-release-packages
-          mkdir -p pages
-          
-          # Try to download existing charts first
-          if curl -sSf -o existing-index.yaml ${{ env.CHART_REPOSITORY }}/index.yaml; then
-            # Parse existing index to find chart files to download
-            echo "Downloading existing chart packages..."
-            
-            # Get all chart URLs and download them
-            CHART_URLS=$(grep -oP 'https://[^"]*?\.tgz' existing-index.yaml || echo "")
-            for url in $CHART_URLS; do
-              echo "Downloading: $url"
-              filename=$(basename $url)
-              if curl -sSf -o pages/$filename $url; then
-                echo "Downloaded: $filename"
-              else
-                echo "Failed to download: $url"
-              fi
-            done
-          else
-            echo "No existing index found. Creating new repository."
-          fi
-          
-          # Package chart with version from Chart.yaml (no auto-incrementing)
-          CHART_VERSION="${{ needs.create-release.outputs.chart-version }}"
-          echo "Using version: $CHART_VERSION"
-          
-          # Package chart
           helm package $CHART_DIR --destination .cr-release-packages
-          
-          # Move packaged charts to pages directory
-          mv .cr-release-packages/* pages/
-          
-          # Generate or update index.yaml
-          if [ -f "existing-index.yaml" ]; then
-            helm repo index pages --url ${{ env.CHART_REPOSITORY }} --merge existing-index.yaml
-          else
-            helm repo index pages --url ${{ env.CHART_REPOSITORY }}
+          # Assert exactly one tgz was produced; multiple is a bug.
+          COUNT=$(ls .cr-release-packages/*.tgz | wc -l)
+          if [[ "$COUNT" -ne 1 ]]; then
+            echo "::error::expected exactly 1 tgz, got $COUNT"
+            ls -la .cr-release-packages/
+            exit 1
           fi
-          
-          # Prune old versions if we have more than 10 charts of the same name
-          cd pages
-          CHART_NAME=$(basename $CHART_DIR)
-          CHART_COUNT=$(ls -1 ${CHART_NAME}-*.tgz 2>/dev/null | wc -l)
-          
-          if [ $CHART_COUNT -gt 10 ]; then
-            echo "Pruning old chart versions (keeping 10 most recent)..."
-            # Sort by version and keep the 10 most recent
-            ls -t ${CHART_NAME}-*.tgz | tail -n +11 | xargs -r rm
-            
-            # Regenerate index after pruning
-            cd ..
-            helm repo index pages --url ${{ env.CHART_REPOSITORY }}
+          PACKAGE_PATH=$(ls .cr-release-packages/*.tgz)
+          echo "package_path=$PACKAGE_PATH" >> $GITHUB_OUTPUT
+          echo "Packaged: $PACKAGE_PATH"
+
+      - name: Log in to GHCR (helm)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | helm registry login ghcr.io \
+                -u ${{ github.actor }} \
+                --password-stdin
+
+      - name: Log in to GHCR (oras)
+        # `oras tag` reads docker-config credentials, NOT the Helm registry
+        # credential file. Without this step the retag below 401s.
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | oras login ghcr.io \
+                -u ${{ github.actor }} \
+                --password-stdin
+
+      - name: Push chart to GHCR (versioned tag)
+        run: |
+          set -euo pipefail
+          helm push "${{ steps.package.outputs.package_path }}" \
+            "oci://ghcr.io/${GHCR_NAMESPACE}"
+
+      - name: Tag as latest on GHCR
+        # Policy: `latest` follows the most recent stable auto-release on main.
+        # Pre-release versions (rc/alpha/beta/pre) MUST NOT move `latest`,
+        # even if create-release flips `prerelease: false` later. Manual-release
+        # flow (Task 4) does not touch `latest`.
+        run: |
+          set -euo pipefail
+          CHART_NAME=$(basename "$CHART_DIR")
+          VERSION="${{ needs.create-release.outputs.chart-version }}"
+          if [[ "$VERSION" =~ -(rc|alpha|beta|pre)([.-][0-9A-Za-z]+)*$ ]]; then
+            echo "Skipping 'latest' retag for prerelease version: $VERSION"
+            exit 0
           fi
+          oras tag \
+            "ghcr.io/${GHCR_NAMESPACE}/${CHART_NAME}:${VERSION}" \
+            latest
 
-      - name: Setup Pages
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: pages
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
-  
   publish-manual-release:
     needs: lint-test
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     permissions:
-      pages: write
-      id-token: write
-      contents: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: read
+      packages: write
+    concurrency:
+      group: ghcr-publish
+      cancel-in-progress: false
+    env:
+      GHCR_NAMESPACE: idlefy
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
+      - name: Guard — only the `idlefy` org may publish
+        run: |
+          set -euo pipefail
+          actual=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          if [[ "$actual" != "idlefy" ]]; then
+            echo "::error::publish-manual-release ran under namespace '$actual' but only 'idlefy' may publish."
+            exit 1
+          fi
+
       - name: Set up Helm
         uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         with:
           version: v3.17.3
 
-      - name: Configure Git
+      - name: Package chart
+        id: package
         run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
-      - name: Install Charts Museum
-        run: |
-          wget https://get.helm.sh/chartmuseum-v0.16.2-linux-amd64.tar.gz
-          tar xzvf chartmuseum-v0.16.2-linux-amd64.tar.gz
-          chmod +x linux-amd64/chartmuseum
-          sudo mv linux-amd64/chartmuseum /usr/local/bin/chartmuseum
-
-      - name: Package and Index Charts
-        run: |
-          # Create temporary directory for charts and pages
+          set -euo pipefail
           mkdir -p .cr-release-packages
-          mkdir -p pages
-          
-          # Extract version from release tag
-          VERSION=${GITHUB_REF#refs/tags/v}
-          
-          # Try to download existing charts first
-          if curl -sSf -o existing-index.yaml ${{ env.CHART_REPOSITORY }}/index.yaml; then
-            # Parse existing index to find chart files to download
-            echo "Downloading existing chart packages..."
-            
-            # Get all chart URLs and download them
-            CHART_URLS=$(grep -oP 'https://[^"]*?\.tgz' existing-index.yaml || echo "")
-            for url in $CHART_URLS; do
-              echo "Downloading: $url"
-              filename=$(basename $url)
-              if curl -sSf -o pages/$filename $url; then
-                echo "Downloaded: $filename"
-              else
-                echo "Failed to download: $url"
-              fi
-            done
-          else
-            echo "No existing index found. Creating new repository."
-          fi
-          
-          # Package chart
           helm package $CHART_DIR --destination .cr-release-packages
-          
-          # Move packaged charts to pages directory
-          mv .cr-release-packages/* pages/
-          
-          # Generate or update index.yaml
-          if [ -f "existing-index.yaml" ]; then
-            helm repo index pages --url ${{ env.CHART_REPOSITORY }} --merge existing-index.yaml
-          else
-            helm repo index pages --url ${{ env.CHART_REPOSITORY }}
+          COUNT=$(ls .cr-release-packages/*.tgz | wc -l)
+          if [[ "$COUNT" -ne 1 ]]; then
+            echo "::error::expected exactly 1 tgz, got $COUNT"
+            exit 1
           fi
-          
-          # Prune old versions if we have more than 10 charts of the same name
-          cd pages
-          CHART_NAME=$(basename $CHART_DIR)
-          CHART_COUNT=$(ls -1 ${CHART_NAME}-*.tgz 2>/dev/null | wc -l)
-          
-          if [ $CHART_COUNT -gt 10 ]; then
-            echo "Pruning old chart versions (keeping 10 most recent)..."
-            # Sort by version and keep the 10 most recent
-            ls -t ${CHART_NAME}-*.tgz | tail -n +11 | xargs -r rm
-            
-            # Regenerate index after pruning
-            cd ..
-            helm repo index pages --url ${{ env.CHART_REPOSITORY }}
-          fi
+          PACKAGE_PATH=$(ls .cr-release-packages/*.tgz)
+          echo "package_path=$PACKAGE_PATH" >> $GITHUB_OUTPUT
 
-      - name: Setup Pages
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - name: Log in to GHCR (helm)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | helm registry login ghcr.io \
+                -u ${{ github.actor }} \
+                --password-stdin
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: pages
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+      - name: Push chart to GHCR (versioned tag)
+        run: |
+          set -euo pipefail
+          helm push "${{ steps.package.outputs.package_path }}" \
+            "oci://ghcr.io/${GHCR_NAMESPACE}"

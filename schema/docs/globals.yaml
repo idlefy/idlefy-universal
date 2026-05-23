@@ -49,7 +49,7 @@ properties:
       networkPolicy:
         description: |
           Default networkPolicy block for every statefulSets.* entry. Per-instance
-          values override this entirely. See docs/recipes/network-isolated-api.md
+          values override this entirely. See docs/how-to/network-isolated-api.md
           for merge semantics.
         examples:
           - policyTypes: [Egress]
@@ -96,7 +96,7 @@ properties:
       networkPolicy:
         description: |
           Default networkPolicy block for every daemonSets.* entry. Per-instance
-          values override this entirely. See docs/recipes/network-isolated-api.md
+          values override this entirely. See docs/how-to/network-isolated-api.md
           for merge semantics.
         examples:
           - policyTypes: [Egress]
@@ -281,7 +281,7 @@ $defs:
           Default networkPolicy block applied to every deployment that sets
           autoCreateNetworkPolicy: true. Per-instance networkPolicy overrides
           this entirely (lists are replaced wholesale, not unioned — see
-          docs/recipes/network-isolated-api.md for the replace semantics).
+          docs/how-to/network-isolated-api.md for the replace semantics).
           The autoCreateNetworkPolicy flag itself is per-instance only.
         examples:
           - policyTypes: [Egress]

@@ -1,0 +1,83 @@
+# mkdocs.yml — Site config for https://idlefy.github.io/idlefy-universal/
+# Theme: Material 9.7.x. Strict mode is enabled via the CI invocation
+# (`mkdocs build --strict`), not here, so authors get a softer local
+# experience when working on a single page.
+
+site_name: idlefy-universal
+site_description: Universal Helm chart — typed JSON Schema, agent-native metadata, auto-creation, Gateway API.
+site_url: https://idlefy.github.io/idlefy-universal/
+repo_url: https://github.com/idlefy/idlefy-universal
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: site
+
+# Internal planning docs and include-only partials are kept inside docs_dir
+# (so editors can navigate them) but excluded from the built site so they
+# don't leak onto GitHub Pages. Requires mkdocs >= 1.6 (pinned in
+# docs/requirements.txt at 1.6.1).
+exclude_docs: |
+  superpowers/
+  _snippets/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - htmlproofer:
+      enabled: !ENV [PROOFER, false]
+      raise_error_after_finish: true
+      # External link checks are slow + flaky; only run them on the
+      # scheduled (weekly) workflow which sets PROOFER_EXTERNAL=true.
+      validate_external_urls: !ENV [PROOFER_EXTERNAL, false]
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      base_path: docs
+      check_paths: true
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/idlefy/idlefy-universal
+
+# Nav reflects the full 5-tab IA. Pages that don't exist yet (Plan B)
+# will cause `mkdocs build --strict` to fail. Until Plan B lands, this
+# file lists only the pages Plan A creates. Plan B will append the rest.
+nav:
+  - Home: index.md
+  - Tutorials:
+      - First app: tutorials/your-first-app.md
+  - Reference:
+      - Values: reference/values.md

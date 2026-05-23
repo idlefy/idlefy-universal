@@ -7,14 +7,14 @@ on:
       - "schema/**"
       - "charts/idlefy-universal/values.schema.json"
       - "charts/idlefy-universal/agent-index.json"
-      - "docs/values-reference.md"
+      - "docs/reference/values.md"
       - ".github/workflows/schema.yaml"
   pull_request:
     paths:
       - "schema/**"
       - "charts/idlefy-universal/values.schema.json"
       - "charts/idlefy-universal/agent-index.json"
-      - "docs/values-reference.md"
+      - "docs/reference/values.md"
       - ".github/workflows/schema.yaml"
 
 jobs:
@@ -59,8 +59,8 @@ jobs:
 
       - name: Check committed docs match render output
         run: |
-          diff -u docs/values-reference.md /tmp/values-reference.md \
-            || (echo "ERROR: docs/values-reference.md is stale. Run 'python -m schema.build render-docs' and commit." && exit 1)
+          diff -u docs/reference/values.md /tmp/values-reference.md \
+            || (echo "ERROR: docs/reference/values.md is stale. Run 'python -m schema.build render-docs --output docs/reference/values.md' and commit." && exit 1)
 
       - name: Build agent-index (to temp)
         run: python -m schema.build agent-index --output /tmp/agent-index.json

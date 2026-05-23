@@ -4,7 +4,7 @@
 # Each entry: id (kebab-case), summary (one short sentence), snippet (literal
 # block scalar with a complete, valid values.yaml fragment).
 #
-# Keep this list to ~5 entries. New recipes go to docs/recipes/*.md, not here.
+# Keep this list to ~5 entries. New recipes go to docs/how-to/*.md, not here.
 recipes:
   - id: web-service
     summary: Web service exposed via Service + Ingress with TLS.

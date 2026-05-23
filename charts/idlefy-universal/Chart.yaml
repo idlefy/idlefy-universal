@@ -7,6 +7,12 @@ kubeVersion: ">=1.31.0"
 annotations:
   license: Apache-2.0
   maintainer: https://github.com/idlefy
-  # JSON Schema strict validation uses if/then/else, which requires Helm 3.6+.
-  # Helm 3.0-3.5 silently skip these constructs.
-  helm-version-required: ">=3.6.0"
+  # OCI distribution stable in Helm 3.8 (Jan 2022); the chart is shipped
+  # only via oci://ghcr.io/idlefy. JSON Schema if/then/else cross-field
+  # rules also require Helm 3.6+; this annotation raises the floor.
+  helm-version-required: ">=3.8.0"
+  # OCI annotations consumed by GHCR to auto-link the package to this repo
+  # and render the description on the package page.
+  org.opencontainers.image.source: https://github.com/idlefy/idlefy-universal
+  org.opencontainers.image.description: Universal Helm chart by Idlefy — typed JSON-Schema-driven values
+  org.opencontainers.image.licenses: Apache-2.0

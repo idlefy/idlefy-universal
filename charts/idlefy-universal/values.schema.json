@@ -1389,7 +1389,7 @@
         },
         "networkPolicy": {
           "$ref": "#/$defs/NetworkPolicySpec",
-          "description": "Default networkPolicy block applied to every deployment that sets\nautoCreateNetworkPolicy: true. Per-instance networkPolicy overrides\nthis entirely (lists are replaced wholesale, not unioned — see\ndocs/recipes/network-isolated-api.md for the replace semantics).\nThe autoCreateNetworkPolicy flag itself is per-instance only.\n",
+          "description": "Default networkPolicy block applied to every deployment that sets\nautoCreateNetworkPolicy: true. Per-instance networkPolicy overrides\nthis entirely (lists are replaced wholesale, not unioned — see\ndocs/how-to/network-isolated-api.md for the replace semantics).\nThe autoCreateNetworkPolicy flag itself is per-instance only.\n",
           "examples": [
             {
               "egress": [
@@ -11758,7 +11758,7 @@
         },
         "networkPolicy": {
           "$ref": "#/$defs/NetworkPolicySpec",
-          "description": "Default networkPolicy block for every daemonSets.* entry. Per-instance\nvalues override this entirely. See docs/recipes/network-isolated-api.md\nfor merge semantics.\n",
+          "description": "Default networkPolicy block for every daemonSets.* entry. Per-instance\nvalues override this entirely. See docs/how-to/network-isolated-api.md\nfor merge semantics.\n",
           "examples": [
             {
               "egress": [],
@@ -12254,7 +12254,7 @@
         },
         "networkPolicy": {
           "$ref": "#/$defs/NetworkPolicySpec",
-          "description": "Default networkPolicy block for every statefulSets.* entry. Per-instance\nvalues override this entirely. See docs/recipes/network-isolated-api.md\nfor merge semantics.\n",
+          "description": "Default networkPolicy block for every statefulSets.* entry. Per-instance\nvalues override this entirely. See docs/how-to/network-isolated-api.md\nfor merge semantics.\n",
           "examples": [
             {
               "egress": [],

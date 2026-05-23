@@ -146,7 +146,6 @@ Before submitting PR, ensure:
 If you need help, you can:
 - Open an issue
 - Start a discussion
-- Read our [FAQ](docs/faq.md)
 
 ## 🙏 Thank You
 

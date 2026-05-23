@@ -19,7 +19,7 @@ JSON-Schema-driven values contract.
 - **Layered schema sources.** Schema lives in `schema/structure/*.yaml` (types)
   and `schema/docs/*.yaml` (descriptions, examples, `x-agent-*` metadata).
   Python build tool `schema/build.py` merges, lints, and emits both
-  `values.schema.json` and `docs/values-reference.md`.
+  `values.schema.json` and `docs/reference/values.md`.
 - **Agent-facing metadata.** Custom JSON-Schema keywords for AI agents
   (delivery-agnostic — consumed by skills, docs, or future MCP):
   `x-agent-when-to-use`, `x-agent-related-fields`, `x-agent-common-mistakes`,
@@ -44,14 +44,18 @@ JSON-Schema-driven values contract.
 
 ### Requirements
 
-- **Helm 3.6.0+.** Schema uses `if/then/else`; Helm 3.0-3.5 silently skip
-  those constructs and validation will not run.
+- **Helm 3.8.0+.** OCI distribution requires Helm 3.8 (stable since Jan 2022).
+  Schema `if/then/else` cross-field rules require Helm 3.6+; the OCI floor (3.8)
+  is the binding constraint.
 - **Kubernetes 1.31+.**
 
 ### Install
 
+> Helm 3.8+ required. The chart is distributed only via OCI on GHCR;
+> the legacy `helm repo add` channel was removed in 1.0 GA.
+
 ```bash
-helm repo add idlefy https://idlefy.github.io/idlefy-universal
-helm repo update
-helm install my-release idlefy/idlefy-universal -f my-values.yaml
+helm install my-release oci://ghcr.io/idlefy/idlefy-universal \
+  --version 1.0.0 \
+  -f my-values.yaml
 ```

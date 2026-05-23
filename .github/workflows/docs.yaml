@@ -1,0 +1,114 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'charts/idlefy-universal/values.schema.json'
+      - '.github/workflows/docs.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'charts/idlefy-universal/values.schema.json'
+      - '.github/workflows/docs.yaml'
+  schedule:
+    # Weekly external-link-rot check every Monday at 04:17 UTC.
+    # The schedule does NOT redeploy Pages — only htmlproofer + external URL
+    # validation. See `Decide deploy` step below.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      should-deploy: ${{ steps.gate.outputs.should-deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+          # `setup-python`'s built-in pip cache keys on the hash of
+          # cache-dependency-path. A transient cache miss otherwise forces
+          # a full reinstall on every PR; partial matches via the
+          # implementation's internal restore-keys handling cover that case
+          # automatically when cache-dependency-path is provided.
+          cache: 'pip'
+          cache-dependency-path: |
+            docs/requirements.txt
+            schema/requirements.txt
+
+      - name: Install docs deps
+        run: pip install -r docs/requirements.txt -r schema/requirements.txt
+
+      - name: Re-render values reference from schema
+        run: python -m schema.build render-docs --output docs/reference/values.md
+
+      - name: Fail if rendered reference drifts from committed
+        run: |
+          if ! git diff --exit-code docs/reference/values.md; then
+            echo "::error::docs/reference/values.md is stale. Run 'python -m schema.build render-docs --output docs/reference/values.md' locally and commit."
+            exit 1
+          fi
+
+      - name: Build site (strict)
+        run: mkdocs build --strict
+
+      - name: Run htmlproofer (internal links + anchors)
+        env:
+          PROOFER: 'true'
+          # External URL checks only on the weekly schedule.
+          PROOFER_EXTERNAL: ${{ github.event_name == 'schedule' && 'true' || 'false' }}
+        run: mkdocs build --strict
+
+      - name: Decide deploy
+        id: gate
+        # Deploy only on push-to-main and manual dispatch. Scheduled runs
+        # are link-rot checks only — they must NOT redeploy the site (which
+        # would clutter the audit log with no-op deploys and burn Pages
+        # build minutes for nothing).
+        run: |
+          case "${{ github.event_name }}" in
+            push|workflow_dispatch)
+              echo "should-deploy=true" >> $GITHUB_OUTPUT ;;
+            *)
+              echo "should-deploy=false" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - name: Configure Pages
+        if: steps.gate.outputs.should-deploy == 'true'
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Upload Pages artifact
+        if: steps.gate.outputs.should-deploy == 'true'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.should-deploy == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

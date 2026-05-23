@@ -1,54 +1,49 @@
-# Idlefy Universal Chart Docs — Start Here
+---
+hide:
+  - navigation
+  - toc
+---
 
-Welcome to the Idlefy Universal Helm Chart documentation. This chart helps you deploy apps to Kubernetes quickly with batteries included.
+# idlefy-universal
 
-- Deployments, Services, Ingress, HTTPRoutes (Gateway API), PVC, Jobs, CronJobs
-- Auto-creation: Service, Ingress, HTTPRoute (Gateway API), Certificate, ServiceMonitor, PDB, ServiceAccount
-- Monitoring (Prometheus)
+> Schema-driven, agent-native Helm chart for any Kubernetes workload.
 
-## 1-minute Quick Start
+[Get started](tutorials/your-first-app.md){ .md-button .md-button--primary }
+[Reference](reference/values.md){ .md-button }
+[GitHub](https://github.com/idlefy/idlefy-universal){ .md-button }
 
-```bash
-helm repo add idlefy-universal https://idlefy.github.io/idlefy-universal
-helm repo update
+## Why idlefy-universal
 
-# Create a minimal values.yaml
-cat > values.yaml <<'YAML'
+- **Typed values contract.** A strict JSON Schema (2020-12) rejects typos and cross-field mistakes before the chart reaches the cluster. `helm install` and `helm template` both validate. Errors include the JSON Pointer path to the failing field.
+- **Agent-native metadata.** First-class `x-agent-*` keywords on every schema node plus a machine-readable `agent-index.json` — designed for skills, docs generators, and MCP-style tooling. No separate "agent SDK" required.
+- **Batteries-included auto-creation.** One flag each for Service, Ingress, Certificate, ServiceMonitor, PodDisruptionBudget, NetworkPolicy, RBAC (Role + RoleBinding), and ServiceAccount. Defaults wire through `*General` for chart-wide composition.
+- **Modern Kubernetes.** Gateway API HTTPRoute alongside classic Ingress. StatefulSet and DaemonSet are first-class workload kinds. Requires Kubernetes 1.31+; CI-tested on 1.35.
+
+## Quickstart
+
+A four-line `values.yaml`:
+
+```yaml
 deployments:
-  web:
-    autoCreateService: true
-    autoCreateIngress: true
+  hello:
+    replicas: 1
     containers:
-      main:
-        image: nginx
-        imageTag: "1.25"
-        ports:
-          http:
-            containerPort: 80
-YAML
-
-helm install my-web idlefy-universal/idlefy-universal -f values.yaml
+      main: {image: nginx, imageTag: "1.27-alpine"}
 ```
 
-## I want to…
+Install:
 
-- Deploy a simple web service → recipes/web-service.md
-- Deploy an API with Prometheus metrics → recipes/api-with-metrics.md
-- Run a CronJob → recipes/cronjob.md
-- Run a one-off Job → recipes/job.md
-- Add database migrations to my app → recipes/db-migrations.md
-- Expose app via Ingress with TLS (cert-manager) → recipes/ingress-tls.md
-- Expose app via Gateway API (HTTPRoute) → recipes/httproute.md
-- Deploy a stateful app (Postgres, Redis, Kafka) → recipes/stateful-app.md
-- Deploy a node-level agent (log shipper, monitoring) → recipes/node-agent.md
+--8<-- "_snippets/install.md"
 
-## Where to go next
+For a guided walkthrough, see [your first app](tutorials/your-first-app.md).
 
-- Getting started: getting-started.md
-- Full values example: ../charts/idlefy-universal/values-example.yaml
-- Troubleshooting: troubleshooting.md
-- Auto-creation features: auto-creation.md
-- Monitoring: monitoring.md
-- Database migrations: database-migrations.md
-- FAQ: faq.md
-- For AI agents authoring values.yaml: `skills/idlefy-universal-authoring/SKILL.md`
+## Stack
+
+[![Helm 3.8+](https://img.shields.io/badge/helm-%E2%89%A53.8-blue?logo=helm)](https://helm.sh)
+[![Kubernetes 1.31+](https://img.shields.io/badge/kubernetes-%E2%89%A51.31-blue?logo=kubernetes)](https://kubernetes.io)
+[![JSON Schema 2020-12](https://img.shields.io/badge/json--schema-2020--12-blue)](https://json-schema.org)
+[![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-green)](https://github.com/idlefy/idlefy-universal/blob/main/LICENSE)
+
+---
+
+_schema-driven · agent-native_

@@ -1557,7 +1557,7 @@ _Type:_ `string`
 Default networkPolicy block applied to every deployment that sets
 autoCreateNetworkPolicy: true. Per-instance networkPolicy overrides
 this entirely (lists are replaced wholesale, not unioned — see
-docs/recipes/network-isolated-api.md for the replace semantics).
+docs/how-to/network-isolated-api.md for the replace semantics).
 The autoCreateNetworkPolicy flag itself is per-instance only.
 
 **Example:**
