@@ -11,6 +11,11 @@ conversational interface and the file-system worker. Do not run `helm install`,
 do not commit to git, do not modify the chart itself — your output is one
 `values.yaml` (or a base + per-env layout) saved to the user's repo.
 
+This wizard works for **both** greenfield projects and migrations from another
+Helm chart, Kustomize, or raw manifests. When existing deployment artifacts are
+present in the repo, they are the source of truth and your job is to
+**translate**, not to start over.
+
 **Chart version pinned for this skill:** `CHART_VERSION = "1.0.0"`.
 If the user explicitly asks for a different version in their prompt, honour
 that and substitute throughout.
@@ -23,29 +28,91 @@ filesystem for the chart, do NOT ask the user where to find it. Helm
 3.8+ supports `oci://` URLs natively in `helm pull` and `helm template`.
 
 **Five phases.** Execute them in order. Do not skip phases except where a
-phase explicitly says it may be skipped (greenfield projects skip Phase 2).
+phase explicitly says it may be skipped (Phase 2 is skipped when the Phase 1
+report is empty — nothing to draft from).
 
 ## Phase 1 — Auto-discovery
 
-Work silently. Do not ask the user any questions in this phase.
+Work silently. Two-tier scan.
 
-### Filesystem scan (priority order)
+**Tier 1: existing deployment artifacts (authoritative).** If the repo already
+deploys somehow — another Helm chart, Kustomize, raw manifests, an Argo/Flux
+wrapper — that's the source of truth. Use it to seed `values.yaml` directly.
 
-For each source below, if the file/directory exists in the user's project,
-extract the listed signals. Stop after collecting all relevant signals; do
-not invent fields the source doesn't contain.
+**Tier 2: source signals (fallback).** Only if Tier 1 turns up nothing, fall
+back to Dockerfile / compose / package metadata to guess the workload shape.
+
+Always run Tier 1 first. If it finds anything substantive (a `values.yaml`, a
+`kustomization.yaml`, a Deployment manifest), Tier 2 becomes optional — use it
+only to cross-check or fill obvious gaps (e.g. lifting a `containerPort` from
+Dockerfile `EXPOSE` when the old `values.yaml` didn't pin one).
+
+### Tier 1 — Existing deployment artifacts (priority order, highest first)
+
+| Source | Extract / treat as |
+|---|---|
+| `.helm/values.yaml`, `helm/values.yaml`, top-level `values.yaml` (plus any `values.*.yaml` for envs) | Authoritative for image, replicas, service, ingress, resources, env, probes, volumes, serviceAccount. Run the field-mapping table below. |
+| `Chart.yaml` (under `.helm/`, `helm/`, `chart/`, `charts/<name>/`) | Identifies the *source* chart — record `name`, `version`, `dependencies`. Useful to recognise `bitnami/common`-shaped or stakater/-style charts. Do not depend on chart-specific shapes beyond the mapping table. |
+| `helmfile.yaml`, `helmfile.d/*.yaml` | Lists releases + their values files. Use to locate the actual `values.yaml` per env. |
+| `kustomization.yaml` + `base/` / `overlays/` | Render-tree of manifests. Read `images:`, `replicas:`, `commonLabels:`, `patches:`. Treat the merged manifest set as Tier 1 raw-manifest input. |
+| `manifests/*.yaml`, `k8s/*.yaml`, `deploy/*.yaml` (raw `Deployment` / `Service` / `Ingress` / `CronJob` / `StatefulSet` / `DaemonSet`) | Lift fields 1:1 — these are already in Kubernetes shape, no chart translation needed. |
+| `argocd/`, `Application*.yaml`, `flux/`, `HelmRelease*.yaml` | GitOps wrappers — extract the `spec.source.helm.values` block or `spec.values` block as Tier 1 values input. |
+
+### Tier 2 — Source signals (fallback only when Tier 1 is empty)
 
 | Source | Extract |
 |---|---|
 | `docker-compose.{yml,yaml}`, `compose.yaml` | Per-service: `image`, `ports`, `environment`, `command`, `volumes`, `depends_on`. Multi-service ⇒ multi-deployment chart. |
 | `Dockerfile` (any path, possibly multiple) | `EXPOSE` ⇒ `containerPort`; `CMD`/`ENTRYPOINT` ⇒ command/args; base image hint. |
-| `k8s/`, `kubernetes/`, `manifests/`, `deploy/*.yaml` | Existing `Deployment`/`Service`/`Ingress`/`CronJob` — lift fields 1:1. |
-| `helm/` (existing chart or values) | Existing `values.yaml` as baseline (migration scenario). |
 | `Procfile` | `web:` / `worker:` processes ⇒ separate deployments. |
 | `.github/workflows/*.yaml`, `.gitlab-ci.yml` | Image refs, build context, deployment env vars. |
 | `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / `pom.xml` / `build.gradle` | Stack hint. |
 | `README.md` (top 30 lines) | First-paragraph description for the confirmation prompt. |
 | `Makefile`, `Taskfile.yml`, `justfile` | Run/deploy targets (optional). |
+
+### Field-mapping: generic Helm values → idlefy-universal
+
+When Tier 1 finds a `values.yaml` from another chart, walk it top-to-bottom and
+map ONLY the fields below. For anything else: read the old file in full,
+decide what maps to which idlefy-universal field using the schema at
+<https://idlefy.github.io/idlefy-universal/reference/values/>, and ask the user
+about anything ambiguous. Do NOT invent fields, do NOT carry over
+chart-specific knobs verbatim.
+
+| Generic / bitnami-common shape (old) | idlefy-universal target | Notes |
+|---|---|---|
+| `image.repository` + `image.tag` (or `image: "repo:tag"`) | `deployments.<name>.containers.<c>.image` + `imageTag` | Strip registry prefix only if it's the chart's implicit default. Keep registry when explicit. |
+| `image.pullPolicy` | `deployments.<name>.containers.<c>.imagePullPolicy` | 1:1 |
+| `image.pullSecrets` / `imagePullSecrets` (list of `{name}`) | `generic.extraImagePullSecrets` | Reference only — wizard does NOT create the Secret. |
+| `replicaCount` / `replicas` | `deployments.<name>.replicas` | If `0` in old config, ask — chart may disallow 0. |
+| `service.type` / `service.port` / `service.targetPort` / `service.nodePort` | `deployments.<name>.autoCreateService: true` + per-port `containers.<c>.ports.<n>.{servicePort,containerPort}` for single-port; top-level `services.<name>` for shared / headless / multi-target. | Prefer deployment-scoped shape when there's one port. |
+| `service.annotations` | `services.<name>.annotations` (or per-deployment if schema supports it) | |
+| `ingress.enabled: true` | `deployments.<name>.autoCreateIngress: true` | |
+| `ingress.hosts[].host` + `ingress.hosts[].paths` | `ingresses.<name>.hosts[]` (or per-deployment `ingress.hosts` block) | Use schema's `IngressSpec` shape. |
+| `ingress.tls[]` + `cert-manager.io/cluster-issuer` annotation | `deployments.<name>.autoCreateCertificate: true` + `certificate.clusterIssuer` | Still confirm cert-manager presence in Q10. |
+| `ingress.className` / `ingress.ingressClassName` | `ingresses.<name>.className` | 1:1 |
+| `resources.requests` / `resources.limits` | `deployments.<name>.containers.<c>.resources.{requests,limits}` | 1:1; skips Q13. |
+| `env: [{name,value}]` / `extraEnv` | `deployments.<name>.containers.<c>.env` | Same shape; sensitive names trigger Block H reframing. |
+| `envFrom: [{configMapRef}, {secretRef}]` | `deployments.<name>.containers.<c>.envFrom` | 1:1 passthrough. |
+| `livenessProbe` / `readinessProbe` / `startupProbe` | `deployments.<name>.probes.*` (deployment-level if shared) or `containers.<c>.probes.*` | Prefer deployment-level when all containers share. |
+| `nodeSelector` / `tolerations` / `affinity` / `topologySpreadConstraints` | `deployments.<name>.{nodeSelector,tolerations,affinity,topologySpreadConstraints}` | 1:1 passthroughs. |
+| `podAnnotations` / `podLabels` | `deployments.<name>.{podAnnotations,podLabels}` | 1:1 |
+| `securityContext` / `containerSecurityContext` | `deployments.<name>.podSecurityContext` + `containers.<c>.securityContext` | Split: pod vs container. |
+| `serviceAccount.create` + `serviceAccount.name` | `deployments.<name>.autoCreateServiceAccount` + `serviceAccountName` | When `create: false` and a `name` is set, reuse existing SA — set `serviceAccountName` only. |
+| `persistence.enabled` + `persistence.size` + `persistence.storageClass` + `persistence.accessModes` | `statefulSets.<name>.volumeClaimTemplates[]` (stateful) OR `deployments.<name>.volumes[]` (PVC reference) | Stateful workload? Switch recipe to `stateful-app`. |
+| `volumes` + `volumeMounts` (raw K8s shape) | `deployments.<name>.volumes` + `containers.<c>.volumeMounts` | 1:1 passthrough. |
+| `podDisruptionBudget.enabled` / `minAvailable` | `deployments.<name>.autoCreatePdb: true` + `pdb.minAvailable` | |
+| `autoscaling.enabled` / `minReplicas` / `maxReplicas` / `targetCPUUtilizationPercentage` | `deployments.<name>.autoCreateHpa: true` + `hpa.{minReplicas,maxReplicas,metrics}` | Translate `target*Utilization` to `hpa.metrics` shape per schema. |
+| `metrics.serviceMonitor.enabled` / `prometheus.enabled` | `deployments.<name>.autoCreateServiceMonitor: true` + `serviceMonitor.*` | |
+| `networkPolicy.enabled` | `deployments.<name>.autoCreateNetworkPolicy: true` | |
+| `commonLabels` / `commonAnnotations` (bitnami) | `generic.labels` / `generic.annotations` | 1:1 |
+| `nameOverride` / `fullnameOverride` | No direct equivalent — idlefy-universal names from map keys. Ask user if old names must be preserved (annotation/label override only). | Explicit "no direct map — ask". |
+| `extraDeploy` / arbitrary extra manifests | No equivalent — flag to user; they keep those out-of-chart. | |
+
+**Anything not in this table:** read the old `values.yaml` or manifest in
+full, decide what maps to the chart's schema, and ask the user about anything
+you can't map confidently. Do not silently drop fields. Do not invent
+idlefy-universal fields to host them.
 
 ### Repo layout signals
 
@@ -89,14 +156,24 @@ not show the raw JSON to the user):
   propose deploying the dependency. Note that the user will need a
   `secretRefs` block for credentials and a separate install of the
   dependency.
-- **Greenfield (nothing found).** Emit an empty report. Skip Phase 2.
-  Phase 3 becomes a full guided interview.
-- **Existing `idlefy-universal` values.yaml found.** Treat it as the
-  baseline. Load it, mark every present field as `confidence: high`
-  ("inferred"), and treat Phase 2 as a no-op rendering of the input.
-  Phase 3 then asks gap-questions ONLY for fields the input is missing.
-  Phase 5 produces a `diff` between the input and the output so the user
-  can see exactly what changed.
+- **Greenfield (Tier 1 AND Tier 2 empty).** Emit an empty report. Skip
+  Phase 2. Phase 3 becomes a full guided interview.
+- **Existing deployment config found (Tier 1 hit).** Load every Tier 1
+  source. Run the field-mapping table. Build the draft directly from the
+  mapping; fields that mapped cleanly are `confidence: high` ("inferred
+  from `<source path>`"). Treat Phase 2 as a review of the mapped draft,
+  not a from-scratch synthesis. Phase 3 then asks **only delta-questions**
+  for the mapped fields (see Phase 3 preamble) and full questions for
+  anything Tier 1 didn't cover. Phase 5 prints a `diff` between the OLD
+  config and the new `values.yaml` so the user sees exactly what changed.
+
+  **Sub-case:** if the existing config is already an `idlefy-universal`
+  `values.yaml` (Chart.yaml says so, or the schema fits with no
+  translation), no mapping is needed — load it as-is.
+- **Mixed tooling (Helm + Kustomize + raw manifests).** Enumerate every
+  Tier 1 artifact you found to the user up-front, before Phase 2. Ask
+  which to treat as authoritative — if the user defers, suggest the most
+  recently modified file as a starting point. Do NOT silently pick.
 
 ## Phase 2 — Draft synthesis
 
@@ -185,6 +262,19 @@ Order the blocks as below. Within a block, ask one question at a time so
 the user isn't overwhelmed; group prompts only when answers are very
 tightly coupled (e.g., Ingress host + path).
 
+**Delta-question pattern for migrated configs.** When a question's answer was
+inferred from Tier 1, do NOT re-ask it as if it were unknown. Reframe it as a
+delta-confirmation:
+
+> "Your previous config had `<old field>: <old value>`. In idlefy-universal
+> this maps to `<new field>: <new value>`. **Confirm**, **override**, or
+> **drop**?"
+
+Default action: confirm. The user can override with a new value or drop the
+field entirely. Fall back to the full WHY / recommended-default / skippable
+format only when the user picks "override" and needs guidance. Questions where
+Tier 1 produced no signal are still asked in their full original form.
+
 ### Block A — Identity
 
 1. **Workload-kind confirm** (only if confidence < high in the Phase 1
@@ -195,6 +285,7 @@ tightly coupled (e.g., Ingress host + path).
    WHY: avoids cross-tenant installs; keeps values.yaml portable.
 3. **Image tag** (only if missing or `latest`). Ask: "Pin to a specific
    tag? `latest` is fragile in production." Default: empty until provided.
+   _If inferred from Tier 1, delta-confirm instead of asking._
 4. **imagePullSecrets** (only if the image registry is private-looking —
    not `docker.io`, `ghcr.io`, `quay.io`, `gcr.io` paths the user has access
    to). Ask: "Image is in a private registry. Name of an existing
@@ -203,8 +294,12 @@ tightly coupled (e.g., Ingress host + path).
    configured pull secret.
 5. **Replica count** (if `Deployment`/`StatefulSet`). Default: 1 for dev,
    2+ for prod (you'll ask the env later in Block G).
+   _Skip if `replicaCount`/`replicas` present in old config; delta-confirm._
 
 ### Block B — Exposure (web-like recipes only)
+
+_For Q6–Q9: skip / delta-confirm if `service.*` or `ingress.*` are present in
+the old config._
 
 6. **Service**: "Expose the workload in-cluster via a `Service`?"
    Default: yes for `web-service` / `api-with-metrics`. WHY: other pods
@@ -242,6 +337,7 @@ tightly coupled (e.g., Ingress host + path).
     `LimitRange` / OPA / admission-controller rules in many production
     clusters reject pods without limits. WHY: humans expect this question;
     skipping it produces a values.yaml that templates but rejects on apply.
+    _Skip if `resources.requests`/`limits` present in old config; delta-confirm._
 
 ### Block D — Storage (only for `stateful-app` recipe or if Phase 1 found PVCs)
 
@@ -257,7 +353,9 @@ tightly coupled (e.g., Ingress host + path).
 15. **RBAC**: "Does this workload call the Kubernetes API?" Default: no.
     WHY: enables `autoCreateRbac` + Role / RoleBinding.
     Reference: <https://idlefy.github.io/idlefy-universal/how-to/rbac/>.
+    _If old config has explicit RBAC manifests or `rbac.create: true`, delta-confirm._
 16. **ServiceAccount** (auto-enabled if 15 = yes; else default off).
+    _If old config has `serviceAccount.*`, delta-confirm._
 17. **NetworkPolicy**: "Restrict network ingress to this workload?"
     Default: opt-in. WHY: default-deny baseline.
     Reference: <https://idlefy.github.io/idlefy-universal/how-to/network-policy/>.
@@ -307,6 +405,7 @@ tightly coupled (e.g., Ingress host + path).
     ```
 
     WHY: secrets must not live in `values.yaml` files that end up in git.
+    _If old config already uses `secretRefs` / `envFrom.secretRef` / `existingSecret`, carry references over and confirm secret names; otherwise full question._
 
 ### Termination
 
@@ -470,4 +569,8 @@ Reference these where relevant in the summary:
 
 ## Changelog
 
+- **2026-05-24** — Phase 1 now treats existing Helm/Kustomize/raw-manifest
+  artifacts as the primary source (Tier 1). Added generic-Helm →
+  idlefy-universal field-mapping table and a delta-confirmation pattern in
+  Phase 3. Source scanning becomes a Tier 2 fallback.
 - **2026-05-23** — initial release. Chart version pinned to 1.0.0.
