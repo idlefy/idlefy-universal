@@ -25,6 +25,10 @@
   {{- $backendPort = $firstPort.port -}}
 {{- end -}}
 
+{{- if and (not $defaultedRoute.hostnames) (not $globalDomain) -}}
+  {{- fail (printf "autoCreateHttpRoute for %s requires explicit httpRoute.hostnames or generic.ingressesGeneral.domain" $deploymentName) -}}
+{{- end -}}
+
 {{- /* Resolve hostnames: use provided or default to deploymentName as subdomain */ -}}
 {{- $hostnames := list -}}
 {{- if $defaultedRoute.hostnames -}}
