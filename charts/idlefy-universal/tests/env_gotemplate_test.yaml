@@ -46,3 +46,14 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].env[3].value
           value: "just a static string" 
+  - it: should fail with a clear message when image renders empty
+    set:
+      deployments:
+        web:
+          containers:
+            main:
+              image: "{{ .Values.missingRegistry }}"
+              imageTag: "1.0"
+    asserts:
+      - failedTemplate:
+          errorMessage: "container main: image renders empty; check the image/imageTag tpl expression"

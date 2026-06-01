@@ -202,7 +202,11 @@ volumes:
 {{- $container := .container -}}
 {{- $root := .root -}}
 name: {{ $containerName }}
-image: {{ include "idlefy-universal.tplValue" (dict "value" $container.image "context" $root) }}:{{ include "idlefy-universal.tplValue" (dict "value" $container.imageTag "context" $root) }}
+{{- $img := include "idlefy-universal.tplValue" (dict "value" $container.image "context" $root) }}
+{{- $tag := include "idlefy-universal.tplValue" (dict "value" $container.imageTag "context" $root) }}
+{{- if not $img }}{{ fail (printf "container %s: image renders empty; check the image/imageTag tpl expression" $containerName) }}{{- end }}
+{{- if not $tag }}{{ fail (printf "container %s: imageTag renders empty; check the image/imageTag tpl expression" $containerName) }}{{- end }}
+image: {{ $img }}:{{ $tag }}
 {{- if $container.args }}
 args:
   {{- toYaml $container.args | nindent 2 }}
