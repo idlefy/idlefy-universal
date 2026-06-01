@@ -586,7 +586,10 @@ def cmd_lint(args: argparse.Namespace) -> int:
     k8s_defs = load_k8s_primitives(SCHEMA_DIR / "k8s")
     structure = load_structure(SCHEMA_DIR / "structure", seed=k8s_defs)
     docs = load_docs(SCHEMA_DIR / "docs")
+    lint_config = load_lint_config()
+    templates_dir = SCHEMA_DIR.parent / "charts" / "idlefy-universal" / "templates"
     errors = lint(structure, docs)
+    errors += drift_errors(structure, lint_config, templates_dir)
 
     blocking = 0
     for e in errors:
