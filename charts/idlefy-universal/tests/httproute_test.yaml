@@ -303,3 +303,33 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "HTTPRoute my-app: hostnames is required"
+  - it: should render backendRef namespace, group, and kind
+    set:
+      generic:
+        ingressesGeneral:
+          domain: "example.org"
+        httpRoutesGeneral:
+          parentRefs:
+            - name: gw
+      httpRoutes:
+        web:
+          hostnames:
+            - subdomain: web
+          rules:
+            - matches:
+                - path:
+                    type: PathPrefix
+                    value: /
+              backendRefs:
+                - name: svc
+                  port: 8080
+                  namespace: other-ns
+                  group: ""
+                  kind: Service
+    asserts:
+      - equal:
+          path: spec.rules[0].backendRefs[0].namespace
+          value: other-ns
+      - equal:
+          path: spec.rules[0].backendRefs[0].kind
+          value: Service
