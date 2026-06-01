@@ -11704,6 +11704,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object"
     },
     "daemonSets": {
@@ -11729,6 +11733,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-common-mistakes": [
         "Setting replicas (DaemonSet pod count is managed by node count).",
@@ -11861,6 +11869,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-related-fields": [
         "/deploymentsGeneral",
@@ -11992,6 +12004,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-when-to-use": "Use for HPAs not tied to a chart deployment. For chart deployments\nprefer the inline hpa: block under deployments.<name>.\n"
     },
@@ -12090,6 +12106,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-when-to-use": "Use for one-off batch processing, data backfills, or one-shot setup\nthat runs as part of the chart install/upgrade.\n"
     },
@@ -12185,6 +12205,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object"
     },
     "statefulSets": {
@@ -12223,6 +12247,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-common-mistakes": [
         "Omitting serviceName (required by Kubernetes).",
