@@ -47,7 +47,7 @@ spec:
 ---
 {{- end }}
 
-{{/* Обработка миграций */}}
+{{/* Handle migrations */}}
 {{- range $deploymentName, $deploymentConfig := .Values.deployments }}
 {{- if and $deploymentConfig.migrations (hasKey $deploymentConfig.migrations "enabled") $deploymentConfig.migrations.enabled }}
 {{- $defaultedConfig := include "idlefy-universal.deploymentDefaults" (dict "deployment" $deploymentConfig "general" $.Values.deploymentsGeneral) | fromYaml }}
