@@ -90,3 +90,16 @@ tests:
       - equal:
           path: spec.template.spec.serviceAccountName
           value: override-sa
+  - it: should render ttlSecondsAfterFinished
+    set:
+      jobs:
+        cleanup:
+          ttlSecondsAfterFinished: 120
+          containers:
+            main:
+              image: busybox
+              imageTag: "1.36"
+    asserts:
+      - equal:
+          path: spec.ttlSecondsAfterFinished
+          value: 120

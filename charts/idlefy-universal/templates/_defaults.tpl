@@ -47,6 +47,12 @@
   {{- if $general.annotations }}
     {{- $result = merge $result (dict "annotations" (merge (default dict $deployment.annotations) $general.annotations)) }}
   {{- end }}
+  {{- if $general.podLabels }}
+    {{- $result = merge $result (dict "podLabels" (merge (default dict $deployment.podLabels) $general.podLabels)) }}
+  {{- end }}
+  {{- if $general.podAnnotations }}
+    {{- $result = merge $result (dict "podAnnotations" (merge (default dict $deployment.podAnnotations) $general.podAnnotations)) }}
+  {{- end }}
   {{- if $general.initContainers }}
     {{- if not $deployment.initContainers }}
       {{- $result = merge $result (dict "initContainers" $general.initContainers) }}

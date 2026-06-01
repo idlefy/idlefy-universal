@@ -62,3 +62,17 @@ tests:
           value: 0
       - matchSnapshot:
           path: spec.template.spec 
+  - it: should render pod-template podLabels
+    set:
+      deployments:
+        web:
+          podLabels:
+            tier: frontend
+          containers:
+            main:
+              image: nginx
+              imageTag: "1.27"
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.tier
+          value: frontend

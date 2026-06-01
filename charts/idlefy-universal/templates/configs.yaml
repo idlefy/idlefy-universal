@@ -24,6 +24,7 @@ data:
   {{ $key }}: {{ $value | b64enc }}
   {{- end }}
 {{- else }}
+{{- if $config.data }}
 data:
   {{- range $key, $value := $config.data }}
   {{- if contains "\n" ($value | toString) }}
@@ -33,6 +34,13 @@ data:
   {{ $key }}: {{ $value | quote }}
   {{- end }}
   {{- end }}
+{{- end }}
+{{- if $config.binaryData }}
+binaryData:
+  {{- range $key, $value := $config.binaryData }}
+  {{ $key }}: {{ $value | b64enc }}
+  {{- end }}
+{{- end }}
 {{- end }}
 ---
 {{- end }}

@@ -21,6 +21,9 @@ spec:
   {{- if $pvcConfig.storageClassName }}
   storageClassName: {{ $pvcConfig.storageClassName }}
   {{- end }}
+  {{- if $pvcConfig.volumeMode }}
+  volumeMode: {{ $pvcConfig.volumeMode }}
+  {{- end }}
   resources:
     requests:
       storage: {{ $pvcConfig.size }}

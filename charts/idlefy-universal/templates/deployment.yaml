@@ -21,7 +21,8 @@ spec:
     metadata:
       labels:
         {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $deploymentName) | nindent 8 }}
-        {{- $podExtraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
+        {{- $podLabelSource := merge (default dict $defaultedConfig.podLabels) (default dict $defaultedConfig.labels) }}
+        {{- $podExtraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $podLabelSource) }}
         {{- if $podExtraLabels }}
         {{- $podExtraLabels | nindent 8 }}
         {{- end }}

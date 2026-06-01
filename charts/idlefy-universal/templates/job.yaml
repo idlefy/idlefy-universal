@@ -29,6 +29,9 @@ spec:
   {{- if $defaultedConfig.completions }}
   completions: {{ int $defaultedConfig.completions }}
   {{- end }}
+  {{- if hasKey $defaultedConfig "ttlSecondsAfterFinished" }}
+  ttlSecondsAfterFinished: {{ $defaultedConfig.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       labels:
