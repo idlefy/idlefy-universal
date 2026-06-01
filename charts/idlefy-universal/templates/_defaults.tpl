@@ -41,16 +41,6 @@
       {{- $result = merge $result (dict "strategy" $general.strategy) }}
     {{- end }}
   {{- end }}
-  {{- if $general.parallelism }}
-    {{- if not $result.parallelism }}
-      {{- $result = merge $result (dict "parallelism" (int $general.parallelism)) }}
-    {{- end }}
-  {{- end }}
-  {{- if $general.completions }}
-    {{- if not $result.completions }}
-      {{- $result = merge $result (dict "completions" (int $general.completions)) }}
-    {{- end }}
-  {{- end }}
   {{- if $general.labels }}
     {{- $result = merge $result (dict "labels" (merge (default dict $deployment.labels) $general.labels)) }}
   {{- end }}
