@@ -362,7 +362,7 @@ HTTPRoute validation — parentRefs/hostnames/rules required (not in schema), co
   {{- end }}
 
   {{- /* rules required */ -}}
-  {{- if not $config.rules -}}
+  {{- if or (not $config.rules) (eq (len $config.rules) 0) -}}
     {{ fail (printf "HTTPRoute %s: at least one rule is required" $name) }}
   {{- end }}
 
