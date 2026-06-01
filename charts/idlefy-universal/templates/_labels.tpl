@@ -17,9 +17,10 @@ Used in spec.selector.matchLabels and spec.template.metadata.labels.
 Pass dict with "name" and "root" (root context for Release.Name).
 */}}
 {{- define "idlefy-universal.componentLabels" -}}
-app.kubernetes.io/name: {{ .name }}
+{{- $sel := .selectorName | default .name -}}
+app.kubernetes.io/name: {{ $sel }}
 app.kubernetes.io/instance: {{ .root.Release.Name }}
-app.kubernetes.io/component: {{ .name }}
+app.kubernetes.io/component: {{ $sel }}
 {{- end }}
 
 {{/*

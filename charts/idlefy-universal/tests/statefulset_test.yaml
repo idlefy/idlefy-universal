@@ -195,6 +195,12 @@ tests:
           value: true
       - notExists:
           path: spec.type
+      - equal:
+          path: spec.selector["app.kubernetes.io/name"]
+          value: cache
+      - equal:
+          path: spec.selector["app.kubernetes.io/instance"]
+          value: RELEASE-NAME
 
   - it: should autoCreate a PDB for STS
     templates:

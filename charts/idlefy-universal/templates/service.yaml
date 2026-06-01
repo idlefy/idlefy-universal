@@ -3,6 +3,7 @@
 {{- $serviceName := .serviceName }}
 {{- $serviceConfig := .serviceConfig }}
 {{- $root := .root }}
+{{- $selectorName := .selectorName | default .serviceName }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -39,7 +40,7 @@ spec:
       {{- end }}
     {{- end }}
   selector:
-    {{- include "idlefy-universal.componentLabels" (dict "name" $serviceName "root" $root) | nindent 4 }}
+    {{- include "idlefy-universal.componentLabels" (dict "name" $serviceName "selectorName" $selectorName "root" $root) | nindent 4 }}
 {{- end }}
 {{- include "idlefy-universal.validate" . -}}
 {{/* Main service template */}}
@@ -76,7 +77,7 @@ spec:
 {{- if not $headless }}
 {{- $_ := set $serviceConfig "type" ($defaultedConfig.serviceType | default "ClusterIP") }}
 {{- end }}
-{{- include "idlefy-universal.service" (dict "serviceName" $defaultedConfig.serviceName "serviceConfig" $serviceConfig "root" $) }}
+{{- include "idlefy-universal.service" (dict "serviceName" $defaultedConfig.serviceName "selectorName" $stsName "serviceConfig" $serviceConfig "root" $) }}
 {{- end }}
 {{- end }}
 {{- end }}
