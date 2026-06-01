@@ -4990,6 +4990,10 @@
           "type": "object"
         },
         "automountServiceAccountToken": {
+          "description": "Controls whether the API token is auto-mounted into pods using this\nServiceAccount. Set false to opt out of token projection for\nworkloads that do not call the Kubernetes API.\n",
+          "examples": [
+            false
+          ],
           "type": "boolean"
         },
         "imagePullSecrets": {
@@ -5035,6 +5039,10 @@
           "type": "object"
         },
         "name": {
+          "description": "Name of the managed ServiceAccount. When set, it becomes the SA's\nmetadata.name and the workload's pods reference it automatically\n(pod serviceAccountName precedence: per-resource serviceAccountName >\nserviceAccount.name > generic.serviceAccountName > workload name).\nAuto-created RBAC RoleBindings bind to the same resolved name.\n",
+          "examples": [
+            "backend-api-sa"
+          ],
           "type": "string"
         }
       },
