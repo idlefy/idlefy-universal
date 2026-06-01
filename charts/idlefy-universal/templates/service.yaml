@@ -25,6 +25,15 @@ spec:
   publishNotReadyAddresses: true
   {{- else }}
   type: {{ $serviceConfig.type | default "ClusterIP" }}
+  {{- if $serviceConfig.clusterIP }}
+  clusterIP: {{ $serviceConfig.clusterIP }}
+  {{- end }}
+  {{- if $serviceConfig.externalName }}
+  externalName: {{ $serviceConfig.externalName }}
+  {{- end }}
+  {{- if $serviceConfig.sessionAffinity }}
+  sessionAffinity: {{ $serviceConfig.sessionAffinity }}
+  {{- end }}
   {{- end }}
   ports:
     {{- range $serviceConfig.ports }}
@@ -40,7 +49,11 @@ spec:
       {{- end }}
     {{- end }}
   selector:
+    {{- if $serviceConfig.selector }}
+    {{- toYaml $serviceConfig.selector | nindent 4 }}
+    {{- else }}
     {{- include "idlefy-universal.componentLabels" (dict "name" $serviceName "selectorName" $selectorName "root" $root) | nindent 4 }}
+    {{- end }}
 {{- end }}
 {{- include "idlefy-universal.validate" . -}}
 {{/* Main service template */}}

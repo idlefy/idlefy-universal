@@ -40,3 +40,43 @@ tests:
       - equal:
           path: spec.ports[0].appProtocol
           value: grpc
+
+  - it: should render explicit selector, clusterIP, and sessionAffinity
+    set:
+      services:
+        api:
+          clusterIP: 10.0.0.10
+          sessionAffinity: ClientIP
+          selector:
+            app: legacy
+          ports:
+            - name: http
+              port: 80
+              targetPort: 8080
+    asserts:
+      - equal:
+          path: spec.clusterIP
+          value: 10.0.0.10
+      - equal:
+          path: spec.sessionAffinity
+          value: ClientIP
+      - equal:
+          path: spec.selector.app
+          value: legacy
+  - it: should render an ExternalName service
+    set:
+      services:
+        ext:
+          type: ExternalName
+          externalName: db.example.com
+          ports:
+            - name: http
+              port: 80
+              targetPort: 80
+    asserts:
+      - equal:
+          path: spec.externalName
+          value: db.example.com
+      - equal:
+          path: spec.type
+          value: ExternalName
