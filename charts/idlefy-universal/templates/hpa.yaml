@@ -3,18 +3,7 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ $deploymentName }}
-  labels:
-    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $deploymentName) | nindent 4 }}
-    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $deploymentConfig.hpa.labels) }}
-    {{- if $extraLabels }}
-    {{- $extraLabels | nindent 4 }}
-    {{- end }}
-  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $deploymentConfig.hpa.annotations) }}
-  {{- if $mergedAnnotations }}
-  annotations:
-    {{- $mergedAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "idlefy-universal.resourceMetadata" (dict "name" $deploymentName "root" $ "labels" $deploymentConfig.hpa.labels "annotations" $deploymentConfig.hpa.annotations) | nindent 2 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

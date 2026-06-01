@@ -7,18 +7,7 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ $deploymentName }}
-  labels:
-    {{- include "idlefy-universal.labels" (dict "Chart" $root.Chart "Release" $root.Release "name" $deploymentName) | nindent 4 }}
-    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $root "resourceLabels" $deploymentConfig.pdb.labels) }}
-    {{- if $extraLabels }}
-    {{- $extraLabels | nindent 4 }}
-    {{- end }}
-  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $root "resourceAnnotations" $deploymentConfig.pdb.annotations) }}
-  {{- if $mergedAnnotations }}
-  annotations:
-    {{- $mergedAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "idlefy-universal.resourceMetadata" (dict "name" $deploymentName "root" $root "labels" $deploymentConfig.pdb.labels "annotations" $deploymentConfig.pdb.annotations) | nindent 2 }}
 spec:
   selector:
     matchLabels:

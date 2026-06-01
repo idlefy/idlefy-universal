@@ -7,18 +7,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $serviceName }}
-  labels:
-    {{- include "idlefy-universal.labels" (dict "Chart" $root.Chart "Release" $root.Release "name" $serviceName) | nindent 4 }}
-    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $root "resourceLabels" $serviceConfig.labels) }}
-    {{- if $extraLabels }}
-    {{- $extraLabels | nindent 4 }}
-    {{- end }}
-  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $root "resourceAnnotations" $serviceConfig.annotations) }}
-  {{- if $mergedAnnotations }}
-  annotations:
-    {{- $mergedAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "idlefy-universal.resourceMetadata" (dict "name" $serviceName "root" $root "labels" $serviceConfig.labels "annotations" $serviceConfig.annotations) | nindent 2 }}
 spec:
   {{- if $serviceConfig.headless }}
   clusterIP: None

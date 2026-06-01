@@ -5,18 +5,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ $stsName }}
-  labels:
-    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $stsName) | nindent 4 }}
-    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $ "resourceLabels" $defaultedConfig.labels) }}
-    {{- if $extraLabels }}
-    {{- $extraLabels | nindent 4 }}
-    {{- end }}
-  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $defaultedConfig.annotations) }}
-  {{- if $mergedAnnotations }}
-  annotations:
-    {{- $mergedAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "idlefy-universal.resourceMetadata" (dict "name" $stsName "root" $ "labels" $defaultedConfig.labels "annotations" $defaultedConfig.annotations) | nindent 2 }}
 spec:
   serviceName: {{ $defaultedConfig.serviceName }}
   {{- if and (not $stsConfig.hpa) (hasKey $defaultedConfig "replicas") }}
