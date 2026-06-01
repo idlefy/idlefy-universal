@@ -1,0 +1,23 @@
+{{- include "idlefy-universal.validate" . -}}
+{{- range $hpaName, $hpaConfig := .Values.hpas }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $hpaName }}
+  labels:
+    {{- include "idlefy-universal.labels" (dict "Chart" $.Chart "Release" $.Release "name" $hpaName) | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: {{ $hpaConfig.scaleTargetRef.apiVersion | default "apps/v1" }}
+    kind: {{ $hpaConfig.scaleTargetRef.kind }}
+    name: {{ $hpaConfig.scaleTargetRef.name }}
+  minReplicas: {{ $hpaConfig.minReplicas | default 1 }}
+  maxReplicas: {{ $hpaConfig.maxReplicas }}
+  metrics:
+    {{- toYaml $hpaConfig.metrics | nindent 4 }}
+  {{- with $hpaConfig.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+{{- end }}

@@ -107,3 +107,18 @@ configs:
     type: configMap
     data:
       log_format: json
+
+hpas:
+  cache:
+    scaleTargetRef:
+      kind: StatefulSet
+      name: cache
+    minReplicas: 2
+    maxReplicas: 6
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 75
