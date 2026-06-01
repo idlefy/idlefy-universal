@@ -27,3 +27,16 @@ tests:
           value: ClusterIP
       - matchSnapshot:
           path: spec.ports 
+  - it: should render appProtocol when set on a port
+    set:
+      services:
+        api:
+          ports:
+            - name: grpc
+              port: 50051
+              targetPort: 50051
+              appProtocol: grpc
+    asserts:
+      - equal:
+          path: spec.ports[0].appProtocol
+          value: grpc

@@ -34,6 +34,9 @@ spec:
       nodePort: {{ .nodePort }}
       {{- end }}
       protocol: {{ .protocol | default "TCP" }}
+      {{- if .appProtocol }}
+      appProtocol: {{ .appProtocol }}
+      {{- end }}
     {{- end }}
   selector:
     {{- include "idlefy-universal.componentLabels" (dict "name" $serviceName "root" $root) | nindent 4 }}
