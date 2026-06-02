@@ -47,3 +47,18 @@ tests:
               example.com/role: "webserver"
     asserts:
       - matchSnapshot: {} 
+  - it: pod serviceAccountName follows serviceAccount.name
+    template: deployment.yaml
+    set:
+      deployments:
+        web:
+          serviceAccount:
+            name: web-sa
+          containers:
+            main:
+              image: nginx
+              imageTag: "1.27"
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: web-sa

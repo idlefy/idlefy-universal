@@ -376,6 +376,7 @@ def load_lint_config(path: Path | None = None) -> dict[str, Any]:
     data = yaml.safe_load(path.read_text()) or {}
     data.setdefault("allow_additional_properties_true", [])
     data.setdefault("deployment_defaults_parity_exempt", [])
+    data.setdefault("reserved_leaf_paths", [])
     return data
 
 
@@ -585,7 +586,10 @@ def cmd_lint(args: argparse.Namespace) -> int:
     k8s_defs = load_k8s_primitives(SCHEMA_DIR / "k8s")
     structure = load_structure(SCHEMA_DIR / "structure", seed=k8s_defs)
     docs = load_docs(SCHEMA_DIR / "docs")
+    lint_config = load_lint_config()
+    templates_dir = SCHEMA_DIR.parent / "charts" / "idlefy-universal" / "templates"
     errors = lint(structure, docs)
+    errors += drift_errors(structure, lint_config, templates_dir)
 
     blocking = 0
     for e in errors:
@@ -596,6 +600,121 @@ def cmd_lint(args: argparse.Namespace) -> int:
         print(f"\n{blocking} error(s) found", file=sys.stderr)
         return 1
     print(f"lint OK ({len(errors)} warning(s))")
+    return 0
+
+
+# Field names too generic to detect via a textual template scan: they appear
+# in unrelated contexts, so a name match does not prove the schema leaf is
+# actually consumed. Excluded from the drift gate.
+GENERIC_FIELD_NAMES = {"name", "type", "port", "path", "value", "key",
+                       "protocol", "labels", "annotations", "namespace"}
+_CONDITIONAL_KEYS = ("allOf", "anyOf", "oneOf", "if", "then", "else")
+
+
+def _schema_leaf_paths(structure: dict) -> list[str]:
+    """Enumerate dotted leaf paths of the schema's own ($defs-resolved) tree.
+
+    Refs into k8s.io.* primitives are treated as opaque leaves (the chart hands
+    those straight to toYaml). Conditional branches (allOf/anyOf/oneOf/if/then/
+    else) are unioned into the current node's leaf set rather than descended as
+    standalone objects, so their property leaves surface under the owning path.
+    """
+    defs = structure.get("$defs", {})
+    out: list[str] = []
+
+    def walk(node, path, seen, depth):
+        if depth > 14 or not isinstance(node, dict):
+            return
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            name = ref[len("#/$defs/"):]
+            if name.startswith("k8s.io."):
+                out.append(path)
+                return
+            if name in seen:
+                return
+            walk(defs.get(name, {}), path, seen | {name}, depth + 1)
+            return
+        # union conditional branches into this node's leaf set
+        for ck in _CONDITIONAL_KEYS:
+            sub = node.get(ck)
+            if isinstance(sub, list):
+                for s in sub:
+                    walk(s, path, seen, depth + 1)
+            elif isinstance(sub, dict):
+                walk(sub, path, seen, depth + 1)
+        props = node.get("properties")
+        ap = node.get("additionalProperties")
+        items = node.get("items")
+        if isinstance(props, dict):
+            for k, v in props.items():
+                walk(v, f"{path}.{k}" if path else k, seen, depth + 1)
+        elif isinstance(ap, dict):
+            walk(ap, f"{path}.*", seen, depth + 1)
+        elif isinstance(items, dict):
+            walk(items, f"{path}[]", seen, depth + 1)
+        elif not any(node.get(ck) for ck in _CONDITIONAL_KEYS):
+            out.append(path)
+
+    for k, v in structure.get("properties", {}).items():
+        walk(v, k, set(), 0)
+    # de-dup while preserving order
+    seen_paths, uniq = set(), []
+    for p in out:
+        if p not in seen_paths:
+            seen_paths.add(p)
+            uniq.append(p)
+    return uniq
+
+
+def drift_errors(structure: dict, lint_config: dict, templates_dir: Path) -> list[LintError]:
+    """Flag schema leaves that no template consumes and that are not reserved.
+
+    A leaf counts as consumed if any of its path segments appears in the
+    templates as a `.<segment>` access or a quoted "<segment>" key. Generic
+    field names are skipped (too noisy to scan textually); explicitly reserved
+    paths (documented future use) are skipped via reserved_leaf_paths.
+    """
+    reserved = set((lint_config or {}).get("reserved_leaf_paths", []) or [])
+    blob = "\n".join(p.read_text() for p in templates_dir.rglob("*") if p.is_file())
+    errors: list[LintError] = []
+    for leaf in _schema_leaf_paths(structure):
+        if leaf in reserved:
+            continue
+        segs = [s for s in re.split(r"[.\[\]*]", leaf) if s]
+        field = segs[-1] if segs else leaf
+        if field in GENERIC_FIELD_NAMES:
+            continue
+        # The first segment is the top-level Values key (always referenced as
+        # .Values.<key>), so it would trivially mark every descendant consumed.
+        # Skip it: a leaf counts as consumed when any DEEPER segment is accessed
+        # as a Go-template field (.seg, e.g. $cfg.metrics) or used as a quoted
+        # key ("seg"). Matching any ancestor object segment also covers fields
+        # rendered in bulk via `toYaml $parent`.
+        check_segs = segs[1:] if len(segs) > 1 else segs
+        consumed = any(
+            re.search(rf'\.{re.escape(s)}\b', blob)
+            or re.search(rf'["\']{re.escape(s)}["\']', blob)
+            for s in check_segs
+        )
+        if not consumed:
+            errors.append(LintError(level="error", path=leaf,
+                message="schema leaf not consumed by any template and not in reserved_leaf_paths"))
+    return errors
+
+
+def cmd_drift_report(args: argparse.Namespace) -> int:
+    k8s_defs = load_k8s_primitives(SCHEMA_DIR / "k8s")
+    structure = load_structure(SCHEMA_DIR / "structure", seed=k8s_defs)
+    lint_config = load_lint_config()
+    templates_dir = SCHEMA_DIR.parent / "charts" / "idlefy-universal" / "templates"
+    errors = drift_errors(structure, lint_config, templates_dir)
+    if errors:
+        for e in errors:
+            print(f"[drift] {e.path}: {e.message}")
+        print(f"\n{len(errors)} unwired leaf path(s)")
+    else:
+        print("no drift: every schema leaf is consumed by a template")
     return 0
 
 
@@ -866,6 +985,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_lint = sub.add_parser("lint", help="run lint rules over schema sources")
     p_lint.set_defaults(func=cmd_lint)
+
+    p_drift = sub.add_parser("drift-report", help="report schema leaves not consumed by any template (non-blocking)")
+    p_drift.set_defaults(func=cmd_drift_report)
 
     p_vf = sub.add_parser("validate-fixtures", help="validate fixtures or a single file")
     p_vf.add_argument("--fixtures-dir", default=None)

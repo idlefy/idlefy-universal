@@ -25,6 +25,10 @@
   {{- $backendPort = $firstPort.port -}}
 {{- end -}}
 
+{{- if and (not $defaultedRoute.hostnames) (not $globalDomain) -}}
+  {{- fail (printf "autoCreateHttpRoute for %s requires explicit httpRoute.hostnames or generic.ingressesGeneral.domain" $deploymentName) -}}
+{{- end -}}
+
 {{- /* Resolve hostnames: use provided or default to deploymentName as subdomain */ -}}
 {{- $hostnames := list -}}
 {{- if $defaultedRoute.hostnames -}}
@@ -90,6 +94,15 @@ spec:
         {{- range $ref := $rule.backendRefs }}
         - name: {{ $ref.name | default $deploymentName }}
           port: {{ $ref.port | default $backendPort }}
+          {{- if $ref.namespace }}
+          namespace: {{ $ref.namespace }}
+          {{- end }}
+          {{- if hasKey $ref "group" }}
+          group: {{ $ref.group | quote }}
+          {{- end }}
+          {{- if $ref.kind }}
+          kind: {{ $ref.kind }}
+          {{- end }}
           {{- if $ref.weight }}
           weight: {{ $ref.weight }}
           {{- end }}

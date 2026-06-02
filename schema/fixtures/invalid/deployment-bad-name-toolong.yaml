@@ -1,0 +1,5 @@
+# expected_error: is too long
+deployments:
+  this-name-is-way-too-long-to-be-a-valid-dns-1123-label-because-it-exceeds-the-limit:
+    containers:
+      main: {image: nginx, imageTag: "1.27"}

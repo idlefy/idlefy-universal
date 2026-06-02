@@ -29,6 +29,9 @@ spec:
   {{- if $defaultedConfig.completions }}
   completions: {{ int $defaultedConfig.completions }}
   {{- end }}
+  {{- if hasKey $defaultedConfig "ttlSecondsAfterFinished" }}
+  ttlSecondsAfterFinished: {{ $defaultedConfig.ttlSecondsAfterFinished }}
+  {{- end }}
   template:
     metadata:
       labels:
@@ -47,7 +50,7 @@ spec:
 ---
 {{- end }}
 
-{{/* Обработка миграций */}}
+{{/* Handle migrations */}}
 {{- range $deploymentName, $deploymentConfig := .Values.deployments }}
 {{- if and $deploymentConfig.migrations (hasKey $deploymentConfig.migrations "enabled") $deploymentConfig.migrations.enabled }}
 {{- $defaultedConfig := include "idlefy-universal.deploymentDefaults" (dict "deployment" $deploymentConfig "general" $.Values.deploymentsGeneral) | fromYaml }}

@@ -17,9 +17,10 @@ Used in spec.selector.matchLabels and spec.template.metadata.labels.
 Pass dict with "name" and "root" (root context for Release.Name).
 */}}
 {{- define "idlefy-universal.componentLabels" -}}
-app.kubernetes.io/name: {{ .name }}
+{{- $sel := .selectorName | default .name -}}
+app.kubernetes.io/name: {{ $sel }}
 app.kubernetes.io/instance: {{ .root.Release.Name }}
-app.kubernetes.io/component: {{ .name }}
+app.kubernetes.io/component: {{ $sel }}
 {{- end }}
 
 {{/*
@@ -54,4 +55,28 @@ Resource annotations win over global on key conflict.
 {{- if $merged }}
 {{- toYaml $merged }}
 {{- end -}}
+{{- end -}}
+
+{{/*
+Standard resource metadata block: name + merged labels + optional merged annotations.
+Pass dict with "name", "root", "labels" (resource labels), "annotations" (resource annotations).
+Optional "labelName" sets the app.kubernetes.io/* identity independently of metadata.name
+(defaults to "name"); used by the ServiceAccount blocks where metadata.name may differ
+from the workload identity.
+Emits the contents of metadata: (caller writes the `metadata:` key and nindents by 2).
+*/}}
+{{- define "idlefy-universal.resourceMetadata" -}}
+{{- $labelName := .labelName | default .name -}}
+name: {{ .name }}
+labels:
+  {{- include "idlefy-universal.labels" (dict "Chart" .root.Chart "Release" .root.Release "name" $labelName) | nindent 2 }}
+  {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" .root "resourceLabels" .labels) }}
+  {{- if $extraLabels }}
+  {{- $extraLabels | nindent 2 }}
+  {{- end }}
+{{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" .root "resourceAnnotations" .annotations) }}
+{{- if $mergedAnnotations }}
+annotations:
+  {{- $mergedAnnotations | nindent 2 }}
+{{- end }}
 {{- end -}}

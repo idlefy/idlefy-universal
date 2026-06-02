@@ -1,0 +1,5 @@
+# expected_error: does not match
+deployments:
+  Web-App:
+    containers:
+      main: {image: nginx, imageTag: "1.27"}

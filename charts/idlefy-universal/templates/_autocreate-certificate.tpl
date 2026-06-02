@@ -6,18 +6,7 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ $certificateName }}
-  labels:
-    {{- include "idlefy-universal.labels" (dict "Chart" $root.Chart "Release" $root.Release "name" $certificateName) | nindent 4 }}
-    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $root "resourceLabels" $certificateConfig.labels) }}
-    {{- if $extraLabels }}
-    {{- $extraLabels | nindent 4 }}
-    {{- end }}
-  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $root "resourceAnnotations" $certificateConfig.annotations) }}
-  {{- if $mergedAnnotations }}
-  annotations:
-    {{- $mergedAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "idlefy-universal.resourceMetadata" (dict "name" $certificateName "root" $root "labels" $certificateConfig.labels "annotations" $certificateConfig.annotations) | nindent 2 }}
 spec:
   secretName: {{ printf "%s-tls" $certificateName }}
   issuerRef:

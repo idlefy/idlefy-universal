@@ -41,21 +41,17 @@
       {{- $result = merge $result (dict "strategy" $general.strategy) }}
     {{- end }}
   {{- end }}
-  {{- if $general.parallelism }}
-    {{- if not $result.parallelism }}
-      {{- $result = merge $result (dict "parallelism" (int $general.parallelism)) }}
-    {{- end }}
-  {{- end }}
-  {{- if $general.completions }}
-    {{- if not $result.completions }}
-      {{- $result = merge $result (dict "completions" (int $general.completions)) }}
-    {{- end }}
-  {{- end }}
   {{- if $general.labels }}
     {{- $result = merge $result (dict "labels" (merge (default dict $deployment.labels) $general.labels)) }}
   {{- end }}
   {{- if $general.annotations }}
     {{- $result = merge $result (dict "annotations" (merge (default dict $deployment.annotations) $general.annotations)) }}
+  {{- end }}
+  {{- if $general.podLabels }}
+    {{- $result = merge $result (dict "podLabels" (merge (default dict $deployment.podLabels) $general.podLabels)) }}
+  {{- end }}
+  {{- if $general.podAnnotations }}
+    {{- $result = merge $result (dict "podAnnotations" (merge (default dict $deployment.podAnnotations) $general.podAnnotations)) }}
   {{- end }}
   {{- if $general.initContainers }}
     {{- if not $deployment.initContainers }}

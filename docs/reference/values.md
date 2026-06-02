@@ -4121,6 +4121,16 @@ eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/backend-api
 
 _Type:_ `boolean`
 
+Controls whether the API token is auto-mounted into pods using this
+ServiceAccount. Set false to opt out of token projection for
+workloads that do not call the Kubernetes API.
+
+**Example:**
+
+```yaml
+false
+```
+
 #### imagePullSecrets {#serviceaccountconfig-imagepullsecrets}
 
 _Type:_ `array`
@@ -4152,6 +4162,18 @@ team: platform
 #### name {#serviceaccountconfig-name}
 
 _Type:_ `string`
+
+Name of the managed ServiceAccount. When set, it becomes the SA's
+metadata.name and the workload's pods reference it automatically
+(pod serviceAccountName precedence: per-resource serviceAccountName >
+serviceAccount.name > generic.serviceAccountName > workload name).
+Auto-created RBAC RoleBindings bind to the same resolved name.
+
+**Example:**
+
+```yaml
+backend-api-sa
+```
 
 ### ServiceMonitorConfig
 

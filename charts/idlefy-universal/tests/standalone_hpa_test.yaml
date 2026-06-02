@@ -1,0 +1,48 @@
+suite: test standalone hpa
+templates:
+  - standalone-hpa.yaml
+tests:
+  - it: should render a standalone HPA targeting a StatefulSet
+    set:
+      hpas:
+        cache:
+          scaleTargetRef:
+            kind: StatefulSet
+            name: cache
+          minReplicas: 2
+          maxReplicas: 5
+          metrics:
+            - type: Resource
+              resource:
+                name: cpu
+                target:
+                  type: Utilization
+                  averageUtilization: 80
+          behavior:
+            scaleDown:
+              stabilizationWindowSeconds: 300
+    asserts:
+      - isKind:
+          of: HorizontalPodAutoscaler
+      - isAPIVersion:
+          of: autoscaling/v2
+      - equal:
+          path: metadata.name
+          value: cache
+      - equal:
+          path: spec.scaleTargetRef.kind
+          value: StatefulSet
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: cache
+      - equal:
+          path: spec.scaleTargetRef.apiVersion
+          value: apps/v1
+      - equal:
+          path: spec.maxReplicas
+          value: 5
+      - equal:
+          path: spec.minReplicas
+          value: 2
+      - matchSnapshot:
+          path: spec

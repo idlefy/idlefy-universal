@@ -3,27 +3,26 @@
 {{- $serviceName := .serviceName }}
 {{- $serviceConfig := .serviceConfig }}
 {{- $root := .root }}
+{{- $selectorName := .selectorName | default .serviceName }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $serviceName }}
-  labels:
-    {{- include "idlefy-universal.labels" (dict "Chart" $root.Chart "Release" $root.Release "name" $serviceName) | nindent 4 }}
-    {{- $extraLabels := include "idlefy-universal.mergeLabels" (dict "root" $root "resourceLabels" $serviceConfig.labels) }}
-    {{- if $extraLabels }}
-    {{- $extraLabels | nindent 4 }}
-    {{- end }}
-  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $root "resourceAnnotations" $serviceConfig.annotations) }}
-  {{- if $mergedAnnotations }}
-  annotations:
-    {{- $mergedAnnotations | nindent 4 }}
-  {{- end }}
+  {{- include "idlefy-universal.resourceMetadata" (dict "name" $serviceName "root" $root "labels" $serviceConfig.labels "annotations" $serviceConfig.annotations) | nindent 2 }}
 spec:
   {{- if $serviceConfig.headless }}
   clusterIP: None
   publishNotReadyAddresses: true
   {{- else }}
   type: {{ $serviceConfig.type | default "ClusterIP" }}
+  {{- if $serviceConfig.clusterIP }}
+  clusterIP: {{ $serviceConfig.clusterIP }}
+  {{- end }}
+  {{- if $serviceConfig.externalName }}
+  externalName: {{ $serviceConfig.externalName }}
+  {{- end }}
+  {{- if $serviceConfig.sessionAffinity }}
+  sessionAffinity: {{ $serviceConfig.sessionAffinity }}
+  {{- end }}
   {{- end }}
   ports:
     {{- range $serviceConfig.ports }}
@@ -34,9 +33,16 @@ spec:
       nodePort: {{ .nodePort }}
       {{- end }}
       protocol: {{ .protocol | default "TCP" }}
+      {{- if .appProtocol }}
+      appProtocol: {{ .appProtocol }}
+      {{- end }}
     {{- end }}
   selector:
-    {{- include "idlefy-universal.componentLabels" (dict "name" $serviceName "root" $root) | nindent 4 }}
+    {{- if $serviceConfig.selector }}
+    {{- toYaml $serviceConfig.selector | nindent 4 }}
+    {{- else }}
+    {{- include "idlefy-universal.componentLabels" (dict "name" $serviceName "selectorName" $selectorName "root" $root) | nindent 4 }}
+    {{- end }}
 {{- end }}
 {{- include "idlefy-universal.validate" . -}}
 {{/* Main service template */}}
@@ -73,7 +79,7 @@ spec:
 {{- if not $headless }}
 {{- $_ := set $serviceConfig "type" ($defaultedConfig.serviceType | default "ClusterIP") }}
 {{- end }}
-{{- include "idlefy-universal.service" (dict "serviceName" $defaultedConfig.serviceName "serviceConfig" $serviceConfig "root" $) }}
+{{- include "idlefy-universal.service" (dict "serviceName" $defaultedConfig.serviceName "selectorName" $stsName "serviceConfig" $serviceConfig "root" $) }}
 {{- end }}
 {{- end }}
 {{- end }}

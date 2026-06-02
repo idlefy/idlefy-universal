@@ -4990,6 +4990,10 @@
           "type": "object"
         },
         "automountServiceAccountToken": {
+          "description": "Controls whether the API token is auto-mounted into pods using this\nServiceAccount. Set false to opt out of token projection for\nworkloads that do not call the Kubernetes API.\n",
+          "examples": [
+            false
+          ],
           "type": "boolean"
         },
         "imagePullSecrets": {
@@ -5035,6 +5039,10 @@
           "type": "object"
         },
         "name": {
+          "description": "Name of the managed ServiceAccount. When set, it becomes the SA's\nmetadata.name and the workload's pods reference it automatically\n(pod serviceAccountName precedence: per-resource serviceAccountName >\nserviceAccount.name > generic.serviceAccountName > workload name).\nAuto-created RBAC RoleBindings bind to the same resolved name.\n",
+          "examples": [
+            "backend-api-sa"
+          ],
           "type": "string"
         }
       },
@@ -11696,6 +11704,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object"
     },
     "daemonSets": {
@@ -11721,6 +11733,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-common-mistakes": [
         "Setting replicas (DaemonSet pod count is managed by node count).",
@@ -11853,6 +11869,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-related-fields": [
         "/deploymentsGeneral",
@@ -11984,6 +12004,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-when-to-use": "Use for HPAs not tied to a chart deployment. For chart deployments\nprefer the inline hpa: block under deployments.<name>.\n"
     },
@@ -12082,6 +12106,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-when-to-use": "Use for one-off batch processing, data backfills, or one-shot setup\nthat runs as part of the chart install/upgrade.\n"
     },
@@ -12177,6 +12205,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object"
     },
     "statefulSets": {
@@ -12215,6 +12247,10 @@
           }
         }
       ],
+      "propertyNames": {
+        "maxLength": 63,
+        "pattern": "^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$"
+      },
       "type": "object",
       "x-agent-common-mistakes": [
         "Omitting serviceName (required by Kubernetes).",

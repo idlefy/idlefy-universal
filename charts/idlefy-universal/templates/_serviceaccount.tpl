@@ -13,6 +13,9 @@ Helper to resolve serviceAccountName with priority:
 {{/* Check per-resource serviceAccountName first */}}
 {{- if $resourceConfig.serviceAccountName -}}
   {{- $result = $resourceConfig.serviceAccountName -}}
+{{/* Then the managed serviceAccount.name */}}
+{{- else if and $resourceConfig.serviceAccount $resourceConfig.serviceAccount.name -}}
+  {{- $result = $resourceConfig.serviceAccount.name -}}
 {{/* Then check global serviceAccountName */}}
 {{- else if and $root.Values.generic $root.Values.generic.serviceAccountName -}}
   {{- $result = $root.Values.generic.serviceAccountName -}}

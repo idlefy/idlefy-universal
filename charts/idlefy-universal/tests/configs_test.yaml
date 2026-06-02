@@ -17,3 +17,14 @@ tests:
     asserts:
       - matchSnapshot:
           path: data 
+  - it: should render configMap binaryData base64-encoded
+    set:
+      configs:
+        assets:
+          type: configMap
+          binaryData:
+            logo.bin: "hello"
+    asserts:
+      - equal:
+          path: binaryData["logo.bin"]
+          value: aGVsbG8=

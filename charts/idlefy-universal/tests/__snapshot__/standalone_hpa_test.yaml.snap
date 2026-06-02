@@ -1,0 +1,18 @@
+should render a standalone HPA targeting a StatefulSet:
+  1: |
+    behavior:
+      scaleDown:
+        stabilizationWindowSeconds: 300
+    maxReplicas: 5
+    metrics:
+      - resource:
+          name: cpu
+          target:
+            averageUtilization: 80
+            type: Utilization
+        type: Resource
+    minReplicas: 2
+    scaleTargetRef:
+      apiVersion: apps/v1
+      kind: StatefulSet
+      name: cache

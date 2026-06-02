@@ -343,6 +343,22 @@ $defs:
       Use when the deployment needs cluster-bound RBAC permissions or a
       specific IAM identity (IRSA, Workload Identity).
     properties:
+      name:
+        description: |
+          Name of the managed ServiceAccount. When set, it becomes the SA's
+          metadata.name and the workload's pods reference it automatically
+          (pod serviceAccountName precedence: per-resource serviceAccountName >
+          serviceAccount.name > generic.serviceAccountName > workload name).
+          Auto-created RBAC RoleBindings bind to the same resolved name.
+        examples:
+          - backend-api-sa
+      automountServiceAccountToken:
+        description: |
+          Controls whether the API token is auto-mounted into pods using this
+          ServiceAccount. Set false to opt out of token projection for
+          workloads that do not call the Kubernetes API.
+        examples:
+          - false
       labels:
         description: |
           Extra labels merged onto the ServiceAccount metadata. Standard

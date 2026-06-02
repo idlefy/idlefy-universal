@@ -131,16 +131,16 @@ Computed Ingress Host
     {{- if regexMatch $domainRegex $host }}
       {{ $host }}
     {{- else }}
-      {{ fail (printf "Invalid host value: '%s'. Он должен соответствовать шаблону домена." $host) }}
+      {{ fail (printf "Invalid host value: '%s'. It must match the domain pattern." $host) }}
     {{- end }}
   {{- else if $subdomain }}
     {{- if not $globalDomain }}
-      {{ fail "Global domain должен быть указан, когда используется subdomain." }}
+      {{ fail "Global domain must be specified when a subdomain is used." }}
     {{- end }}
     {{- if regexMatch $subdomainRegex $subdomain }}
       {{ printf "%s.%s" $subdomain $globalDomain }}
     {{- else }}
-      {{ fail (printf "Invalid subdomain value: '%s'. Допустимы только строчные буквы, цифры и дефисы." $subdomain) }}
+      {{ fail (printf "Invalid subdomain value: '%s'. Only lowercase letters, digits, and hyphens are allowed." $subdomain) }}
     {{- end }}
   {{- else if $globalDomain }}
     {{- if regexMatch $domainRegex $globalDomain }}
@@ -149,7 +149,7 @@ Computed Ingress Host
       {{ fail (printf "Invalid global domain value: '%s'" $globalDomain) }}
     {{- end }}
   {{- else }}
-    {{ fail "Не указаны ни host, ни subdomain, ни global domain." }}
+    {{ fail "Neither host, subdomain, nor global domain was specified." }}
   {{- end }}
 {{- end }}
 
@@ -362,7 +362,7 @@ HTTPRoute validation — parentRefs/hostnames/rules required (not in schema), co
   {{- end }}
 
   {{- /* rules required */ -}}
-  {{- if not $config.rules -}}
+  {{- if or (not $config.rules) (eq (len $config.rules) 0) -}}
     {{ fail (printf "HTTPRoute %s: at least one rule is required" $name) }}
   {{- end }}
 
