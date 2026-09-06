@@ -7,9 +7,14 @@ describe('labels', () => {
   it('finds the pod template for CronJob under jobTemplate', () => {
     const cj = manifests.find((m) => m.obj.kind === 'CronJob')!;
     expect(podTemplateOf(cj.obj)).toBe(cj.obj.spec.jobTemplate.spec.template);
+    expect(cj.templatePath).toBe('idlefy-universal/templates/cronjob.yaml');
     const dep = manifests.find((m) => m.obj.kind === 'Deployment')!;
     expect(podTemplateOf(dep.obj)).toBe(dep.obj.spec.template);
     expect(podTemplateOf({ kind: 'Service', metadata: { name: 'x' } })).toBeNull();
+  });
+  it('orders manifests by templatePath, matching src/engine/client.ts', () => {
+    const paths = manifests.map((m) => m.templatePath);
+    expect(paths).toEqual([...paths].sort((a, b) => a.localeCompare(b)));
   });
   it('matches a Service selector against its Deployment pod labels', () => {
     const svc = manifests.find((m) => m.obj.kind === 'Service' && m.obj.metadata.name === 'api')!;

@@ -9,8 +9,19 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '..', '..', '..');
 const chart = path.join(repo, 'charts', 'idlefy-universal');
 const out = path.resolve(here, '..', 'src', 'graph', '__fixtures__');
+
+const helmVersion = execFileSync('helm', ['version', '--short'], { encoding: 'utf8' }).trim();
+if (!helmVersion.startsWith('v3.19.')) {
+  console.error(
+    `gen-graph-fixtures: expected helm v3.19.x on PATH, got "${helmVersion}". ` +
+      'Use the pinned toolchain from playground/Dockerfile (or install helm v3.19.x locally) so fixtures stay byte-stable.',
+  );
+  process.exit(1);
+}
+
+fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
-for (const f of fs.readdirSync(path.join(chart, 'ci')).filter((f) => f.endsWith('.yaml'))) {
+for (const f of fs.readdirSync(path.join(chart, 'ci')).filter((f) => f.endsWith('.yaml')).sort((a, b) => a.localeCompare(b))) {
   const name = f.replace(/-values\.yaml$/, '');
   const rendered = execFileSync(
     'helm',

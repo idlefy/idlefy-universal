@@ -14,11 +14,17 @@ export function loadFixture(name: string): { manifests: Manifest[]; values: any 
   for (const chunk of text.split(/^---$/m)) {
     const m = chunk.match(/^# Source: (\S+)/m);
     if (!m) continue;
+    // production's raw manifest text never carries the helm-injected `# Source:` header, so
+    // strip it here too, keeping fixture manifests shaped like real render() output.
     const list = byTemplate.get(m[1]) ?? [];
-    list.push(chunk);
+    list.push(chunk.replace(/^# Source: .*\n/m, ''));
     byTemplate.set(m[1], list);
   }
   const manifests: Manifest[] = [];
-  for (const [templatePath, chunks] of byTemplate) manifests.push(...splitManifests(templatePath, chunks.join('\n---\n')));
+  // mirror src/engine/client.ts:60, which sorts template paths with localeCompare before
+  // splitting, so the fixture harness produces manifests in the same order as production.
+  for (const templatePath of [...byTemplate.keys()].sort((a, b) => a.localeCompare(b))) {
+    manifests.push(...splitManifests(templatePath, byTemplate.get(templatePath)!.join('\n---\n')));
+  }
   return { manifests, values };
 }
