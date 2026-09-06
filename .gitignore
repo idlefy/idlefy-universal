@@ -7,3 +7,5 @@ __pycache__/
 .pytest_cache/
 # Local work artifacts (specs/plans/designs not committed)
 docs/superpowers/
+# CocoIndex Code (ccc)
+/.cocoindex_code/
