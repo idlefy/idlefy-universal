@@ -1,0 +1,9 @@
+# generic.labels has a chart default of {}; user supplies a non-empty map that must merge.
+generic:
+  labels:
+    team: platform
+deployments:
+  app:
+    replicas: 1
+    containers:
+      main: {image: nginx, imageTag: "1.27-alpine"}

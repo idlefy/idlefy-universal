@@ -1,0 +1,8 @@
+# User null must delete the chart default `generic` (Helm coalesce semantics).
+# ingress.yaml dereferences generic.ingressesGeneral unguarded, so no ingress here.
+generic: null
+deployments:
+  app:
+    replicas: 1
+    containers:
+      main: {image: nginx, imageTag: "1.27-alpine"}

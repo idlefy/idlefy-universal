@@ -147,3 +147,83 @@ func TestGoldenHelloWorld(t *testing.T) {
 		t.Fatalf("mismatch\n--- helm ---\n%s\n--- engine ---\n%s", want, got)
 	}
 }
+
+// skipCorpus names corpus fixtures (by basename) that are schema-valid but
+// cannot be compared through this harness. Each entry names the concrete
+// failure observed when the fixture was run through TestGoldenCorpus.
+var skipCorpus = map[string]string{
+	// Sets only globals (deploymentsGeneral, generic, secretRefs) with no
+	// deployments/services/etc., so both helm and the engine legitimately
+	// render zero resources. normalize() intentionally fails a zero-document
+	// stream (fail message: "normalize: stream contained no documents") to
+	// avoid the golden comparison trivially passing on both empty sides.
+	"globals-minimal.yaml": "normalize: stream contained no documents",
+}
+
+func corpus(t *testing.T) []string {
+	t.Helper()
+	var paths []string
+	for _, glob := range []string{
+		filepath.Join(chartDir, "ci", "*.yaml"),
+		filepath.Join(repoRoot, "schema", "fixtures", "valid", "*.yaml"),
+		filepath.Join(repoRoot, "playground", "engine", "testdata", "coalesce-*.yaml"),
+	} {
+		m, _ := filepath.Glob(glob)
+		for _, p := range m {
+			if _, skip := skipCorpus[filepath.Base(p)]; skip {
+				continue
+			}
+			paths = append(paths, p)
+		}
+	}
+	if len(paths) < 10 {
+		t.Fatalf("corpus too small: %d", len(paths))
+	}
+	return paths
+}
+
+func TestGoldenCorpus(t *testing.T) {
+	helm := requireHelm(t)
+	files := loadChartFiles(t)
+	// "release-name" (not the uppercase "RELEASE-NAME" helm-unittest placeholder
+	// used elsewhere in this repo's chart tests) is real helm's own default
+	// release name for `helm template <chart>` with no NAME argument
+	// (cmd/helm/template.go: client.ReleaseName = "release-name"). Helm CLI
+	// rejects uppercase release names outright (chartutil.validName regex,
+	// enforced unconditionally by Install.Run -> availableName, even in
+	// --dry-run), so "RELEASE-NAME" cannot be passed as a literal NAME
+	// argument to `helm template` and still produce comparable output.
+	for _, values := range corpus(t) {
+		for _, release := range []string{"demo", "release-name"} {
+			name := filepath.Base(values) + "/" + release
+			t.Run(name, func(t *testing.T) {
+				want := normalize(t, helmTemplate(t, helm, release, values))
+				got := normalize(t, renderJoined(t, files, values, release))
+				if want != got {
+					t.Fatalf("mismatch for %s\n--- helm ---\n%s\n--- engine ---\n%s", name, want, got)
+				}
+			})
+		}
+	}
+}
+
+// The graph builder disambiguates standalone vs auto-created resources by
+// document order inside these files. Guard that invariant here.
+func TestStandaloneBlocksPrecedeAutoCreated(t *testing.T) {
+	files := loadChartFiles(t)
+	// Text-position canary: it would not notice the auto block moving into a `define`,
+	// but the golden corpus would then diverge, so the two tests cover each other.
+	cases := map[string][2]string{
+		"templates/service.yaml":   {".Values.services", ".Values.deployments"},
+		"templates/ingress.yaml":   {".Values.ingresses", ".Values.deployments"},
+		"templates/httproute.yaml": {".Values.httpRoutes", ".Values.deployments"},
+		"templates/job.yaml":       {".Values.jobs", ".Values.deployments"},
+	}
+	for file, pair := range cases {
+		src := files[file]
+		i, j := strings.Index(src, pair[0]), strings.Index(src, pair[1])
+		if i < 0 || j < 0 || i > j {
+			t.Errorf("%s: expected %q (at %d) before %q (at %d)", file, pair[0], i, pair[1], j)
+		}
+	}
+}
