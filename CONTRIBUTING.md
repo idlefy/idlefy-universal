@@ -84,9 +84,13 @@ version: X.Y.Z
 5. Update examples if necessary
 6. Submit pull request using our PR template
 
-### PR Title Convention
+### PR Title and Commit Convention
 
-Format: `[type]: Description`
+PR titles and commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+<type>(<optional scope>): <description>
+```
 
 Types:
 - `feat`: New feature
@@ -95,10 +99,19 @@ Types:
 - `style`: Changes not affecting code logic
 - `refactor`: Code change that neither fixes a bug nor adds a feature
 - `perf`: Performance improvements
-- `test`: Adding missing tests
+- `test`: Adding or fixing tests
 - `chore`: Changes to build process or auxiliary tools
+- `ci`: CI workflow changes
 
-Example: `[feat]: Add support for pod topology spread constraints`
+Scope is optional and names the area touched, e.g. `schema`, `playground`,
+`docs`, `ci`, or a template such as `httproute`. Append `!` after the
+type/scope for a breaking change to the values contract, and describe it in
+the commit body.
+
+Examples:
+- `feat: add support for pod topology spread constraints`
+- `fix(playground): survive a dead wasm engine`
+- `feat(schema)!: drop deprecated ingress.tls shorthand`
 
 ## 📦 Release Process
 
