@@ -29,3 +29,12 @@ header { padding: 8px 12px; border-bottom: 1px solid var(--border); background: 
 .rnode .react-flow__handle { opacity: 0; }
 .toolbar { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
 .editor { height: 100%; min-height: 200px; }
+.split { display: grid; grid-template-columns: minmax(360px, 42%) 1fr; height: 100%; min-height: 0; }
+.left, .right { display: flex; flex-direction: column; min-height: 0; position: relative; }
+.left { border-right: 1px solid var(--border); }
+.banner { padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fee2e2; color: #7f1d1d; font-size: 12px; }
+.banner.warn { background: #fef3c7; color: #78350f; }
+.banner pre { margin: 0; white-space: pre-wrap; }
+.muted { color: #888; font-weight: normal; }
+header { display: flex; gap: 6px; align-items: center; }
+.fatal { max-width: 640px; margin: 15vh auto; padding: 24px; background: var(--panel); border: 1px solid var(--err); border-radius: 8px; }
