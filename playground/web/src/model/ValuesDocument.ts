@@ -5,23 +5,25 @@ export type ValuesPath = (string | number)[];
 export class ValuesDocument {
   private doc: Document;
   private lc: LineCounter;
+  private source: string;
   readonly errors: { message: string; line: number; col: number }[];
 
-  private constructor(doc: Document, lc: LineCounter, errors: { message: string; line: number; col: number }[]) {
+  private constructor(doc: Document, lc: LineCounter, source: string, errors: { message: string; line: number; col: number }[]) {
     this.doc = doc;
     this.lc = lc;
+    this.source = source;
     this.errors = errors;
   }
 
   static parse(text: string): ValuesDocument {
     const lc = new LineCounter();
-    const doc = parseDocument(text, { lineCounter: lc, keepSourceTokens: true });
+    const doc = parseDocument(text, { lineCounter: lc, keepSourceTokens: false });
     const errors = doc.errors.map((e) => {
       const pos = e.pos?.[0] ?? 0;
       const { line, col } = lc.linePos(pos);
       return { message: e.message, line, col };
     });
-    return new ValuesDocument(doc, lc, errors);
+    return new ValuesDocument(doc, lc, text, errors);
   }
 
   toJS(): any {
@@ -31,15 +33,60 @@ export class ValuesDocument {
   }
   hasIn(path: ValuesPath): boolean { return this.doc.hasIn(path); }
   getIn(path: ValuesPath): unknown { return this.doc.getIn(path); }
+
   setIn(path: ValuesPath, value: unknown): void {
-    if (!isMap(this.doc.contents)) this.doc.contents = this.doc.createNode({}) as any;
-    this.doc.setIn(path, value);
+    if (path.length === 0) return;
+
+    // Root: only replace with an empty map when the document currently has no
+    // content at all (null/undefined, e.g. an empty document). A root that is
+    // already a sequence or a scalar is left untouched — silently overwriting
+    // the user's whole document root would be too surprising — so setIn is a
+    // no-op in that case (it never throws).
+    if (this.doc.contents == null) {
+      this.doc.contents = this.doc.createNode({}) as any;
+    }
+    const root: any = this.doc.contents;
+    if (!isMap(root)) return; // sequence or scalar root: no-op (never throws)
+
+    // Walk intermediate segments, creating maps as needed. If an intermediate
+    // segment holds a scalar (not a collection) rather than being missing, we
+    // treat the caller's intent as "make this a nested structure" and replace
+    // the scalar with a fresh map rather than throwing — the same behavior a
+    // deep-set utility like lodash's `set` has for a superseded scalar.
+    let node: any = root;
+    for (let i = 0; i < path.length - 1; i++) {
+      const seg = path[i];
+      let next = node.get(seg, true);
+      if (!isMap(next) && !isSeq(next)) {
+        next = this.doc.createNode({});
+        node.set(seg, next);
+      }
+      node = next;
+    }
+    node.set(path[path.length - 1], value);
   }
+
   deleteIn(path: ValuesPath): void {
-    if (!isMap(this.doc.contents) && !isSeq(this.doc.contents)) return;
-    this.doc.deleteIn(path);
+    if (path.length === 0) return;
+    let node: any = this.doc.contents;
+    for (let i = 0; i < path.length - 1; i++) {
+      if (!isMap(node) && !isSeq(node)) return; // missing/scalar intermediate: no-op
+      node = node.get(path[i], true);
+    }
+    if (!isMap(node) && !isSeq(node)) return; // missing/scalar target parent: no-op
+    node.delete(path[path.length - 1]);
   }
-  toString(): string { return this.doc.toString(); }
+
+  toString(): string {
+    // A document with parse errors cannot be stringified by `yaml` (it
+    // throws), so fall back to the original source verbatim. Likewise an
+    // untouched empty/whitespace/comment-only document has null `contents`,
+    // which `yaml` would otherwise render as the literal text "null\n" —
+    // return the original source instead.
+    if (this.errors.length || this.doc.contents == null) return this.source;
+    return this.doc.toString();
+  }
+
   clone(): ValuesDocument { return ValuesDocument.parse(this.toString()); }
 
   /** 1-based line of the key node at path, or null. */

@@ -46,4 +46,55 @@ describe('ValuesDocument', () => {
     expect(d.errors[0].line).toBeGreaterThan(0);
     expect(d.toJS()).toEqual({});
   });
+  it('toString() and clone() return the source verbatim for an invalid document', () => {
+    const bad = 'deployments:\n  api: [\n';
+    const d = ValuesDocument.parse(bad);
+    expect(d.toString()).toBe(bad);
+    const c = d.clone();
+    expect(c.errors.length).toBeGreaterThan(0);
+    expect(c.toString()).toBe(bad);
+  });
+  it('parse("") yields {} JS and stringifies back to ""', () => {
+    const d = ValuesDocument.parse('');
+    expect(d.errors).toEqual([]);
+    expect(d.toJS()).toEqual({});
+    expect(d.toString()).toBe('');
+  });
+  it('clone() is independent of the original', () => {
+    const d = ValuesDocument.parse('a: 1\n');
+    const c = d.clone();
+    c.setIn(['a'], 2);
+    expect(d.toJS().a).toBe(1);
+    expect(c.toJS().a).toBe(2);
+  });
+  it('setIn on a scalar intermediate replaces it with a map instead of throwing', () => {
+    const d = ValuesDocument.parse('a: 5\n');
+    expect(() => d.setIn(['a', 'b'], 1)).not.toThrow();
+    expect(d.toJS()).toEqual({ a: { b: 1 } });
+  });
+  it('setIn is a no-op when the document root is a sequence', () => {
+    const d = ValuesDocument.parse('- 1\n- 2\n');
+    expect(() => d.setIn(['a'], 1)).not.toThrow();
+    expect(d.toJS()).toEqual([1, 2]);
+  });
+  it('setIn is a no-op when the document root is a scalar', () => {
+    const d = ValuesDocument.parse('5\n');
+    expect(() => d.setIn(['a'], 1)).not.toThrow();
+    expect(d.toString()).toBe('5\n');
+  });
+  it('deleteIn on an empty document is a no-op', () => {
+    const d = ValuesDocument.parse('');
+    expect(() => d.deleteIn(['a'])).not.toThrow();
+    expect(d.hasIn(['a'])).toBe(false);
+  });
+  it('deleteIn with a missing intermediate is a no-op', () => {
+    const d = ValuesDocument.parse('x: 1\n');
+    expect(() => d.deleteIn(['missing', 'b'])).not.toThrow();
+    expect(d.toJS()).toEqual({ x: 1 });
+  });
+  it('deleteIn with a scalar intermediate is a no-op', () => {
+    const d = ValuesDocument.parse('a: 5\n');
+    expect(() => d.deleteIn(['a', 'b'])).not.toThrow();
+    expect(d.toJS()).toEqual({ a: 5 });
+  });
 });
