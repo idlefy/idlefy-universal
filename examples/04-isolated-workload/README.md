@@ -1,6 +1,7 @@
 # 04 — isolated-workload
 
-A controller workload that:
+A controller workload with its own ServiceAccount and RBAC, default-deny ingress
+and tightly scoped egress.
 
 - Has its own ServiceAccount + RBAC to read ConfigMaps in the namespace.
 - Allows only DNS egress to `kube-system` plus Kubernetes API egress

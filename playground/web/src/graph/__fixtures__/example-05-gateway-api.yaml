@@ -1,0 +1,91 @@
+---
+# Source: idlefy-universal/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+---
+# Source: idlefy-universal/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: idlefy-universal-1.1.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: web
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/component: web
+    spec:
+      containers:
+      - name: main
+        image: nginx:1.27-alpine
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+---
+# Source: idlefy-universal/templates/httproute.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+spec:
+  parentRefs:
+    - name: eg
+      namespace: default
+  hostnames:
+    - "web.example.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: demo-web
+          port: 80

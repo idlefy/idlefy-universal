@@ -1,0 +1,139 @@
+---
+# Source: idlefy-universal/templates/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: controller
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: controller
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: controller
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: controller
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: controller
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    []
+  egress:
+    - ports:
+      - port: 53
+        protocol: UDP
+      - port: 53
+        protocol: TCP
+      to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: kube-system
+        podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+    - ports:
+      - port: 6443
+        protocol: TCP
+      to:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/component: controller
+---
+# Source: idlefy-universal/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: controller
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: controller
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: controller
+---
+# Source: idlefy-universal/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: controller
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: controller
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: controller
+rules:
+  - apiGroups:
+    - ""
+    resources:
+    - configmaps
+    verbs:
+    - get
+    - list
+    - watch
+---
+# Source: idlefy-universal/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: controller
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: controller
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: controller
+subjects:
+  - kind: ServiceAccount
+    name: controller
+    namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: controller
+---
+# Source: idlefy-universal/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: controller
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: controller
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: idlefy-universal-1.1.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: controller
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/component: controller
+    spec:
+      serviceAccountName: controller
+      containers:
+      - name: main
+        image: busybox:1.36
+        command:
+          - sh
+          - -c
+          - while true; do date; sleep 60; done
+        resources:
+          limits:
+            cpu: 50m
+            memory: 64Mi
+          requests:
+            cpu: 5m
+            memory: 16Mi

@@ -1,0 +1,36 @@
+{
+  "name": "idlefy-universal-playground",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/bundle-chart.mjs && vite",
+    "build": "node scripts/bundle-chart.mjs && tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "node scripts/bundle-chart.mjs && vitest run",
+    "test:watch": "node scripts/bundle-chart.mjs && vitest",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.11.6",
+    "elkjs": "^0.12.0",
+    "monaco-editor": "^0.52.2",
+    "monaco-yaml": "^5.5.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/coverage-v8": "^5.0.0",
+    "jsdom": "^30.0.1",
+    "path-browserify": "^1.0.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
+  }
+}

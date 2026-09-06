@@ -55,6 +55,15 @@ plugins:
       # External link checks are slow + flaky; only run them on the
       # scheduled (weekly) workflow which sets PROOFER_EXTERNAL=true.
       validate_external_urls: !ENV [PROOFER_EXTERNAL, false]
+      # Only bites on the weekly run, the one that sets validate_external_urls:
+      # there the plugin actually fetches this URL, and docs/playground-guide.md
+      # links to the playground SPA, which the `playground` job copies into
+      # site/playground/ after the build — so it 404s until the first deploy
+      # lands. PR/push builds never fetch external URLs, so the entry is inert
+      # there. Matched by fnmatch against the raw href, hence the full site URL
+      # rather than a root-relative /playground/.
+      ignore_urls:
+        - 'https://idlefy.github.io/idlefy-universal/playground/*'
 
 markdown_extensions:
   - admonition
@@ -79,6 +88,7 @@ extra_css:
 
 nav:
   - Home: index.md
+  - Playground: playground-guide.md
   - Tutorials:
       - First app: tutorials/your-first-app.md
       - Add metrics: tutorials/add-metrics.md

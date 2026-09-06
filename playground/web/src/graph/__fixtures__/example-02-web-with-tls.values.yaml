@@ -1,0 +1,29 @@
+# examples/02-web-with-tls/values.yaml
+# Web app with Ingress and TLS terminated by cert-manager.
+# Requires: cert-manager CRDs + a ClusterIssuer named `selfsigned`.
+generic:
+  ingressesGeneral:
+    domain: example.com
+    ingressClassName: nginx
+
+deployments:
+  web:
+    replicas: 1
+    containers:
+      main:
+        image: nginx
+        imageTag: "1.27-alpine"
+        ports:
+          http: {containerPort: 80, servicePort: 80}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 128Mi}
+    autoCreateService: true
+    autoCreateIngress: true
+    ingress:
+      hosts:
+        - subdomain: web
+          paths: [{path: /, pathType: Prefix}]
+    autoCreateCertificate: true
+    certificate:
+      clusterIssuer: selfsigned

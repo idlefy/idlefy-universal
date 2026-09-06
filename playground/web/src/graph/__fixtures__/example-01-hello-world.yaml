@@ -1,0 +1,65 @@
+---
+# Source: idlefy-universal/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: hello
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: hello
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: hello
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: hello
+---
+# Source: idlefy-universal/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: hello
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: hello
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hello
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: hello
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: idlefy-universal-1.1.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: hello
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/component: hello
+    spec:
+      containers:
+      - name: main
+        image: nginx:1.27-alpine
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi

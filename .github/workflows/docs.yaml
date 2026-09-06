@@ -6,14 +6,22 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-      - 'charts/idlefy-universal/values.schema.json'
+      # The playground SPA embeds the chart, its schema and the ci values
+      # fixtures, so anything that changes them must rebuild and redeploy it.
+      - 'charts/**'
+      - 'examples/**'
+      - 'playground/**'
+      - 'schema/**'
       - '.github/workflows/docs.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
-      - 'charts/idlefy-universal/values.schema.json'
+      - 'charts/**'
+      - 'examples/**'
+      - 'playground/**'
+      - 'schema/**'
       - '.github/workflows/docs.yaml'
   schedule:
     # Weekly external-link-rot check every Monday at 04:17 UTC.
@@ -22,18 +30,122 @@ on:
     - cron: '17 4 * * 1'
   workflow_dispatch:
 
+# Workflow-level token is read-only. Pages/OIDC write scopes are granted only
+# to `deploy`, which runs no repository-controlled code (no checkout, no npm,
+# no pip) — `build` and `playground` execute package scripts and must not
+# hold credentials that can publish the site.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  # Toolchain-heavy playground build, kept out of `build` so the docs job stays
+  # a pure Python/MkDocs job. Produces the SPA that `build` grafts into the site
+  # under /playground/ (matching the Vite `base`).
+  playground:
     runs-on: ubuntu-latest
+    # Builds and tests only — it never touches Pages, so it drops the
+    # workflow-level pages:write / id-token:write.
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: '1.26'
+          cache-dependency-path: playground/engine/go.sum
+
+      - name: Set up Node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: playground/web/package-lock.json
+
+      - name: Set up Helm (golden test reference)
+        uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+        with:
+          version: v3.19.2
+
+      - name: Install binaryen
+        # Keep the tag and the checksum in sync with playground/Dockerfile
+        # (BINARYEN_VERSION / BINARYEN_SHA256). The GitHub release publishes no
+        # checksum file, so the digest is pinned here and re-verified on every run:
+        # download first, verify, then unpack. Extracted into RUNNER_TEMP, not
+        # /opt: /opt is root-owned on ubuntu-latest and the runner user cannot
+        # write to it without sudo.
+        env:
+          BINARYEN_SHA256: 195ddc94f9bc89f45abdabb0b9eea86023d727ba90eac8b35b80f2544fc30572
+        run: |
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/binaryen.tar.gz" https://github.com/WebAssembly/binaryen/releases/download/version_132/binaryen-version_132-x86_64-linux.tar.gz
+          echo "$BINARYEN_SHA256  $RUNNER_TEMP/binaryen.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/binaryen.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-version_132/bin" >> "$GITHUB_PATH"
+
+      - name: Engine tests (golden vs helm template, FuncMap gate, invalid fixtures)
+        # CI=true makes the golden tests hard-fail instead of skipping when the
+        # helm binary is missing (see requireHelm in the engine tests).
+        env:
+          CI: 'true'
+        run: cd playground/engine && go test ./...
+
+      - name: Build helm.wasm (includes the 6 MB gzip gate)
+        run: bash playground/engine/build.sh
+
+      - name: Graph fixtures must match helm template
+        # Staged into the index first: `git diff` alone ignores untracked
+        # files, so a new charts/idlefy-universal/ci/*.yaml whose fixtures were
+        # never generated would slip through as an untracked addition.
+        run: |
+          cd playground/web && node scripts/gen-graph-fixtures.mjs
+          cd "$GITHUB_WORKSPACE"
+          git add -A -- playground/web/src/graph/__fixtures__
+          git diff --cached --exit-code -- playground/web/src/graph/__fixtures__ || { echo "::error::graph fixtures are stale; run node scripts/gen-graph-fixtures.mjs and commit"; exit 1; }
+
+      - name: Web tests and build
+        run: |
+          cd playground/web
+          npm ci
+          npm test -- --run
+          npm run build
+
+      - name: Page weight gate (≤ 10 MB gzip for the whole dist)
+        run: |
+          total=$(find playground/web/dist -type f -exec sh -c 'gzip -9 -c "$1" | wc -c' _ {} \; | awk '{s+=$1} END {print s}')
+          echo "dist gzip total: $total bytes"
+          test "$total" -le $((10 * 1024 * 1024))
+
+      - name: Playground smoke test
+        # Skipped on the weekly link-rot schedule: it exercises the SPA, not links.
+        if: github.event_name != 'schedule'
+        # playwright.config.ts owns the preview server (`webServer`: build +
+        # `vite preview --port 4173 --strictPort`). Do NOT start one here and do
+        # NOT set PLAYGROUND_URL — with CI set, reuseExistingServer is false and
+        # a second server would collide on the strict port.
+        run: |
+          cd playground/web
+          npx playwright install --with-deps chromium
+          npm run e2e
+
+      - name: Upload playground dist
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2 (same pin as helm.yaml)
+        with:
+          name: playground-dist
+          path: playground/web/dist
+          retention-days: 1
+
+  build:
+    needs: playground
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       should-deploy: ${{ steps.gate.outputs.should-deploy }}
     steps:
@@ -77,6 +189,27 @@ jobs:
           PROOFER_EXTERNAL: ${{ github.event_name == 'schedule' && 'true' || 'false' }}
         run: mkdocs build --strict
 
+      # The SPA is grafted in only after htmlproofer has run: mkdocs build wipes
+      # site/, and htmlproofer has no business crawling the built bundle (the
+      # link to it is in mkdocs.yml `ignore_urls`).
+      - name: Download playground dist
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: playground-dist
+          path: site/playground
+
+      - name: Verify playground landed in site
+        # Grep for the SPA's mount point rather than a bare `test -f
+        # index.html`: any MkDocs page that built to site/playground/ would
+        # satisfy the latter even if the artifact never unpacked. The last
+        # assertion guards the reverse — the prose page must keep its own URL
+        # (docs/playground-guide.md) and never be overwritten by the SPA.
+        run: |
+          test -f site/playground/helm.wasm
+          test -f site/playground/wasm_exec.js
+          grep -q 'id="root"' site/playground/index.html
+          test -f site/playground-guide/index.html
+
       - name: Decide deploy
         id: gate
         # Deploy only on push-to-main and manual dispatch. Scheduled runs
@@ -91,24 +224,65 @@ jobs:
               echo "should-deploy=false" >> $GITHUB_OUTPUT ;;
           esac
 
-      - name: Configure Pages
+      # Plain (unprivileged) artifact: the Pages artifact is assembled in
+      # `deploy`, the only job holding pages/id-token write scopes.
+      - name: Upload built site
         if: steps.gate.outputs.should-deploy == 'true'
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-
-      - name: Upload Pages artifact
-        if: steps.gate.outputs.should-deploy == 'true'
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2 (same pin as helm.yaml)
         with:
+          name: site
           path: site
+          retention-days: 1
 
   deploy:
     needs: build
     if: needs.build.outputs.should-deploy == 'true'
     runs-on: ubuntu-latest
+    # The only job with Pages + OIDC scopes; it never checks out or runs
+    # repository code — it only re-packages the artifact `build` produced.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Download built site
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: site
+          path: site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+
+  # Post-deploy check that Pages actually serves the wasm with a usable
+  # content type — `WebAssembly.instantiateStreaming` rejects anything but
+  # application/wasm. `deploy` exposes no outputs, so the URL is hardcoded.
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    # Read-only HTTP check against the public site; needs no token at all.
+    permissions: {}
+    steps:
+      - name: Check wasm headers on Pages
+        # --retry-all-errors absorbs CDN propagation lag right after a deploy;
+        # -f turns a non-2xx into a curl failure instead of a confusing grep
+        # miss, and pipefail makes that failure survive the pipe into tee.
+        run: |
+          set -o pipefail
+          curl -fsSI --retry 5 --retry-delay 10 --retry-all-errors \
+            -H 'Accept-Encoding: gzip, br' \
+            https://idlefy.github.io/idlefy-universal/playground/helm.wasm | tee headers.txt
+          grep -qi 'content-type: application/wasm' headers.txt
+          # Warning only: GitHub Pages does not guarantee Content-Encoding on HEAD.
+          grep -qiE 'content-encoding: (gzip|br)' headers.txt || echo "::warning::helm.wasm served without compression"
