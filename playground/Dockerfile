@@ -11,4 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && curl -fsSL https://get.helm.sh/helm-v3.19.2-linux-amd64.tar.gz | tar -xz -C /tmp \
     && mv /tmp/linux-amd64/helm /usr/local/bin/helm \
     && rm -rf /var/lib/apt/lists/* /tmp/linux-amd64
+# Debian's /etc/profile overwrites PATH, so a login shell (`bash -lc`, used by the
+# playground-* make targets) loses the golang image's /usr/local/go/bin and $GOPATH/bin.
+RUN printf 'export PATH="$PATH:/usr/local/go/bin:${GOPATH:-/go}/bin"\n' > /etc/profile.d/golang.sh
 WORKDIR /work
