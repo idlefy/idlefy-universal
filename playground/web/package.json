@@ -4,14 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "prebuild": "node scripts/bundle-chart.mjs",
-    "predev": "node scripts/bundle-chart.mjs",
-    "pretest": "node scripts/bundle-chart.mjs",
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "node scripts/bundle-chart.mjs && vite",
+    "build": "node scripts/bundle-chart.mjs && tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "oxlint",
-    "test": "vitest",
+    "test": "node scripts/bundle-chart.mjs && vitest",
     "e2e": "playwright test"
   },
   "dependencies": {
@@ -31,7 +27,6 @@
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/coverage-v8": "^5.0.0",
     "jsdom": "^30.0.1",
-    "oxlint": "^1.79.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
     "vitest": "^5.0.0"

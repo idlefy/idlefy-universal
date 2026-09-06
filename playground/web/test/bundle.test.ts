@@ -34,4 +34,12 @@ describe('chart bundle', () => {
     expect(ex[0].label.length).toBeGreaterThan(3);
     expect(ex[0].values).toContain('deployments:');
   });
+  it('has clean, bounded example labels', () => {
+    const ex = JSON.parse(fs.readFileSync(path.join(root, 'examples.json'), 'utf8'));
+    for (const e of ex) {
+      expect(e.label, e.id).not.toContain('`');
+      expect(e.label.endsWith(':'), e.id).toBe(false);
+      expect(e.label.length, e.id).toBeLessThanOrEqual(120);
+    }
+  });
 });
