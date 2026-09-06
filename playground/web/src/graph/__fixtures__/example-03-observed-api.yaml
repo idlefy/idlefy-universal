@@ -1,0 +1,123 @@
+---
+# Source: idlefy-universal/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: api
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: api
+  minAvailable: 1
+---
+# Source: idlefy-universal/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+    - name: metrics
+      port: 9113
+      targetPort: 9113
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: api
+---
+# Source: idlefy-universal/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: idlefy-universal-1.1.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: api
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/component: api
+    spec:
+      containers:
+      - name: exporter
+        image: nginx/nginx-prometheus-exporter:1.3
+        args:
+          - -nginx.scrape-uri=http://localhost/stub_status
+        resources:
+          limits:
+            cpu: 50m
+            memory: 64Mi
+          requests:
+            cpu: 5m
+            memory: 16Mi
+      - name: main
+        image: nginx:1.27-alpine
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+          - name: metrics
+            containerPort: 9113
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+---
+# Source: idlefy-universal/templates/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: api
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: api
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: api
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: api
+  endpoints:
+  - port: metrics
+    interval: 30s

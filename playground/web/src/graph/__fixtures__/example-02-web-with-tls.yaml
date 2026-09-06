@@ -1,0 +1,113 @@
+---
+# Source: idlefy-universal/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+---
+# Source: idlefy-universal/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: idlefy-universal-1.1.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: web
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/component: web
+    spec:
+      containers:
+      - name: main
+        image: nginx:1.27-alpine
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+---
+# Source: idlefy-universal/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+spec:
+  ingressClassName: nginx
+  tls:
+    - secretName: web-tls
+      hosts:
+        - web.example.com
+  rules:
+    - host: web.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  name: http
+---
+# Source: idlefy-universal/templates/certificate.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: web
+  labels:
+    helm.sh/chart: idlefy-universal-1.1.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+spec:
+  secretName: web-tls
+  issuerRef:
+    kind: ClusterIssuer
+    name: selfsigned
+  dnsNames:
+    - web.example.com

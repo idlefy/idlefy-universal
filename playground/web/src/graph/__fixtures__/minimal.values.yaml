@@ -1,0 +1,13 @@
+# CI smoke test: minimal deployment, no CRD-dependent features.
+deployments:
+  hello:
+    replicas: 1
+    containers:
+      main:
+        image: nginx
+        imageTag: "1.27-alpine"
+        ports:
+          http: {containerPort: 80, servicePort: 80}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+    autoCreateService: true

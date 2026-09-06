@@ -1,0 +1,18 @@
+# examples/01-hello-world/values.yaml
+# Minimal example: one Deployment + auto-created ClusterIP Service.
+# CRD-free — runs on any vanilla Kubernetes cluster.
+deployments:
+  hello:
+    replicas: 1
+    containers:
+      main:
+        image: nginx
+        imageTag: "1.27-alpine"
+        ports:
+          http:
+            containerPort: 80
+            servicePort: 80
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 128Mi}
+    autoCreateService: true

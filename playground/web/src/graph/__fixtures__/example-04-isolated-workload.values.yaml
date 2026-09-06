@@ -1,0 +1,43 @@
+# examples/04-isolated-workload/values.yaml
+# Workload with NetworkPolicy isolation + RBAC for own-namespace
+# ConfigMap reads. Requires a CNI that implements NetworkPolicy
+# (Calico/Cilium) for actual enforcement; kindnet does not.
+deployments:
+  controller:
+    replicas: 1
+    containers:
+      main:
+        image: busybox
+        imageTag: "1.36"
+        command: [sh, -c, "while true; do date; sleep 60; done"]
+        resources:
+          requests: {cpu: 5m, memory: 16Mi}
+          limits: {cpu: 50m, memory: 64Mi}
+    autoCreateServiceAccount: true
+    autoCreateRbac: true
+    rbac:
+      rules:
+        - apiGroups: [""]
+          resources: [configmaps]
+          verbs: [get, list, watch]
+    autoCreateNetworkPolicy: true
+    networkPolicy:
+      policyTypes: [Ingress, Egress]
+      ingress: []
+      egress:
+        - to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: kube-system
+              podSelector:
+                matchLabels:
+                  k8s-app: kube-dns
+          ports:
+            - {protocol: UDP, port: 53}
+            - {protocol: TCP, port: 53}
+        - to:
+            - podSelector:
+                matchLabels:
+                  app.kubernetes.io/component: controller
+          ports:
+            - {protocol: TCP, port: 6443}
