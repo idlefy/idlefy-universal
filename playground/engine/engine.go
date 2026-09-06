@@ -78,7 +78,11 @@ func Render(files map[string]string, valuesYAML string, opts Options) (map[strin
 
 	chartObj := map[string]any{}
 	for k, v := range meta {
-		chartObj[chartFieldName(k)] = v
+		// Helm decodes Chart.yaml into a struct and drops unknown keys; an empty key
+		// ("": x, which sigs.k8s.io/yaml accepts) is unknown too and must not reach the slice below.
+		if name := chartFieldName(k); name != "" {
+			chartObj[name] = v
+		}
 	}
 	root := map[string]any{
 		"Values": vals,
@@ -201,8 +205,12 @@ func leafErrors(ve *jsonschema.ValidationError) []*jsonschema.ValidationError {
 // chartFieldName maps a Chart.yaml key to the field name Helm exposes under .Chart.
 // Helm's chart.Metadata uses Go initialisms (APIVersion, not ApiVersion); with
 // missingkey=zero a wrong casing would silently render as an empty value.
+// An empty key yields "" so callers can skip it.
 func chartFieldName(key string) string {
-	if key == "apiVersion" {
+	switch key {
+	case "":
+		return ""
+	case "apiVersion":
 		return "APIVersion"
 	}
 	return strings.ToUpper(key[:1]) + key[1:]

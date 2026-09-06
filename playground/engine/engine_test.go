@@ -246,3 +246,43 @@ func TestStandaloneBlocksPrecedeAutoCreated(t *testing.T) {
 		}
 	}
 }
+
+// Helm exposes Chart.yaml keys under .Chart with Go initialisms (APIVersion, not ApiVersion).
+// With missingkey=zero the wrong casing would render as an empty string instead of failing.
+// An empty key ("": x, accepted by sigs.k8s.io/yaml) is unknown to Helm and must be skipped,
+// not sliced.
+func TestChartMetadataFieldNames(t *testing.T) {
+	cases := []struct{ key, want string }{
+		{"apiVersion", "APIVersion"},
+		{"name", "Name"},
+		{"version", "Version"},
+		{"appVersion", "AppVersion"},
+		{"kubeVersion", "KubeVersion"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := chartFieldName(c.key); got != c.want {
+			t.Errorf("chartFieldName(%q) = %q, want %q", c.key, got, c.want)
+		}
+	}
+	files := map[string]string{
+		"Chart.yaml":           "apiVersion: v2\nname: tiny\nversion: 1.2.3\nappVersion: \"4.5\"\n",
+		"values.yaml":          "",
+		"templates/chart.yaml": "api: {{ .Chart.APIVersion }}\nname: {{ .Chart.Name }}\nversion: {{ .Chart.Version }}\napp: {{ .Chart.AppVersion }}\n",
+	}
+	want := "api: v2\nname: tiny\nversion: 1.2.3\napp: 4.5\n"
+	for _, extra := range []string{"", "\"\": ignored\n"} {
+		f := map[string]string{}
+		for k, v := range files {
+			f[k] = v
+		}
+		f["Chart.yaml"] += extra
+		out, err := Render(f, "", Options{ReleaseName: "r", Namespace: "default"})
+		if err != nil {
+			t.Fatalf("extra %q: %v", extra, err)
+		}
+		if got := out["tiny/templates/chart.yaml"]; got != want {
+			t.Fatalf("extra %q: got %q, want %q", extra, got, want)
+		}
+	}
+}
