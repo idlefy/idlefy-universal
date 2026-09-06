@@ -1,0 +1,5 @@
+:root { --bg: #f7f7f8; --fg: #1b1b1f; --panel: #ffffff; --border: #d9d9de; --accent: #2f6fed; --warn: #d97706; --err: #dc2626; }
+@media (prefers-color-scheme: dark) { :root { --bg: #121317; --fg: #e6e6ea; --panel: #1b1c22; --border: #2c2d35; } }
+html, body, #root { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font: 14px system-ui, sans-serif; }
+.app-shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
+header { padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--panel); }
