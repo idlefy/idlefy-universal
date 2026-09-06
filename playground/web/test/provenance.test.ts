@@ -76,10 +76,25 @@ describe('provenance rules', () => {
     const { byManifest } = attachProvenance(manifests, buildExpectations(values, 'prod'), 'prod');
     expect(byManifest.get(manifests[0])?.path).toEqual(['deployments', 'api']);
   });
-  it('NetworkPolicy and RBAC flags inherited from deploymentsGeneral produce expectations', () => {
-    const values = { deploymentsGeneral: { autoCreateNetworkPolicy: true, networkPolicy: { policyTypes: ['Ingress'] } }, deployments: { api: { containers: { main: { image: 'x', imageTag: '1' } } } }, jobs: { j: { containers: { main: { image: 'x', imageTag: '1' } } } } };
-    const kinds = buildExpectations(values, 'default').filter((e) => e.kind === 'NetworkPolicy').map((e) => e.name).sort();
-    expect(kinds).toEqual(['api', 'j']);   // jobs also inherit from deploymentsGeneral (rbac.yaml / networkpolicy.yaml)
+  // The brief expected deploymentsGeneral.autoCreateNetworkPolicy to be inherited by every deployment/job/cronJob.
+  // The chart disagrees: _defaults.tpl copies only content keys from <kind>General, never the autoCreate* flags
+  // ("The autoCreateNetworkPolicy flag itself is per-instance only" — values.schema.json), and `helm template` on
+  // the values below renders no NetworkPolicy at all. Reading *General would over-generate, so the flags are read
+  // per-instance — for all five workload kinds, which networkpolicy.yaml/rbac.yaml do range over.
+  it('NetworkPolicy and RBAC flags are per-instance for all five workload kinds; *General does not propagate them', () => {
+    const c = { containers: { main: { image: 'x', imageTag: '1' } } };
+    const np = { autoCreateNetworkPolicy: true, networkPolicy: { policyTypes: ['Ingress'], ingress: [] } };
+    const values = {
+      deploymentsGeneral: { autoCreateNetworkPolicy: true, autoCreateRbac: true, networkPolicy: { policyTypes: ['Ingress'] } },
+      deployments: { api: c },
+      statefulSets: { sts: { ...c, ...np, serviceName: 'sts-headless' } },
+      daemonSets: { ds: { ...c, ...np } },
+      jobs: { j: { ...c, ...np, autoCreateRbac: true, serviceAccountName: 'existing-sa', rbac: { rules: [{ apiGroups: [''], resources: ['configmaps'], verbs: ['get'] }] } } },
+      cronJobs: { cj: { ...c, ...np, schedule: '*/5 * * * *' } },
+    };
+    const ex = buildExpectations(values, 'default');
+    expect(ex.filter((e) => e.kind === 'NetworkPolicy').map((e) => e.name).sort()).toEqual(['cj', 'ds', 'j', 'sts']);
+    expect(ex.filter((e) => e.kind === 'Role' || e.kind === 'RoleBinding').map((e) => `${e.kind}/${e.name}`)).toEqual(['Role/j', 'RoleBinding/j']);
   });
   it('networkPolicy removeAction flips the flag and deletes the block', () => {
     const values = { deployments: { api: { autoCreateNetworkPolicy: true, networkPolicy: { policyTypes: ['Ingress'] }, containers: { main: { image: 'x', imageTag: '1' } } } } };

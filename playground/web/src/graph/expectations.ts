@@ -14,7 +14,6 @@ export type Expectation = {
 // pdb.yaml, serviceaccount.yaml, _autocreate-servicemonitor → deployments, statefulSets, daemonSets;
 // networkpolicy.yaml, rbac.yaml → all five kinds.
 const WORKLOAD_KINDS: Record<string, string> = { deployments: 'Deployment', statefulSets: 'StatefulSet', daemonSets: 'DaemonSet', jobs: 'Job', cronJobs: 'CronJob' };
-const GENERAL_KEY: Record<string, string> = { deployments: 'deploymentsGeneral', jobs: 'deploymentsGeneral', cronJobs: 'deploymentsGeneral', statefulSets: 'statefulSetsGeneral', daemonSets: 'daemonSetsGeneral' };
 const SVC_KINDS = new Set(['deployments', 'statefulSets']);
 const SA_KINDS = new Set(['deployments', 'statefulSets', 'daemonSets']);
 const SM_KINDS = new Set(['deployments', 'statefulSets', 'daemonSets']);
@@ -82,14 +81,16 @@ export function buildExpectations(values: any, ns: string): Expectation[] {
       if (SM_KINDS.has(kindKey) && cfg.autoCreateServiceMonitor) {
         push('ServiceMonitor', name, [...base, 'serviceMonitor'], 'autoCreateServiceMonitor: true', [setFalse([...base, 'autoCreateServiceMonitor'])], owner);
       }
-      // networkpolicy.yaml and rbac.yaml branch on the *defaulted* config: the flag may come from
-      // deploymentsGeneral (also used for jobs/cronJobs), statefulSetsGeneral or daemonSetsGeneral.
-      const general = values?.[GENERAL_KEY[kindKey]] ?? {};
-      const npOn = cfg.autoCreateNetworkPolicy ?? general.autoCreateNetworkPolicy;
-      const rbacOn = cfg.autoCreateRbac ?? general.autoCreateRbac;
+      // networkpolicy.yaml and rbac.yaml branch on the *defaulted* config, but _defaults.tpl copies
+      // only content keys (networkPolicy, securityContext, nodeSelector, …) from <kind>General — never
+      // the autoCreate* flags. So both flags are per-instance for all five workload kinds; a flag set
+      // only in deploymentsGeneral renders nothing (values.schema.json says so too, and `helm template`
+      // confirms it). Reading *General here would over-generate.
+      const npOn = cfg.autoCreateNetworkPolicy;
+      const rbacOn = cfg.autoCreateRbac;
       if (npOn) {
         // Note: <kind>General.networkPolicy is merged in by _defaults.tpl; deleting the instance block may leave an inherited one.
-        push('NetworkPolicy', name, [...base, 'networkPolicy'], 'autoCreateNetworkPolicy: true (instance or *General)', [setFalse([...base, 'autoCreateNetworkPolicy']), del([...base, 'networkPolicy'])], owner);
+        push('NetworkPolicy', name, [...base, 'networkPolicy'], 'autoCreateNetworkPolicy: true', [setFalse([...base, 'autoCreateNetworkPolicy']), del([...base, 'networkPolicy'])], owner);
       }
       if (rbacOn) {
         const ra = [setFalse([...base, 'autoCreateRbac']), del([...base, 'rbac'])];
