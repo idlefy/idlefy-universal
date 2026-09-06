@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { buildGraph } from '../src/graph/build';
 import { loadFixture } from './fixtures';
 import { splitManifests } from '../src/engine/split';
@@ -33,6 +35,7 @@ describe('buildGraph', () => {
     expect(svcs.map((n) => n.id)).toEqual(['default/Service/api', 'default/Service/api#2']);
     expect(svcs.every((n) => n.conflict)).toBe(true);
     expect(g.warnings.some((w) => w.includes('Service/api'))).toBe(true);
+    expect(svcs.every((n) => n.warnings.some((w) => w.includes('Service/api')))).toBe(true);
   });
   it('hook badge only on the migrations job, never on ConfigMaps (which also carry helm.sh/hook)', () => {
     const { manifests, values } = loadFixture('full-features');
@@ -41,11 +44,20 @@ describe('buildGraph', () => {
     const g = buildGraph(splitManifests('c/templates/job.yaml', text), { deployments: { api: { migrations: { enabled: true } } } }, 'default');
     expect(g.nodes.filter((n) => n.hookBadge).map((n) => n.name)).toEqual(['api-migrations']);
   });
+  it('never badges a non-Job whose values path merely ends in "migrations"', () => {
+    const cm = 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: migrations\ndata: {}\n';
+    const g = buildGraph(splitManifests('c/templates/configs.yaml', cm), { configs: { migrations: { type: 'configmap', data: {} } } }, 'default');
+    const node = g.nodes.find((n) => n.kind === 'ConfigMap')!;
+    expect(node.provenance?.path).toEqual(['configs', 'migrations']);
+    expect(node.hookBadge).toBe(false);
+  });
   it('the Secret produced by a Certificate is not external', () => {
     const { manifests, values } = loadFixture('full-features');
     const g = buildGraph(manifests, values, 'default');
     const tls = g.nodes.find((n) => n.kind === 'Secret' && n.name === 'api-tls')!;
     expect(tls.external).toBe(false);
+    expect(tls.manifest).toBeUndefined();
+    expect(tls.provenance).toBeUndefined();
     expect(g.edges.filter((e) => e.target === tls.id).map((e) => e.relation).sort()).toEqual(['produces', 'tls-from']);
   });
   it('a Job RoleBinding subject without a ServiceAccount manifest is external', () => {
@@ -58,5 +70,21 @@ describe('buildGraph', () => {
     const sa = g2.nodes.find((n) => n.kind === 'ServiceAccount')!;
     expect(sa.external).toBe(true);
     expect(rb).toBeTruthy();
+  });
+  it('warns about an expectation that no manifest consumed', () => {
+    const g = buildGraph([], { services: { foo: { ports: [{ port: 80 }] } } }, 'default');
+    expect(g.warnings).toEqual(['Service/foo: expected from values path services.foo but not rendered']);
+  });
+  const fixtureNames = fs.readdirSync(path.resolve(__dirname, '..', 'src', 'graph', '__fixtures__'))
+    .filter((f) => f.endsWith('.yaml') && !f.endsWith('.values.yaml')).map((f) => f.replace(/\.yaml$/, ''));
+  it.each(fixtureNames)('%s: node ids and edge ids are unique and every edge resolves', (name) => {
+    const { manifests, values } = loadFixture(name);
+    const g = buildGraph(manifests, values, 'default');
+    const ids = g.nodes.map((n) => n.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    const edgeIds = g.edges.map((e) => e.id);
+    expect(new Set(edgeIds).size).toBe(edgeIds.length);
+    const nodeIds = new Set(ids);
+    for (const e of g.edges) { expect(nodeIds.has(e.source)).toBe(true); expect(nodeIds.has(e.target)).toBe(true); }
   });
 });

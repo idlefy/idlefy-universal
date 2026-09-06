@@ -25,14 +25,15 @@ export function buildGraph(manifests: Manifest[], values: any, ns: string): Grap
     const node: GraphNode = {
       id: siblings.length ? `${key}#${siblings.length + 1}` : key, key,
       kind: m.obj.kind, name: m.obj.metadata.name, namespace: nsOf, family: familyOf(m.obj.kind),
-      external: false, conflict: false, hookBadge: p?.path.at(-1) === 'migrations', manifest: m, provenance: p, warnings: [],
+      external: false, conflict: false, hookBadge: m.obj.kind === 'Job' && p?.path.at(-1) === 'migrations' && !!p.owner, manifest: m, provenance: p, warnings: [],
     };
     if (!p) node.warnings.push('no provenance: not produced by a known values path');
     siblings.push(node); byKey.set(key, siblings); nodes.push(node);
   }
   for (const [key, list] of byKey) if (list.length > 1) {
-    for (const n of list) n.conflict = true;
-    warnings.push(`${key.split('/').slice(1).join('/')}: ${list.length} objects share this name; helm would apply both`);
+    const message = `${key.split('/').slice(1).join('/')}: ${list.length} objects share this name; helm would apply both`;
+    for (const n of list) { n.conflict = true; n.warnings.push(message); }
+    warnings.push(message);
   }
 
   const edges: GraphEdge[] = [];
