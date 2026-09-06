@@ -55,11 +55,11 @@ plugins:
       # External link checks are slow + flaky; only run them on the
       # scheduled (weekly) workflow which sets PROOFER_EXTERNAL=true.
       validate_external_urls: !ENV [PROOFER_EXTERNAL, false]
-      # The playground SPA is built by the `playground` job of the Docs
-      # workflow and copied into `site/playground/` only after this build
-      # runs, so htmlproofer must not try to resolve the link from
-      # docs/playground.md. (The URL starts with site_url, so the plugin
-      # would otherwise treat it as an internal path and fail strict mode.)
+      # docs/playground-guide.md links to /playground/, which does not exist
+      # when this build runs: the SPA is produced by the `playground` job of
+      # the Docs workflow and copied into `site/playground/` only afterwards.
+      # The URL starts with site_url, so the plugin would otherwise treat it
+      # as an internal path, find nothing on disk and fail strict mode.
       ignore_urls:
         - 'https://idlefy.github.io/idlefy-universal/playground/*'
 
@@ -86,7 +86,7 @@ extra_css:
 
 nav:
   - Home: index.md
-  - Playground: playground.md
+  - Playground: playground-guide.md
   - Tutorials:
       - First app: tutorials/your-first-app.md
       - Add metrics: tutorials/add-metrics.md

@@ -176,14 +176,16 @@ jobs:
           path: site/playground
 
       - name: Verify playground landed in site
-        # docs/playground.md also builds to site/playground/index.html, so a
-        # bare `test -f` would pass even if the artifact never unpacked. Grep
-        # for the SPA's mount point to prove the Vite build is what is served
-        # at /playground/ (see the note in docs/playground.md).
+        # Grep for the SPA's mount point rather than a bare `test -f
+        # index.html`: any MkDocs page that built to site/playground/ would
+        # satisfy the latter even if the artifact never unpacked. The last
+        # assertion guards the reverse — the prose page must keep its own URL
+        # (docs/playground-guide.md) and never be overwritten by the SPA.
         run: |
           test -f site/playground/helm.wasm
           test -f site/playground/wasm_exec.js
           grep -q 'id="root"' site/playground/index.html
+          test -f site/playground-guide/index.html
 
       - name: Decide deploy
         id: gate

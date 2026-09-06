@@ -1,13 +1,3 @@
-<!--
-  Deploy note: this page builds to `site/playground/index.html`, which is the
-  exact path the playground SPA is unpacked to by the `build` job of
-  .github/workflows/docs.yaml (Vite `base: '/playground/'`). The SPA's
-  index.html therefore REPLACES this page on the deployed site: the nav entry
-  "Playground" opens the app directly, and this prose survives only in the
-  MkDocs search index. Moving the landing page to its own URL requires a
-  product decision (which URL, and what the nav label points at) — see the
-  Task 17 report.
--->
 # Playground
 
 Author `values.yaml` in the browser and see the Kubernetes resources it produces as a live

@@ -17,3 +17,6 @@ playground/web/src/chart-bundle/
 playground/web/dist/
 playground/web/test-results/
 playground/web/playwright-report/
+
+# MkDocs build output
+site/
