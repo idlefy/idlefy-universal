@@ -66,35 +66,51 @@ func requireHelm(t *testing.T) string {
 	return path
 }
 
-// normalize parses a multi-doc YAML stream, drops empty docs, sorts by kind/name,
-// and returns canonical JSON so ordering and formatting differences vanish.
-func normalize(t *testing.T, stream string) string {
+type yamlDoc = map[string]any
+
+// parseDocs splits a multi-doc YAML stream and drops empty documents (a
+// template file with no matching resources renders as a whitespace-only
+// document, which both helm and the engine produce, and which must not
+// count as a real document). Unlike normalize, it does not fail on a
+// zero-document result: callers that need to permit "both sides rendered
+// nothing" use this directly instead of normalize.
+func parseDocs(t *testing.T, stream string) []yamlDoc {
 	t.Helper()
-	type doc = map[string]any
-	var docs []doc
+	var docs []yamlDoc
 	for _, part := range strings.Split(stream, "\n---") {
 		part = strings.TrimSpace(part)
 		if part == "" || part == "---" {
 			continue
 		}
 		part = strings.TrimPrefix(part, "---\n")
-		var d doc
+		var d yamlDoc
 		if err := yaml.Unmarshal([]byte(part), &d); err != nil {
-			t.Fatalf("normalize: %v\n%s", err, part)
+			t.Fatalf("parseDocs: %v\n%s", err, part)
 		}
 		if len(d) == 0 {
 			continue
 		}
 		docs = append(docs, d)
 	}
-	// A zero-document stream would make the golden comparison trivially true on
-	// both sides, so refuse to normalize one.
+	return docs
+}
+
+// normalize parses a multi-doc YAML stream, sorts its documents by
+// kind/name, and returns canonical JSON so ordering and formatting
+// differences vanish. It requires at least one document: a zero-document
+// stream would make the golden comparison trivially true on both sides, so
+// callers that expect resources to be rendered must use normalize, while
+// callers that must also tolerate "helm rendered nothing" use parseDocs
+// directly (see TestGoldenCorpus).
+func normalize(t *testing.T, stream string) string {
+	t.Helper()
+	docs := parseDocs(t, stream)
 	if len(docs) == 0 {
 		t.Fatalf("normalize: stream contained no documents:\n%s", stream)
 	}
 	// Sort key includes the marshalled body so two documents with the same
 	// kind/name (the collision case) still sort deterministically.
-	key := func(d doc) string {
+	key := func(d yamlDoc) string {
 		md, _ := d["metadata"].(map[string]any)
 		name, _ := md["name"].(string)
 		kind, _ := d["kind"].(string)
@@ -148,18 +164,6 @@ func TestGoldenHelloWorld(t *testing.T) {
 	}
 }
 
-// skipCorpus names corpus fixtures (by basename) that are schema-valid but
-// cannot be compared through this harness. Each entry names the concrete
-// failure observed when the fixture was run through TestGoldenCorpus.
-var skipCorpus = map[string]string{
-	// Sets only globals (deploymentsGeneral, generic, secretRefs) with no
-	// deployments/services/etc., so both helm and the engine legitimately
-	// render zero resources. normalize() intentionally fails a zero-document
-	// stream (fail message: "normalize: stream contained no documents") to
-	// avoid the golden comparison trivially passing on both empty sides.
-	"globals-minimal.yaml": "normalize: stream contained no documents",
-}
-
 func corpus(t *testing.T) []string {
 	t.Helper()
 	var paths []string
@@ -169,12 +173,7 @@ func corpus(t *testing.T) []string {
 		filepath.Join(repoRoot, "playground", "engine", "testdata", "coalesce-*.yaml"),
 	} {
 		m, _ := filepath.Glob(glob)
-		for _, p := range m {
-			if _, skip := skipCorpus[filepath.Base(p)]; skip {
-				continue
-			}
-			paths = append(paths, p)
-		}
+		paths = append(paths, m...)
 	}
 	if len(paths) < 10 {
 		t.Fatalf("corpus too small: %d", len(paths))
@@ -197,8 +196,23 @@ func TestGoldenCorpus(t *testing.T) {
 		for _, release := range []string{"demo", "release-name"} {
 			name := filepath.Base(values) + "/" + release
 			t.Run(name, func(t *testing.T) {
-				want := normalize(t, helmTemplate(t, helm, release, values))
-				got := normalize(t, renderJoined(t, files, values, release))
+				helmStream := helmTemplate(t, helm, release, values)
+				engineStream := renderJoined(t, files, values, release)
+				// A fixture that sets only globals (e.g. globals-minimal.yaml)
+				// legitimately renders zero resources on both sides. Assert
+				// that directly instead of routing it through normalize,
+				// which refuses a zero-document stream to avoid a trivial
+				// empty-vs-empty pass on any other fixture.
+				helmDocs := parseDocs(t, helmStream)
+				if len(helmDocs) == 0 {
+					engineDocs := parseDocs(t, engineStream)
+					if len(engineDocs) != 0 {
+						t.Fatalf("mismatch for %s: helm rendered 0 documents, engine rendered %d\n--- engine ---\n%s", name, len(engineDocs), engineStream)
+					}
+					return
+				}
+				want := normalize(t, helmStream)
+				got := normalize(t, engineStream)
 				if want != got {
 					t.Fatalf("mismatch for %s\n--- helm ---\n%s\n--- engine ---\n%s", name, want, got)
 				}
@@ -213,11 +227,16 @@ func TestStandaloneBlocksPrecedeAutoCreated(t *testing.T) {
 	files := loadChartFiles(t)
 	// Text-position canary: it would not notice the auto block moving into a `define`,
 	// but the golden corpus would then diverge, so the two tests cover each other.
+	// The auto-created needle must be the literal `range ... .Values.deployments }}`
+	// statement, not just ".Values.deployments" as a substring: in job.yaml that
+	// substring also matches inside ".Values.deploymentsGeneral" at line 3, which
+	// sits earlier, inside the standalone jobs range, and would make the assertion
+	// pass without actually checking the real auto-created block's position.
 	cases := map[string][2]string{
-		"templates/service.yaml":   {".Values.services", ".Values.deployments"},
-		"templates/ingress.yaml":   {".Values.ingresses", ".Values.deployments"},
-		"templates/httproute.yaml": {".Values.httpRoutes", ".Values.deployments"},
-		"templates/job.yaml":       {".Values.jobs", ".Values.deployments"},
+		"templates/service.yaml":   {".Values.services", ".Values.deployments }}"},
+		"templates/ingress.yaml":   {".Values.ingresses", ".Values.deployments }}"},
+		"templates/httproute.yaml": {".Values.httpRoutes", ".Values.deployments }}"},
+		"templates/job.yaml":       {".Values.jobs", ".Values.deployments }}"},
 	}
 	for file, pair := range cases {
 		src := files[file]
