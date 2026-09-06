@@ -40,7 +40,7 @@ helm-test:
 helm-test-update:
 	$(HELM_UNITTEST_RUN) -u charts/idlefy-universal
 
-test: schema-test schema-validate helm-test
+test: schema-test schema-validate helm-test playground-test
 
 DOCS_IMAGE := python:3.13-slim
 DOCS_TTY := $(shell test -t 0 && echo "-it" || echo "-i")
@@ -50,3 +50,5 @@ docs-serve:
 	$(DOCS_RUN) bash -lc '\
 		pip install --quiet -r docs/requirements.txt && \
 		mkdocs serve --dev-addr 0.0.0.0:8000'
+
+include playground/Makefile.inc
