@@ -12,4 +12,9 @@ describe('splitManifests', () => {
   it('ignores documents without kind', () => {
     expect(splitManifests('t', 'foo: bar\n')).toEqual([]);
   });
+  it('throws with the template path when a document is malformed', () => {
+    expect(() => splitManifests('c/templates/x.yaml', 'kind: Service\nmetadata:\n\tname: a\n')).toThrow(
+      /^c\/templates\/x\.yaml: Tabs are not allowed as indentation/,
+    );
+  });
 });
