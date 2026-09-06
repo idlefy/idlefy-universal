@@ -45,6 +45,10 @@ jobs:
   # under /playground/ (matching the Vite `base`).
   playground:
     runs-on: ubuntu-latest
+    # Builds and tests only — it never touches Pages, so it drops the
+    # workflow-level pages:write / id-token:write.
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -69,9 +73,12 @@ jobs:
 
       - name: Install binaryen
         # Keep the tag in sync with playground/Dockerfile BINARYEN_VERSION.
+        # Extracted into RUNNER_TEMP, not /opt: /opt is root-owned on
+        # ubuntu-latest and the runner user cannot write to it without sudo.
         run: |
-          curl -fsSL https://github.com/WebAssembly/binaryen/releases/download/version_132/binaryen-version_132-x86_64-linux.tar.gz | tar -xz -C /opt
-          echo "/opt/binaryen-version_132/bin" >> "$GITHUB_PATH"
+          set -o pipefail
+          curl -fsSL https://github.com/WebAssembly/binaryen/releases/download/version_132/binaryen-version_132-x86_64-linux.tar.gz | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-version_132/bin" >> "$GITHUB_PATH"
 
       - name: Engine tests (golden vs helm template, FuncMap gate, invalid fixtures)
         # CI=true makes the golden tests hard-fail instead of skipping when the
@@ -84,9 +91,14 @@ jobs:
         run: bash playground/engine/build.sh
 
       - name: Graph fixtures must match helm template
+        # Staged into the index first: `git diff` alone ignores untracked
+        # files, so a new charts/idlefy-universal/ci/*.yaml whose fixtures were
+        # never generated would slip through as an untracked addition.
         run: |
           cd playground/web && node scripts/gen-graph-fixtures.mjs
-          git diff --exit-code -- src/graph/__fixtures__ || { echo "::error::graph fixtures are stale; run node scripts/gen-graph-fixtures.mjs and commit"; exit 1; }
+          cd "$GITHUB_WORKSPACE"
+          git add -A -- playground/web/src/graph/__fixtures__
+          git diff --cached --exit-code -- playground/web/src/graph/__fixtures__ || { echo "::error::graph fixtures are stale; run node scripts/gen-graph-fixtures.mjs and commit"; exit 1; }
 
       - name: Web tests and build
         run: |
@@ -229,10 +241,18 @@ jobs:
   verify:
     needs: deploy
     runs-on: ubuntu-latest
+    # Read-only HTTP check against the public site; needs no token at all.
+    permissions: {}
     steps:
       - name: Check wasm headers on Pages
+        # --retry-all-errors absorbs CDN propagation lag right after a deploy;
+        # -f turns a non-2xx into a curl failure instead of a confusing grep
+        # miss, and pipefail makes that failure survive the pipe into tee.
         run: |
-          curl -sSI -H 'Accept-Encoding: gzip, br' https://idlefy.github.io/idlefy-universal/playground/helm.wasm | tee headers.txt
+          set -o pipefail
+          curl -fsSI --retry 5 --retry-delay 10 --retry-all-errors \
+            -H 'Accept-Encoding: gzip, br' \
+            https://idlefy.github.io/idlefy-universal/playground/helm.wasm | tee headers.txt
           grep -qi 'content-type: application/wasm' headers.txt
           # Warning only: GitHub Pages does not guarantee Content-Encoding on HEAD.
           grep -qiE 'content-encoding: (gzip|br)' headers.txt || echo "::warning::helm.wasm served without compression"

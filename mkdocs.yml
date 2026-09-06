@@ -55,11 +55,13 @@ plugins:
       # External link checks are slow + flaky; only run them on the
       # scheduled (weekly) workflow which sets PROOFER_EXTERNAL=true.
       validate_external_urls: !ENV [PROOFER_EXTERNAL, false]
-      # docs/playground-guide.md links to /playground/, which does not exist
-      # when this build runs: the SPA is produced by the `playground` job of
-      # the Docs workflow and copied into `site/playground/` only afterwards.
-      # The URL starts with site_url, so the plugin would otherwise treat it
-      # as an internal path, find nothing on disk and fail strict mode.
+      # Only bites on the weekly run, the one that sets validate_external_urls:
+      # there the plugin actually fetches this URL, and docs/playground-guide.md
+      # links to the playground SPA, which the `playground` job copies into
+      # site/playground/ after the build — so it 404s until the first deploy
+      # lands. PR/push builds never fetch external URLs, so the entry is inert
+      # there. Matched by fnmatch against the raw href, hence the full site URL
+      # rather than a root-relative /playground/.
       ignore_urls:
         - 'https://idlefy.github.io/idlefy-universal/playground/*'
 
