@@ -11,6 +11,15 @@ const examplesDir = path.join(repo, 'examples');
 const out = path.resolve(here, '..', 'src', 'chart-bundle');
 fs.mkdirSync(out, { recursive: true });
 
+// The SPA is useless without the wasm engine and its loader, and vite happily builds without
+// them (the failure only shows up in the browser), so gate every bundle here instead.
+const pub = path.resolve(here, '..', 'public');
+const missing = ['helm.wasm', 'wasm_exec.js'].filter((f) => !fs.existsSync(path.join(pub, f)));
+if (missing.length) {
+  console.error(`bundle-chart: playground/web/public/${missing.join(' and ')} missing — build the engine first (bash playground/engine/build.sh, or make playground-engine)`);
+  process.exit(1);
+}
+
 const files = {};
 const walk = (dir, rel = '') => {
   const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
@@ -55,7 +64,10 @@ const examples = fs.readdirSync(examplesDir).sort().flatMap((id) => {
   const readme = fs.existsSync(path.join(examplesDir, id, 'README.md'))
     ? fs.readFileSync(path.join(examplesDir, id, 'README.md'), 'utf8')
     : '';
-  const firstPara = readme.split(/\n\s*\n/).map((s) => s.trim()).find((s) => s && !s.startsWith('#')) ?? id;
+  // A paragraph ending in ":" only introduces the block below it ("A workload that:"), and a
+  // bullet block is not a sentence — skip both and take the first paragraph that stands alone.
+  const paras = readme.split(/\n\s*\n/).map((s) => s.trim()).filter((s) => s && !s.startsWith('#'));
+  const firstPara = paras.find((s) => !s.endsWith(':') && !/^[-*]\s/.test(s)) ?? paras[0] ?? id;
   return [{ id, label: toLabel(firstPara), values: fs.readFileSync(valuesPath, 'utf8') }];
 });
 fs.writeFileSync(path.join(out, 'examples.json'), JSON.stringify(examples));

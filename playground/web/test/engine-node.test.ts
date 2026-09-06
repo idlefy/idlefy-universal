@@ -8,10 +8,12 @@ import schema from '../src/chart-bundle/schema.json';
 
 const pub = path.resolve(__dirname, '..', 'public');
 const wasmPath = path.join(pub, 'helm.wasm');
-const skip = !fs.existsSync(wasmPath);
 
-describe.skipIf(skip)('helm.wasm via wasm_exec in node', () => {
+// Never skipped: scripts/bundle-chart.mjs (npm test's first step) already refuses to run without
+// helm.wasm, so a missing engine must fail here too rather than quietly dropping the coverage.
+describe('helm.wasm via wasm_exec in node', () => {
   beforeAll(async () => {
+    expect(fs.existsSync(wasmPath), `${wasmPath} is missing — run playground/engine/build.sh (make playground-engine)`).toBe(true);
     const g = globalThis as any;
     g.require = createRequire(import.meta.url); g.fs = fs;
     g.crypto ??= (await import('node:crypto')).webcrypto;

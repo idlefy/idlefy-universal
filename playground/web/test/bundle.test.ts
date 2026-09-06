@@ -42,4 +42,14 @@ describe('chart bundle', () => {
       expect(e.label.length, e.id).toBeLessThanOrEqual(120);
     }
   });
+  it('never labels an example with a sentence fragment', () => {
+    const ex = JSON.parse(fs.readFileSync(path.join(root, 'examples.json'), 'utf8'));
+    for (const e of ex) {
+      // "A controller workload that:" — a lead-in to the list below it, not a description.
+      const trimmed = e.label.replace(/…$/, '').trim();
+      expect(trimmed, e.id).not.toMatch(/\b(that|which|including|such as|like|with|and|or|for|to|of)$/i);
+      expect(trimmed, e.id).not.toMatch(/[:,;-]$/);
+      expect(trimmed.split(/\s+/).length, e.id).toBeGreaterThanOrEqual(4);
+    }
+  });
 });

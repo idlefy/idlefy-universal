@@ -9,6 +9,8 @@ export function useRenderPipeline(state: AppState, dispatch: (a: Action) => void
     const c = new EngineClient();
     client.current = c;
     c.ready.catch((e: Error) => dispatch({ type: 'engine-failed', message: e.message }));
+    // A dead Go instance is permanent: same fatal panel as a failed boot, which tells the user to reload.
+    c.crashed.catch((e: Error) => dispatch({ type: 'engine-failed', message: e.message }));
     return () => c.terminate();
   }, [dispatch]);
 

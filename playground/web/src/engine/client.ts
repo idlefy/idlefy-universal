@@ -10,20 +10,35 @@ export class EngineClient {
   private worker: Worker;
   private seq = 0;
   private pending = new Map<number, (r: RenderResult) => void>();
+  private booted = false;
+  /** Set once the Go instance died; every later render() resolves with it instead of hanging. */
+  private dead: string | null = null;
   readonly ready: Promise<void>;
+  /** Rejects if the engine dies after a successful boot. Never resolves. */
+  readonly crashed: Promise<never>;
 
   constructor(base: string = (import.meta as any).env?.BASE_URL ?? '/playground/') {
     this.worker = new Worker(`${base}engine-worker.js`);
+    let onCrash!: (e: Error) => void;
+    this.crashed = new Promise<never>((_, reject) => { onCrash = reject; });
     this.ready = new Promise<void>((resolve, reject) => {
       const onBoot = (ev: MessageEvent) => {
-        if (ev.data?.ready) { this.worker.removeEventListener('message', onBoot); resolve(); }
+        if (ev.data?.ready) { this.worker.removeEventListener('message', onBoot); this.booted = true; resolve(); }
         else if (typeof ev.data?.error === 'string') { this.worker.removeEventListener('message', onBoot); reject(new Error(ev.data.error)); }
       };
       this.worker.addEventListener('message', onBoot);
       this.worker.addEventListener('error', (e) => reject(new Error(e.message || 'engine worker failed to start')));
     });
     this.worker.addEventListener('message', (ev: MessageEvent) => {
-      const { id, result, durationMs } = ev.data as { id?: number; result?: EngineRawResult; durationMs?: number };
+      const { id, result, durationMs, error } = ev.data as { id?: number; result?: EngineRawResult; durationMs?: number; error?: string };
+      // An {error} after boot is a dead Go instance: nothing it renders can be trusted again, and
+      // only a reload can bring it back. Settle everyone in flight, then report the fatal error.
+      if (typeof error === 'string' && this.booted && !this.dead) {
+        this.dead = `${error} — reload the page`;
+        this.settlePending();
+        onCrash(new Error(this.dead));
+        return;
+      }
       if (typeof id !== 'number' || !result) return;
       const cb = this.pending.get(id);
       if (!cb) return;
@@ -37,6 +52,7 @@ export class EngineClient {
     // render() resolves for every call, so a failed boot becomes a result rather than a rejection.
     try { await this.ready; }
     catch (e) { return { ok: false, error: { kind: 'template', message: e instanceof Error ? e.message : String(e) } }; }
+    if (this.dead) return { ok: false, error: { kind: 'template', message: this.dead } };
     const id = ++this.seq;
     // latest-wins: every older caller is settled immediately with a sentinel the reducer ignores.
     this.settlePending();

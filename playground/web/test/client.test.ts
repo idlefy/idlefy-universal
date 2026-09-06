@@ -114,6 +114,32 @@ describe('EngineClient render', () => {
     client.terminate();
   });
 
+  it('treats an {error} after boot as a permanent crash', async () => {
+    const { client, worker } = boot();
+    const crash = client.crashed.then(() => undefined, (e: unknown) => e);
+    worker.emit({ ready: true });
+    await client.ready;
+
+    const inFlight = client.render('a: 1\n', 'rel', 'ns');
+    await tick();
+    worker.emit({ error: 'engine crashed: RuntimeError: stack overflow' });
+
+    // The in-flight call is settled with the sentinel the reducer ignores...
+    await expect(inFlight).resolves.toEqual({ ok: false, error: { kind: 'template', message: SUPERSEDED } });
+    // ...the failure is exposed for the fatal panel, with the reload instruction...
+    const err = await crash;
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toBe('engine crashed: RuntimeError: stack overflow — reload the page');
+    // ...and every later render resolves with it instead of hanging on a dead worker.
+    const postedBefore = worker.posted.length;
+    await expect(client.render('a: 2\n', 'rel', 'ns')).resolves.toEqual({
+      ok: false,
+      error: { kind: 'template', message: 'engine crashed: RuntimeError: stack overflow — reload the page' },
+    });
+    expect(worker.posted.length).toBe(postedBefore);
+    client.terminate();
+  });
+
   it('settles an in-flight render when the client is terminated', async () => {
     const { client, worker } = boot();
     worker.emit({ ready: true });

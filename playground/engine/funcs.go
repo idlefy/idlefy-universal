@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"text/template"
 
@@ -11,10 +12,32 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// RenderCtx carries the template set so include/tpl can reach it.
+// recursionMaxNums bounds how deep a single template name may re-enter itself
+// through include/tpl. Same limit and wording as Helm's pkg/engine.
+const recursionMaxNums = 1000
+
+// RenderCtx carries the template set so include/tpl can reach it, plus the
+// per-name nesting counters that stop infinite include/tpl recursion (which
+// would otherwise take the whole Go runtime down with a stack overflow).
 type RenderCtx struct {
 	Tmpl *template.Template
+
+	included map[string]int
 }
+
+// enter records one nesting level for name and fails once it exceeds the limit.
+func (rc *RenderCtx) enter(name string) error {
+	if rc.included == nil {
+		rc.included = map[string]int{}
+	}
+	if rc.included[name] > recursionMaxNums {
+		return fmt.Errorf("rendering template has a nested reference name: %s", name)
+	}
+	rc.included[name]++
+	return nil
+}
+
+func (rc *RenderCtx) leave(name string) { rc.included[name]-- }
 
 // FuncMap returns Helm's template function set as implemented by this engine.
 func FuncMap(rc *RenderCtx) template.FuncMap {
@@ -68,11 +91,19 @@ func FuncMap(rc *RenderCtx) template.FuncMap {
 		return map[string]any{}, nil
 	}
 	f["include"] = func(name string, data any) (string, error) {
+		if err := rc.enter(name); err != nil {
+			return "", err
+		}
+		defer rc.leave(name)
 		var buf strings.Builder
 		err := rc.Tmpl.ExecuteTemplate(&buf, name, data)
 		return buf.String(), err
 	}
 	f["tpl"] = func(s string, data any) (string, error) {
+		if err := rc.enter("tpl"); err != nil {
+			return "", err
+		}
+		defer rc.leave("tpl")
 		t, err := rc.Tmpl.Clone()
 		if err != nil {
 			return "", err

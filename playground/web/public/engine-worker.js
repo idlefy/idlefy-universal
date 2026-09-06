@@ -1,5 +1,7 @@
 // Classic Web Worker: loads helm.wasm once, then answers {id, files, values, release, ns} requests.
 // Messages out: {ready:true} | {error:string} | {id, result, durationMs}
+// A throw out of helmRender means the Go runtime died (e.g. stack overflow): the instance is
+// unusable from then on, so the worker un-boots itself and reports {error} instead of a result.
 let booted = false;
 
 async function boot(base) {
@@ -28,6 +30,10 @@ self.onmessage = async (ev) => {
   const t0 = performance.now();
   let result;
   try { result = JSON.parse(helmRender(msg.files, msg.values, msg.release, msg.ns)); }
-  catch (e) { result = { ok: false, error: { kind: 'template', message: 'engine crashed: ' + String(e) } }; }
+  catch (e) {
+    booted = false;
+    self.postMessage({ error: 'engine crashed: ' + String(e && e.message ? e.message : e) });
+    return;
+  }
   self.postMessage({ id: msg.id, result, durationMs: Math.round(performance.now() - t0) });
 };

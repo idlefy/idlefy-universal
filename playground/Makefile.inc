@@ -13,7 +13,9 @@ playground-engine: playground-image
 playground-build: playground-engine
 	$(PLAYGROUND_RUN) bash -lc 'cd playground/web && npm ci && npm run build'
 
-playground-test: playground-image
+# Depends on playground-engine: the web tests exercise public/helm.wasm (engine-node.test.ts)
+# and scripts/bundle-chart.mjs refuses to run without it.
+playground-test: playground-engine
 	$(PLAYGROUND_RUN) bash -lc 'cd playground/engine && go test ./...'
 	$(PLAYGROUND_RUN) bash -lc 'cd playground/web && npm ci && npm test -- --run'
 
