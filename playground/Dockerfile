@@ -1,4 +1,4 @@
-FROM golang:1.26-bookworm
+FROM --platform=linux/amd64 golang:1.26-bookworm
 ARG NODE_MAJOR=24
 # binaryen release tag (https://github.com/WebAssembly/binaryen/releases); keep in sync with docs.yaml "Install binaryen".
 ARG BINARYEN_VERSION=version_132

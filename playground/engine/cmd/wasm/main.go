@@ -16,6 +16,8 @@ func jsRender(this js.Value, args []js.Value) (out any) {
 	result := map[string]any{"ok": false}
 	defer func() {
 		if r := recover(); r != nil {
+			result["ok"] = false
+			delete(result, "manifests")
 			result["error"] = map[string]any{"kind": "template", "message": fmt.Sprintf("panic: %v", r)}
 			out = marshal(result)
 		}
