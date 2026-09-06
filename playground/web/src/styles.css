@@ -3,7 +3,7 @@
 html, body, #root { height: 100%; margin: 0; background: var(--bg); color: var(--fg); font: 14px system-ui, sans-serif; }
 .app-shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
 header { padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--panel); }
-.canvas { position: relative; height: 100%; transition: opacity .2s; }
+.canvas { position: relative; flex: 1; min-height: 0; height: 100%; transition: opacity .2s; }
 .canvas.stale { opacity: .4; }
 .canvas-empty { display: grid; place-items: center; height: 100%; color: #888; }
 .canvas-empty.overlay { position: absolute; inset: 0; pointer-events: none; }
@@ -30,8 +30,8 @@ header { padding: 8px 12px; border-bottom: 1px solid var(--border); background: 
 .toolbar { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
 .editor { height: 100%; min-height: 200px; }
 .split { display: grid; grid-template-columns: minmax(360px, 42%) 1fr; height: 100%; min-height: 0; }
-.left, .right { display: flex; flex-direction: column; min-height: 0; position: relative; }
-.left { border-right: 1px solid var(--border); }
+.pane-left, .pane-right { display: flex; flex-direction: column; min-height: 0; position: relative; }
+.pane-left { border-right: 1px solid var(--border); }
 .banner { padding: 8px 12px; border-bottom: 1px solid var(--border); background: #fee2e2; color: #7f1d1d; font-size: 12px; }
 .banner.warn { background: #fef3c7; color: #78350f; }
 .banner pre { margin: 0; white-space: pre-wrap; }
