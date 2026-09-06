@@ -16,27 +16,32 @@ export class EngineClient {
   readonly ready: Promise<void>;
   /** Rejects if the engine dies after a successful boot. Never resolves. */
   readonly crashed: Promise<never>;
+  private onCrash!: (e: Error) => void;
 
   constructor(base: string = (import.meta as any).env?.BASE_URL ?? '/playground/') {
     this.worker = new Worker(`${base}engine-worker.js`);
-    let onCrash!: (e: Error) => void;
-    this.crashed = new Promise<never>((_, reject) => { onCrash = reject; });
+    this.crashed = new Promise<never>((_, reject) => { this.onCrash = reject; });
     this.ready = new Promise<void>((resolve, reject) => {
       const onBoot = (ev: MessageEvent) => {
         if (ev.data?.ready) { this.worker.removeEventListener('message', onBoot); this.booted = true; resolve(); }
         else if (typeof ev.data?.error === 'string') { this.worker.removeEventListener('message', onBoot); reject(new Error(ev.data.error)); }
       };
       this.worker.addEventListener('message', onBoot);
-      this.worker.addEventListener('error', (e) => reject(new Error(e.message || 'engine worker failed to start')));
+      // A native worker `error` (uncaught exception / failed script load) before boot fails
+      // `ready`; after boot it is a crash like an {error} message — an in-flight render must
+      // not hang on it.
+      this.worker.addEventListener('error', (e) => {
+        const message = e.message || 'engine worker failed';
+        if (this.booted) this.crash(message);
+        else reject(new Error(message));
+      });
     });
     this.worker.addEventListener('message', (ev: MessageEvent) => {
       const { id, result, durationMs, error } = ev.data as { id?: number; result?: EngineRawResult; durationMs?: number; error?: string };
       // An {error} after boot is a dead Go instance: nothing it renders can be trusted again, and
       // only a reload can bring it back. Settle everyone in flight, then report the fatal error.
-      if (typeof error === 'string' && this.booted && !this.dead) {
-        this.dead = `${error} — reload the page`;
-        this.settlePending();
-        onCrash(new Error(this.dead));
+      if (typeof error === 'string' && this.booted) {
+        this.crash(error);
         return;
       }
       if (typeof id !== 'number' || !result) return;
@@ -63,6 +68,14 @@ export class EngineClient {
   }
 
   terminate() { this.settlePending(); this.worker.terminate(); }
+
+  /** Terminal failure after boot: mark dead (first error wins), settle in-flight renders, reject `crashed`. */
+  private crash(message: string) {
+    if (this.dead) return;
+    this.dead = `${message} — reload the page`;
+    this.settlePending();
+    this.onCrash(new Error(this.dead));
+  }
 
   /** Settles every in-flight render with the sentinel and empties the map — no promise is left pending. */
   private settlePending() {

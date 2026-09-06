@@ -30,10 +30,12 @@ on:
     - cron: '17 4 * * 1'
   workflow_dispatch:
 
+# Workflow-level token is read-only. Pages/OIDC write scopes are granted only
+# to `deploy`, which runs no repository-controlled code (no checkout, no npm,
+# no pip) — `build` and `playground` execute package scripts and must not
+# hold credentials that can publish the site.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -142,6 +144,8 @@ jobs:
   build:
     needs: playground
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       should-deploy: ${{ steps.gate.outputs.should-deploy }}
     steps:
@@ -220,24 +224,43 @@ jobs:
               echo "should-deploy=false" >> $GITHUB_OUTPUT ;;
           esac
 
-      - name: Configure Pages
+      # Plain (unprivileged) artifact: the Pages artifact is assembled in
+      # `deploy`, the only job holding pages/id-token write scopes.
+      - name: Upload built site
         if: steps.gate.outputs.should-deploy == 'true'
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-
-      - name: Upload Pages artifact
-        if: steps.gate.outputs.should-deploy == 'true'
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2 (same pin as helm.yaml)
         with:
+          name: site
           path: site
+          retention-days: 1
 
   deploy:
     needs: build
     if: needs.build.outputs.should-deploy == 'true'
     runs-on: ubuntu-latest
+    # The only job with Pages + OIDC scopes; it never checks out or runs
+    # repository code — it only re-packages the artifact `build` produced.
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Download built site
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: site
+          path: site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

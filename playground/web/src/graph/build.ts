@@ -39,7 +39,7 @@ export function buildGraph(manifests: Manifest[], values: any, ns: string): Grap
   const edges: GraphEdge[] = [];
   const externals = new Map<string, GraphNode>();
   const rendered = nodes.filter((n) => n.manifest);
-  for (const r of extractRefs(rendered, ns)) {
+  for (const r of extractRefs(rendered)) {
     let target = byKey.get(r.targetKey)?.[0];
     if (!target) {
       target = externals.get(r.targetKey);

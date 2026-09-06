@@ -5,6 +5,11 @@ import type { Action, AppState } from './state';
 
 export function useRenderPipeline(state: AppState, dispatch: (a: Action) => void) {
   const client = useRef<EngineClient | null>(null);
+  // Bumped on every input change. A render started for an older revision may still complete
+  // (the client only supersedes it once the next render is *sent*, after the debounce), and its
+  // graph must not be dispatched over newer values — e.g. when the newer text is YAML-invalid and
+  // never triggers a render of its own.
+  const revision = useRef(0);
   useEffect(() => {
     const c = new EngineClient();
     client.current = c;
@@ -16,6 +21,7 @@ export function useRenderPipeline(state: AppState, dispatch: (a: Action) => void
 
   const { text, releaseName, namespace, doc, engineError } = state;
   useEffect(() => {
+    const rev = ++revision.current;
     if (engineError || doc.errors.length) return;                  // YAML invalid: keep last graph, markers show the error
     const t = setTimeout(async () => {
       dispatch({ type: 'render-start' });
@@ -23,9 +29,10 @@ export function useRenderPipeline(state: AppState, dispatch: (a: Action) => void
       try {
         result = await client.current!.render(text, releaseName, namespace);   // rejects only if ready rejected
       } catch (e) {
-        dispatch({ type: 'engine-failed', message: (e as Error).message });
+        if (rev === revision.current) dispatch({ type: 'engine-failed', message: (e as Error).message });
         return;
       }
+      if (rev !== revision.current) return;                          // input moved on while this render ran
       try {
         const graph = result.ok ? buildGraph(result.manifests, doc.toJS(), namespace) : null;
         dispatch({ type: 'render-done', result, graph });

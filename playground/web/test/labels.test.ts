@@ -19,9 +19,21 @@ describe('labels', () => {
   it('matches a Service selector against its Deployment pod labels', () => {
     const svc = manifests.find((m) => m.obj.kind === 'Service' && m.obj.metadata.name === 'api')!;
     const dep = manifests.find((m) => m.obj.kind === 'Deployment' && m.obj.metadata.name === 'api')!;
-    expect(selectorMatches(svc.obj.spec.selector, podLabelsOf(dep.obj))).toBe(true);
-    expect(selectorMatches({ 'app.kubernetes.io/name': 'other' }, podLabelsOf(dep.obj))).toBe(false);
+    expect(selectorMatches({ matchLabels: svc.obj.spec.selector }, podLabelsOf(dep.obj))).toBe(true);
+    expect(selectorMatches({ matchLabels: { 'app.kubernetes.io/name': 'other' } }, podLabelsOf(dep.obj))).toBe(false);
     expect(selectorMatches(undefined, podLabelsOf(dep.obj))).toBe(false);
+  });
+  it('implements LabelSelector semantics (empty = all, matchExpressions ANDed with matchLabels)', () => {
+    const l = { app: 'web', tier: 'front' };
+    expect(selectorMatches({}, l)).toBe(true);
+    expect(selectorMatches({}, null)).toBe(true);
+    expect(selectorMatches({ matchLabels: {} }, l)).toBe(true);
+    expect(selectorMatches({ matchExpressions: [{ key: 'app', operator: 'In', values: ['web', 'api'] }] }, l)).toBe(true);
+    expect(selectorMatches({ matchExpressions: [{ key: 'app', operator: 'NotIn', values: ['web'] }] }, l)).toBe(false);
+    expect(selectorMatches({ matchExpressions: [{ key: 'zone', operator: 'NotIn', values: ['a'] }] }, l)).toBe(true);
+    expect(selectorMatches({ matchExpressions: [{ key: 'tier', operator: 'Exists' }] }, l)).toBe(true);
+    expect(selectorMatches({ matchExpressions: [{ key: 'zone', operator: 'DoesNotExist' }] }, l)).toBe(true);
+    expect(selectorMatches({ matchLabels: { app: 'web' }, matchExpressions: [{ key: 'tier', operator: 'In', values: ['back'] }] }, l)).toBe(false);
   });
   it('builds resource keys and families', () => {
     expect(resourceKey('default', 'Service', 'api')).toBe('default/Service/api');

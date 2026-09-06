@@ -15,11 +15,42 @@ export function podLabelsOf(obj: KubeObject): Record<string, string> | null {
   return podTemplateOf(obj)?.metadata?.labels ?? null;
 }
 
-export function selectorMatches(matchLabels: Record<string, string> | undefined, labels: Record<string, string> | null): boolean {
-  if (!matchLabels || !labels) return false;
-  const entries = Object.entries(matchLabels);
-  if (entries.length === 0) return false;
-  return entries.every(([k, v]) => labels[k] === v);
+export type LabelSelector = {
+  matchLabels?: Record<string, string>;
+  matchExpressions?: { key: string; operator: 'In' | 'NotIn' | 'Exists' | 'DoesNotExist'; values?: string[] }[];
+};
+
+/**
+ * Kubernetes LabelSelector semantics: matchLabels and matchExpressions are ANDed; an empty
+ * selector (`{}`) matches everything (policy/v1 PDB, NetworkPolicy podSelector). `undefined`
+ * means "no selector" and matches nothing.
+ */
+export function selectorMatches(selector: LabelSelector | undefined, labels: Record<string, string> | null): boolean {
+  if (!selector) return false;
+  const l = labels ?? {};
+  const byLabel = Object.entries(selector.matchLabels ?? {}).every(([k, v]) => l[k] === v);
+  const byExpr = (selector.matchExpressions ?? []).every((e) => {
+    switch (e.operator) {
+      case 'In': return e.key in l && (e.values ?? []).includes(l[e.key]);
+      case 'NotIn': return !(e.key in l) || !(e.values ?? []).includes(l[e.key]);
+      case 'Exists': return e.key in l;
+      case 'DoesNotExist': return !(e.key in l);
+      default: return false;
+    }
+  });
+  return byLabel && byExpr;
+}
+
+/** Short human form of a selector for the placeholder node when nothing matches. */
+export function selectorText(selector: LabelSelector): string {
+  const parts = Object.entries(selector.matchLabels ?? {}).map(([k, v]) => `${k}=${v}`);
+  for (const e of selector.matchExpressions ?? []) {
+    if (e.operator === 'In') parts.push(`${e.key} in (${(e.values ?? []).join(',')})`);
+    else if (e.operator === 'NotIn') parts.push(`${e.key} notin (${(e.values ?? []).join(',')})`);
+    else if (e.operator === 'Exists') parts.push(e.key);
+    else parts.push(`!${e.key}`);
+  }
+  return parts.length ? parts.join(',') : '{}';
 }
 
 const FAMILIES: Record<string, Family> = {

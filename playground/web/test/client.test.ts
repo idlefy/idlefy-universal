@@ -31,6 +31,10 @@ class WorkerStub {
   emit(data: unknown) {
     for (const fn of [...(this.listeners.get('message') ?? [])]) fn({ data });
   }
+  /** Delivers a native `error` event (uncaught exception inside the worker). */
+  emitError(message: string) {
+    for (const fn of [...(this.listeners.get('error') ?? [])]) fn({ message } as any);
+  }
 }
 
 const svc = 'apiVersion: v1\nkind: Service\nmetadata:\n  name: a\n';
@@ -149,5 +153,27 @@ describe('EngineClient render', () => {
     client.terminate();
     expect(worker.terminated).toBe(true);
     await expect(pending).resolves.toEqual({ ok: false, error: { kind: 'template', message: SUPERSEDED } });
+  });
+});
+
+describe('EngineClient native worker errors', () => {
+  it('before boot fails ready', async () => {
+    const { client, worker } = boot();
+    worker.emitError('script load failed');
+    await expect(client.ready).rejects.toThrow('script load failed');
+    await expect(client.render('a: 1', 'r', 'ns')).resolves.toEqual({ ok: false, error: { kind: 'template', message: 'script load failed' } });
+  });
+  it('after boot is a crash: settles the in-flight render and rejects crashed', async () => {
+    const { client, worker } = boot();
+    const crash = client.crashed.then(() => undefined, (e: unknown) => e);
+    worker.emit({ ready: true });
+    const inFlight = client.render('a: 1', 'r', 'ns');
+    await tick();
+    worker.emitError('Uncaught RangeError: Maximum call stack size exceeded');
+    await expect(inFlight).resolves.toEqual({ ok: false, error: { kind: 'template', message: SUPERSEDED } });
+    expect(((await crash) as Error).message).toBe('Uncaught RangeError: Maximum call stack size exceeded — reload the page');
+    await expect(client.render('b: 2', 'r', 'ns')).resolves.toEqual({
+      ok: false, error: { kind: 'template', message: 'Uncaught RangeError: Maximum call stack size exceeded — reload the page' },
+    });
   });
 });
