@@ -10,8 +10,12 @@ export function Toolbar(p: { release: string; ns: string; onRelease: (s: string)
       </select>
       <label>release <input value={p.release} onChange={(e) => p.onRelease(e.target.value)} size={8} /></label>
       <label>ns <input value={p.ns} onChange={(e) => p.onNs(e.target.value)} size={8} /></label>
-      <button onClick={() => navigator.clipboard.writeText(p.valuesText)}>Copy values.yaml</button>
-      <button title={install} onClick={() => navigator.clipboard.writeText(install)}>Copy install command</button>
+      {navigator.clipboard && (
+        <>
+          <button onClick={() => navigator.clipboard.writeText(p.valuesText).catch(() => {})}>Copy values.yaml</button>
+          <button title={install} onClick={() => navigator.clipboard.writeText(install).catch(() => {})}>Copy install command</button>
+        </>
+      )}
     </div>
   );
 }

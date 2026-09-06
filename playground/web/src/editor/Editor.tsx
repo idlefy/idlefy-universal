@@ -7,6 +7,8 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const model = useRef<monaco.editor.ITextModel | null>(null);
+  // Set while this component writes to the model itself; programmatic writes never emit onChange.
+  const suppress = useRef(false);
 
   useEffect(() => {
     const m = monaco.editor.createModel(value, 'yaml', monaco.Uri.parse('inmemory://idlefy/values.yaml'));
@@ -17,7 +19,7 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
       autoClosingBrackets: 'never', autoClosingQuotes: 'never', autoIndent: 'keep',
     });
     editor.current = ed;
-    const sub = m.onDidChangeContent(() => onChange(m.getValue()));
+    const sub = m.onDidChangeContent(() => { if (!suppress.current) onChange(m.getValue()); });
     return () => { sub.dispose(); ed.dispose(); m.dispose(); model.current = null; editor.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -25,15 +27,22 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
   // External text replacement (examples picker): single undoable edit, never setValue.
   useEffect(() => {
     const m = model.current; if (!m || m.getValue() === value) return;
-    m.pushEditOperations([], [{ range: m.getFullModelRange(), text: value }], () => null);
+    suppress.current = true;
+    try { m.pushEditOperations([], [{ range: m.getFullModelRange(), text: value }], () => null); }
+    finally { suppress.current = false; }
   }, [value]);
 
   useEffect(() => {
     const m = model.current; if (!m) return;
-    monaco.editor.setModelMarkers(m, 'engine', markers.map((k) => ({
-      startLineNumber: k.line, endLineNumber: k.line, startColumn: k.col ?? 1, endColumn: k.col ? k.col + 1 : m.getLineMaxColumn(Math.min(k.line, m.getLineCount())),
-      message: k.message, severity: k.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
-    })));
+    // Engine line/col numbers can be out of range (0, or past the current text); monaco throws on those.
+    monaco.editor.setModelMarkers(m, 'engine', markers.map((k) => {
+      const line = Math.min(Math.max(1, k.line), m.getLineCount());
+      const col = k.col === undefined ? undefined : Math.max(1, k.col);
+      return {
+        startLineNumber: line, endLineNumber: line, startColumn: col ?? 1, endColumn: col ? col + 1 : m.getLineMaxColumn(line),
+        message: k.message, severity: k.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+      };
+    }));
   }, [markers]);
 
   useEffect(() => { if (revealLine && editor.current) editor.current.revealLineInCenter(revealLine); }, [revealLine]);
