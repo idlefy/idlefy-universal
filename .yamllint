@@ -1,0 +1,33 @@
+# yamllint config, consumed by CodeRabbit's yamllint integration.
+# Helm templates are Go templates, not YAML, so they are excluded.
+# Cosmetic rules are relaxed; the goal is catching real problems
+# (duplicate keys, bad indentation, syntax errors), not whitespace churn.
+extends: default
+
+ignore: |
+  charts/*/templates/
+  charts/*/tests/__snapshot__/
+  node_modules/
+  site/
+  playground/web/dist/
+
+rules:
+  line-length:
+    max: 120
+    level: warning
+  document-start: disable
+  brackets: disable
+  braces: disable
+  commas: disable
+  trailing-spaces:
+    level: warning
+  new-line-at-end-of-file:
+    level: warning
+  truthy:
+    # GitHub Actions uses a bare `on:` key.
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  indentation:
+    spaces: 2
+    indent-sequences: whatever

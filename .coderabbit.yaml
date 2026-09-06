@@ -1,0 +1,305 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit configuration for idlefy-universal.
+# Reference: https://docs.coderabbit.ai/reference/configuration
+
+language: en-US
+
+tone_instructions: >-
+  Be concise and technical. Lead with correctness and security findings.
+  Skip praise and style nits that a linter already covers. Suggest concrete
+  Helm/Go-template or schema fixes when possible.
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_in_walkthrough: true
+  collapse_walkthrough: true
+  changed_files_summary: true
+  sequence_diagrams: false
+  poem: false
+  review_status: true
+  commit_status: true
+  fail_commit_status: false
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: false
+  suggested_reviewers: false
+  auto_assign_reviewers: false
+  enable_prompt_for_ai_agents: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+    base_branches:
+      - main
+    ignore_title_keywords:
+      - WIP
+      - "[skip review]"
+
+  # Generated / vendored artefacts. CI already proves they match their sources
+  # (schema.yaml workflow, check-example-mirrors.sh, helm-unittest snapshots),
+  # so reviewing the diff line-by-line is noise.
+  path_filters:
+    - "!charts/idlefy-universal/values.schema.json"
+    - "!charts/idlefy-universal/agent-index.json"
+    - "!charts/idlefy-universal/tests/__snapshot__/**"
+    - "!docs/reference/values.md"
+    - "!docs/assets/**"
+    - "!playground/web/package-lock.json"
+    - "!playground/engine/go.sum"
+    - "!**/*.webp"
+    - "!**/*.png"
+    - "!**/*.svg"
+
+  path_instructions:
+    - path: "charts/idlefy-universal/templates/**"
+      instructions: |
+        Helm templates (Go text/template + Sprig). Review for:
+        - Every value read here must exist in the JSON Schema
+          (schema/structure/*.yaml). A template reading a key the schema does
+          not define, or the schema defining a key no template renders, is
+          schema/template drift and must be flagged.
+        - Do not re-implement type/required/enum/pattern checks that the schema
+          already enforces. _validation.tpl is only for cross-resource checks
+          (secretRefs lookups, computed names, name length) - keep it lean.
+        - Use the shared helpers (_naming.tpl, _labels.tpl, _defaults.tpl,
+          _pod-spec.tpl, resourceMetadata) instead of inlining metadata,
+          selectors or label blocks.
+        - Rendered resources must be valid Kubernetes >= 1.31 objects. Watch
+          for wrong apiVersion, missing selector/labels consistency between
+          workload and Service/PDB/NetworkPolicy, and indentation errors in
+          `nindent`/`toYaml` blocks.
+        - Workload map keys are DNS-1123 names <= 63 chars; generated names
+          must stay within that limit after suffixes are appended.
+        - Every new or changed rendering path needs a helm-unittest case in
+          charts/idlefy-universal/tests/.
+
+    - path: "charts/idlefy-universal/values.yaml"
+      instructions: |
+        Default values must validate against values.schema.json and stay
+        minimal. New defaults need a matching schema entry, description in
+        schema/docs/*.yaml and a mention in the CHANGELOG.
+
+    - path: "charts/idlefy-universal/Chart.yaml"
+      instructions: |
+        Check that `version` was bumped per SemVer for any chart-visible change
+        (ct.yaml has check-version-increment: true, so CI fails otherwise) and
+        that CHANGELOG.md has a matching entry. Breaking changes to the values
+        contract (removed/renamed keys, tightened schema) require a MAJOR bump.
+
+    - path: "charts/idlefy-universal/tests/**"
+      instructions: |
+        helm-unittest suites. Prefer explicit `asserts` (equal, isSubset,
+        contains, isKind) over snapshot-only tests. Each test should pin the
+        `templates:` list it exercises. Flag tests that only assert the
+        document count or that duplicate an existing case.
+
+    - path: "charts/idlefy-universal/ci/**"
+      instructions: |
+        These files are byte-for-byte mirrors of examples/<N>-<name>/values.yaml
+        (scripts/check-example-mirrors.sh enforces it). Any edit here must be
+        mirrored in examples/, and vice versa.
+
+    - path: "examples/**"
+      instructions: |
+        User-facing example values. Must validate against the schema, be
+        installable on a kind cluster as the Helm CI does, and be mirrored into
+        charts/idlefy-universal/ci/example-<N>-<name>-values.yaml. Keep them
+        small and idiomatic; do not add features the README of the example
+        does not explain.
+
+    - path: "schema/structure/**"
+      instructions: |
+        Source of truth for the JSON Schema types (Draft 2020-12). Review for:
+        - `additionalProperties: false` on every chart-owned object; opening a
+          path up requires whitelisting it in schema/lint-config.yaml with a
+          justification.
+        - Cross-field rules (if/then/else, dependentRequired) for flags such as
+          autoCreate* that need companion fields.
+        - Kubernetes primitives should be reused from schema/k8s/ rather than
+          re-declared.
+        - The committed values.schema.json, agent-index.json and
+          docs/reference/values.md must be regenerated in the same PR
+          (`python -m schema.build build / agent-index / render-docs`).
+        - Every new key needs a corresponding entry in schema/docs/*.yaml and a
+          template that actually renders it.
+
+    - path: "schema/docs/**"
+      instructions: |
+        Descriptions, examples and agent metadata layered onto the structure
+        schema. Every node should carry x-agent-when-to-use and, where useful,
+        x-agent-related-fields, x-agent-common-mistakes,
+        x-agent-example-use-case. Examples must be valid against the structure
+        type. Check that keys here match keys in schema/structure/ 1:1.
+
+    - path: "schema/**/*.py"
+      instructions: |
+        Python 3.13 build tooling (schema/build.py and helpers). Keep the
+        build deterministic (sorted keys, stable ordering) because CI diffs the
+        committed artefacts against a rebuild. New subcommands need a test in
+        schema/tests/ and a Makefile target if they are meant to be run by
+        hand.
+
+    - path: "schema/fixtures/**"
+      instructions: |
+        `valid/` fixtures must pass schema validation, `invalid/` fixtures must
+        fail it for exactly the reason their file name describes. A schema
+        change that tightens or loosens validation should add a fixture on the
+        affected side.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        GitHub Actions. Require: every third-party action pinned to a full
+        commit SHA with a version comment; least-privilege `permissions` at
+        job level; no `pull_request_target` with checkout of PR head; secrets
+        never echoed. Path filters on `push`/`pull_request` must cover every
+        input the job reads (e.g. the docs job rebuilds the playground, so it
+        watches charts/, schema/ and playground/ too).
+
+    - path: "scripts/**"
+      instructions: |
+        Bash helpers run in CI. Require `set -euo pipefail`, quoted variables,
+        `shopt -s nullglob` for globs that may match nothing, and a non-zero
+        exit with a clear message on failure.
+
+    - path: "playground/engine/**"
+      instructions: |
+        Go engine compiled to WebAssembly for the browser playground. Watch
+        for: goroutine/WASM incompatibilities (no os/exec, no filesystem),
+        panics that would kill the wasm instance instead of returning an
+        error, unbounded memory growth on repeated renders, and behaviour that
+        diverges from real `helm template` (coalescing, schema validation
+        order). Table-driven tests in *_test.go are expected for new
+        behaviour.
+
+    - path: "playground/web/**"
+      instructions: |
+        TypeScript/Vite SPA. Prefer strict typing over `any`, keep the wasm
+        engine calls behind the existing wrapper so a dead engine is handled
+        gracefully, and make sure dark mode and layout re-fit are preserved
+        for UI changes. New UI behaviour needs a vitest unit test or a
+        Playwright e2e in playground/web/e2e/.
+
+    - path: "docs/**"
+      instructions: |
+        MkDocs (Material) site. docs/reference/values.md is generated - never
+        hand-edit it. Check relative links resolve inside mkdocs.yml `nav`,
+        code samples validate against the current schema, and wording stays
+        consistent with the README. Do not review spelling/grammar unless it
+        changes meaning.
+
+    - path: "skills/**"
+      instructions: |
+        Agent skills (SKILL.md) consumed by AI assistants. Instructions must
+        match the current schema and chart behaviour; flag any values key,
+        flag or command mentioned here that no longer exists in the chart.
+
+    - path: "CHANGELOG.md"
+      instructions: |
+        Keep a Changelog format. New entries go under the version being
+        released, grouped as Added/Changed/Fixed/Removed, and must reference
+        the values keys or templates affected.
+
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: >-
+        Conventional Commits style as used in git history: a type prefix
+        (feat, fix, docs, chore, ci, refactor, test, perf) with an optional
+        scope in parentheses, e.g. "feat(schema): ..." or "fix(playground): ...".
+    description:
+      mode: warning
+    docstrings:
+      mode: "off"
+    issue_assessment:
+      mode: warning
+    custom_checks:
+      - name: Chart version and changelog
+        mode: warning
+        instructions: >-
+          If the PR changes anything under charts/idlefy-universal/ (templates,
+          values, schema artefacts) then Chart.yaml `version` must be bumped
+          per SemVer and CHANGELOG.md must contain an entry for it.
+      - name: Schema artefacts regenerated
+        mode: warning
+        instructions: >-
+          If the PR changes schema/structure/, schema/docs/ or schema/k8s/,
+          then charts/idlefy-universal/values.schema.json,
+          charts/idlefy-universal/agent-index.json and docs/reference/values.md
+          must be updated in the same PR.
+      - name: Example mirrors in sync
+        mode: warning
+        instructions: >-
+          If the PR touches examples/<name>/values.yaml or
+          charts/idlefy-universal/ci/example-<name>-values.yaml, both copies
+          must be changed identically.
+
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: true
+
+  tools:
+    # Helm templates are not valid YAML; .yamllint at the repo root excludes
+    # charts/*/templates so yamllint still covers workflows, schema and values.
+    yamllint:
+      enabled: true
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+    shellcheck:
+      enabled: true
+    hadolint:
+      enabled: true
+    ruff:
+      enabled: true
+    golangci-lint:
+      enabled: true
+    eslint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    trufflehog:
+      enabled: true
+    checkov:
+      enabled: true
+    trivy:
+      enabled: true
+    osvScanner:
+      enabled: true
+    semgrep:
+      enabled: true
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+    checkmake:
+      enabled: false
+
+chat:
+  auto_reply: true
+  art: false
+
+knowledge_base:
+  opt_out: false
+  web_search:
+    enabled: true
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "CONTRIBUTING.md"
+      - "skills/**/SKILL.md"
+  learnings:
+    scope: auto
+  pull_requests:
+    scope: auto
+  issues:
+    scope: auto
