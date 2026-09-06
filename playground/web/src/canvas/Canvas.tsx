@@ -20,13 +20,25 @@ export function Canvas({
 }) {
   const [laid, setLaid] = useState<{ nodes: Node<ResourceNodeData>[]; edges: Edge[] }>({ nodes: [], edges: [] });
   const [hover, setHover] = useState<string | null>(null);
+  const [layoutError, setLayoutError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
     if (!model) return;
-    layoutGraph(model).then((r) => {
-      if (alive) setLaid(r);
-    });
+    layoutGraph(model)
+      .then((r) => {
+        if (alive) {
+          setLaid(r);
+          setLayoutError(null);
+        }
+      })
+      .catch((e) => {
+        if (alive) {
+          setLaid({ nodes: [], edges: [] });
+          setLayoutError(e instanceof Error ? e.message : String(e));
+          console.error('layout failed', e);
+        }
+      });
     return () => {
       alive = false;
     };
@@ -66,7 +78,10 @@ export function Canvas({
         <Controls />
         <MiniMap pannable zoomable />
       </ReactFlow>
-      {model.nodes.filter((n) => n.manifest).length === 0 && <div className="canvas-empty overlay">No resources rendered yet.</div>}
+      {layoutError && <div className="canvas-error">Layout failed: {layoutError}</div>}
+      {!layoutError && model.nodes.filter((n) => n.manifest).length === 0 && (
+        <div className="canvas-empty overlay">No resources rendered yet.</div>
+      )}
     </div>
   );
 }

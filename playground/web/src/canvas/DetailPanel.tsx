@@ -15,7 +15,9 @@ export function DetailPanel({ node, onClose }: { node: GraphNode | null; onClose
     <aside className="detail">
       <header>
         <strong>{node.kind}</strong> {node.name}
-        <button onClick={() => navigator.clipboard.writeText(text)}>Copy</button>
+        {navigator.clipboard && (
+          <button onClick={() => navigator.clipboard.writeText(text).catch(() => {})}>Copy</button>
+        )}
         <button onClick={onClose} aria-label="close">
           ×
         </button>
