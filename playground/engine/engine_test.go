@@ -56,7 +56,10 @@ func requireHelm(t *testing.T) string {
 		}
 		t.Skip("helm binary not found")
 	}
-	out, _ := exec.Command(path, "version", "--short").Output()
+	out, err := exec.Command(path, "version", "--short").Output()
+	if err != nil {
+		t.Fatalf("helm version --short failed: %v", err)
+	}
 	if !strings.HasPrefix(string(out), "v3.19.") {
 		t.Fatalf("golden test requires helm v3.19.x, got %q", strings.TrimSpace(string(out)))
 	}
@@ -84,6 +87,11 @@ func normalize(t *testing.T, stream string) string {
 		}
 		docs = append(docs, d)
 	}
+	// A zero-document stream would make the golden comparison trivially true on
+	// both sides, so refuse to normalize one.
+	if len(docs) == 0 {
+		t.Fatalf("normalize: stream contained no documents:\n%s", stream)
+	}
 	// Sort key includes the marshalled body so two documents with the same
 	// kind/name (the collision case) still sort deterministically.
 	key := func(d doc) string {
@@ -100,7 +108,10 @@ func normalize(t *testing.T, stream string) string {
 
 func helmTemplate(t *testing.T, helm, release, valuesPath string) string {
 	t.Helper()
-	cmd := exec.Command(helm, "template", release, chartDir, "-f", valuesPath, "--namespace", "default")
+	// --kube-version pins the reference helm to the same constant the engine
+	// hard-codes; helm 3.19 would otherwise default to its own built-in version.
+	cmd := exec.Command(helm, "template", release, chartDir, "-f", valuesPath,
+		"--namespace", "default", "--kube-version", KubeVersion)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
