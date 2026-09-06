@@ -17,12 +17,20 @@ export function useRenderPipeline(state: AppState, dispatch: (a: Action) => void
     if (engineError || doc.errors.length) return;                  // YAML invalid: keep last graph, markers show the error
     const t = setTimeout(async () => {
       dispatch({ type: 'render-start' });
+      let result;
       try {
-        const result = await client.current!.render(text, releaseName, namespace);   // rejects only if ready rejected
+        result = await client.current!.render(text, releaseName, namespace);   // rejects only if ready rejected
+      } catch (e) {
+        dispatch({ type: 'engine-failed', message: (e as Error).message });
+        return;
+      }
+      try {
         const graph = result.ok ? buildGraph(result.manifests, doc.toJS(), namespace) : null;
         dispatch({ type: 'render-done', result, graph });
       } catch (e) {
-        dispatch({ type: 'engine-failed', message: (e as Error).message });
+        // A graph-building bug must not look like a dead engine: show it in the banner, keep the
+        // last good graph, and let the next edit recover.
+        dispatch({ type: 'render-done', result: { ok: false, error: { kind: 'template', message: 'graph: ' + (e as Error).message } }, graph: null });
       }
     }, 150);
     return () => clearTimeout(t);

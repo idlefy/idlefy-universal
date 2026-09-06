@@ -26,10 +26,15 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'release': return { ...s, releaseName: a.v };
     case 'ns': return { ...s, namespace: a.v };
     case 'render-start': return { ...s, rendering: true };
-    case 'render-done':
+    case 'render-done': {
       // A superseded request (EngineClient latest-wins) carries no information; a newer result is on its way.
       if (!a.result.ok && a.result.error.message === SUPERSEDED) return s;
-      return { ...s, rendering: false, render: a.result, graph: a.result.ok ? a.graph : s.graph };
+      const graph = a.result.ok ? a.graph : s.graph;
+      // A selected node can disappear from the rebuilt graph (renamed or removed). Dropping the
+      // dead id keeps Canvas from dimming every node around a focus that no node matches.
+      const selection = graph && s.selection && !graph.nodes.some((n) => n.id === s.selection) ? null : s.selection;
+      return { ...s, rendering: false, render: a.result, graph, selection };
+    }
     case 'select': return { ...s, selection: a.id };
     case 'engine-failed': return { ...s, rendering: false, engineError: a.message };
   }

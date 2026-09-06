@@ -17,7 +17,7 @@ export function App() {
   const [state, dispatch] = useReducer(reducer, FIRST?.values ?? 'deployments: {}\n', initialState);
   useRenderPipeline(state, dispatch);
   const onChange = useCallback((text: string) => dispatch({ type: 'text', text }), []);
-  const markers = useMemo(() => markersFrom(state), [state]);
+  const markers = useMemo(() => markersFrom(state), [state.doc, state.render]);   // markersFrom reads only these two
   const selected = state.graph?.nodes.find((n) => n.id === state.selection) ?? null;
   const revealLine = selected?.provenance ? state.doc.lineOf(selected.provenance.path) : null;
   const error = state.render && !state.render.ok ? state.render.error : null;
