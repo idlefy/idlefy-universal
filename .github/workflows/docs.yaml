@@ -72,12 +72,19 @@ jobs:
           version: v3.19.2
 
       - name: Install binaryen
-        # Keep the tag in sync with playground/Dockerfile BINARYEN_VERSION.
-        # Extracted into RUNNER_TEMP, not /opt: /opt is root-owned on
-        # ubuntu-latest and the runner user cannot write to it without sudo.
+        # Keep the tag and the checksum in sync with playground/Dockerfile
+        # (BINARYEN_VERSION / BINARYEN_SHA256). The GitHub release publishes no
+        # checksum file, so the digest is pinned here and re-verified on every run:
+        # download first, verify, then unpack. Extracted into RUNNER_TEMP, not
+        # /opt: /opt is root-owned on ubuntu-latest and the runner user cannot
+        # write to it without sudo.
+        env:
+          BINARYEN_SHA256: 195ddc94f9bc89f45abdabb0b9eea86023d727ba90eac8b35b80f2544fc30572
         run: |
-          set -o pipefail
-          curl -fsSL https://github.com/WebAssembly/binaryen/releases/download/version_132/binaryen-version_132-x86_64-linux.tar.gz | tar -xz -C "$RUNNER_TEMP"
+          set -euo pipefail
+          curl -fsSL -o "$RUNNER_TEMP/binaryen.tar.gz" https://github.com/WebAssembly/binaryen/releases/download/version_132/binaryen-version_132-x86_64-linux.tar.gz
+          echo "$BINARYEN_SHA256  $RUNNER_TEMP/binaryen.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/binaryen.tar.gz" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/binaryen-version_132/bin" >> "$GITHUB_PATH"
 
       - name: Engine tests (golden vs helm template, FuncMap gate, invalid fixtures)

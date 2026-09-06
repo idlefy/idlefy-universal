@@ -1,12 +1,14 @@
 # idlefy-universal Playground
 
 Browser-only builder for `values.yaml`: real Helm rendering in WASM, schema-aware editor,
-resource dependency graph. User-facing documentation lives at `docs/playground.md` on the MkDocs site.
+resource dependency graph. User-facing documentation lives at `docs/playground-guide.md` on the MkDocs site.
 
 - `engine/` — slim Helm engine (Go). `go test ./...` runs the golden test against `helm template`
   (requires helm v3.19.x on PATH; skipped locally if absent, mandatory in CI).
-- `web/` — Vite + React SPA. `npm test` (Vitest), `npm run e2e` (Playwright).
-- `make playground-build` builds everything inside Docker; `make playground-dev` serves on :5173.
+- `web/` — Vite + React SPA. `npm test` (Vitest), `npm run e2e` (Playwright). Both need
+  `public/helm.wasm` (`bash engine/build.sh`); the chart bundler refuses to run without it.
+- `make playground-build` builds everything inside Docker; `make playground-dev` serves the SPA at
+  <http://localhost:5173/playground/> (the Vite `base`, so the bare `/` is a 404).
 
 ## monaco-yaml coverage
 

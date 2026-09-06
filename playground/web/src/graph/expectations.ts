@@ -20,6 +20,9 @@ const SM_KINDS = new Set(['deployments', 'statefulSets', 'daemonSets']);
 const PDB_KINDS = new Set(['deployments', 'statefulSets', 'daemonSets']);
 
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
+// Go templates treat an empty map as falsy, so `pdb: {}` renders nothing — an expectation built
+// from it would be unconsumed. Only a non-empty block counts as "present".
+const isFilledObj = (v: unknown): v is Record<string, any> => isObj(v) && Object.keys(v).length > 0;
 const setFalse = (p: ValuesPath): RemoveAction => ({ op: 'set', path: p, value: false });
 const del = (p: ValuesPath): RemoveAction => ({ op: 'delete', path: p });
 
@@ -75,7 +78,7 @@ export function buildExpectations(values: any, ns: string): Expectation[] {
         if (cfg.autoCreateCertificate && cfg.autoCreateIngress && cfg.ingress) push('Certificate', name, [...base, 'certificate'], 'autoCreateCertificate && autoCreateIngress && ingress', [setFalse([...base, 'autoCreateCertificate'])], owner);
         if (isObj(cfg.hpa)) push('HorizontalPodAutoscaler', name, [...base, 'hpa'], 'hpa block present', [del([...base, 'hpa'])], { ...owner, templateFile: 'hpa.yaml' });
       }
-      if (PDB_KINDS.has(kindKey) && (cfg.autoCreatePdb || isObj(cfg.pdb))) {
+      if (PDB_KINDS.has(kindKey) && (cfg.autoCreatePdb || isFilledObj(cfg.pdb))) {
         push('PodDisruptionBudget', name, [...base, 'pdb'], 'autoCreatePdb: true or pdb block present', [setFalse([...base, 'autoCreatePdb']), del([...base, 'pdb'])], owner);
       }
       if (SM_KINDS.has(kindKey) && cfg.autoCreateServiceMonitor) {
@@ -97,7 +100,7 @@ export function buildExpectations(values: any, ns: string): Expectation[] {
         push('Role', name, [...base, 'rbac'], 'autoCreateRbac: true', ra, owner);
         push('RoleBinding', name, [...base, 'rbac'], 'autoCreateRbac: true', ra, owner);
       }
-      if (SA_KINDS.has(kindKey) && (cfg.autoCreateServiceAccount || isObj(cfg.serviceAccount))) {
+      if (SA_KINDS.has(kindKey) && (cfg.autoCreateServiceAccount || isFilledObj(cfg.serviceAccount))) {
         const saName = String(cfg.serviceAccount?.name ?? name);
         push('ServiceAccount', saName, [...base, 'serviceAccount'], 'autoCreateServiceAccount: true or serviceAccount block present',
           [setFalse([...base, 'autoCreateServiceAccount']), del([...base, 'serviceAccount'])], { ...owner, matchBy: { label: 'app.kubernetes.io/name', value: name } });

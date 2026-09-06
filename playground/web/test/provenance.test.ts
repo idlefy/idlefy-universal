@@ -31,6 +31,14 @@ describe('provenance rules', () => {
     const values = { daemonSets: { agent: { autoCreateService: true, containers: { main: { image: 'x', imageTag: '1', ports: { m: { containerPort: 1 } } } } } } };
     expect(buildExpectations(values, 'default').filter((e) => e.kind === 'Service')).toEqual([]);
   });
+  it('an empty pdb / serviceAccount block expects nothing (Go templates treat {} as falsy)', () => {
+    const containers = { main: { image: 'x', imageTag: '1' } };
+    const empty = buildExpectations({ deployments: { api: { pdb: {}, serviceAccount: {}, containers } } }, 'default');
+    expect(empty.filter((e) => e.kind === 'PodDisruptionBudget' || e.kind === 'ServiceAccount')).toEqual([]);
+    const filled = buildExpectations({ deployments: { api: { pdb: { minAvailable: 1 }, serviceAccount: { name: 'api-sa' }, containers } } }, 'default');
+    expect(filled.filter((e) => e.kind === 'PodDisruptionBudget' || e.kind === 'ServiceAccount').map((e) => e.kind).sort())
+      .toEqual(['PodDisruptionBudget', 'ServiceAccount']);
+  });
   it('ServiceAccount with custom name matches by label', () => {
     const values = { deployments: { api: { autoCreateServiceAccount: true, serviceAccount: { name: 'api-sa' }, containers: { main: { image: 'x', imageTag: '1' } } } } };
     const ex = buildExpectations(values, 'default');

@@ -1,5 +1,12 @@
 import { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
+import schema from '../chart-bundle/schema.json';
+import { setupMonaco } from './monaco';
+
+// Workers and the yaml schema must be registered before the first createModel/create call.
+// Doing it here (setupMonaco is idempotent) keeps that ordering local to the only component
+// that touches monaco, instead of relying on an import-order side effect in App.tsx.
+setupMonaco(schema);
 
 export type EditorMarker = { line: number; col?: number; message: string; severity: 'error' | 'warning' };
 

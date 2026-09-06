@@ -1,8 +1,6 @@
 import { useCallback, useMemo, useReducer } from 'react';
 import chartMeta from '../chart-bundle/chart-meta.json';
-import schema from '../chart-bundle/schema.json';
 import examples from '../chart-bundle/examples.json';
-import { setupMonaco } from '../editor/monaco';
 import { Editor } from '../editor/Editor';
 import { Toolbar } from '../editor/Toolbar';
 import { Canvas } from '../canvas/Canvas';
@@ -10,7 +8,6 @@ import { DetailPanel } from '../canvas/DetailPanel';
 import { initialState, markersFrom, reducer } from './state';
 import { useRenderPipeline } from './useRenderPipeline';
 
-setupMonaco(schema);
 const FIRST = (examples as { id: string; values: string }[])[0];
 
 export function App() {
@@ -26,9 +23,9 @@ export function App() {
   if (state.engineError) {
     return (
       <div className="fatal">
-        <h1>The Helm engine could not be loaded</h1>
+        <h1>The Helm engine is unavailable</h1>
         <p>{state.engineError}</p>
-        <p>The playground needs WebAssembly and a working network path to <code>helm.wasm</code>. You can still read the <a href="../">documentation</a>.</p>
+        <p>Reload the page to try again. The playground needs WebAssembly and a working network path to <code>helm.wasm</code>; you can also read the <a href="../">documentation</a>.</p>
       </div>
     );
   }
