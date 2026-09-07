@@ -21,10 +21,10 @@ code { font-family: var(--mono); font-size: 12px; }
 
 /* ---------- shell ---------- */
 .app-shell { display: grid; grid-template-rows: auto 1fr; height: 100%; }
-header { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
-header .status { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
-header .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 4px; }
-header a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line-2); }
+.app-shell > header { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.app-shell > header .status { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
+.app-shell > header .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 4px; }
+.app-shell > header a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line-2); }
 .pane-buttons { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--r); overflow: hidden; }
 .pane-buttons button { height: 22px; padding: 0 9px; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
 .pane-buttons button + button { border-left: 1px solid var(--line-2); }

@@ -17,12 +17,12 @@ const g = buildGraph(manifests, values, 'default');
 const dep = g.nodes.find((n) => n.kind === 'Deployment')!;
 const svc = g.nodes.find((n) => n.kind === 'Service')!;
 const rel = g.nodes.find((n) => n.kind === 'Release')!;
-const base = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(text), tier: 'basic' as const, nodes: g.nodes, onTier: vi.fn(), onEdit: vi.fn(), onSelect: vi.fn(), disabled: false });
+const base = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(text), tier: 'basic' as const, nodes: g.nodes, onEdit: vi.fn(), onSelect: vi.fn(), disabled: false });
 
 const ffText = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'graph', '__fixtures__', 'full-features.values.yaml'), 'utf8');
 const ff = (() => { const f = loadFixture('full-features'); return buildGraph(f.manifests, f.values, 'default'); })();
 const ffNode = (kind: string, name: string) => ff.nodes.find((n) => n.kind === kind && n.name === name)!;
-const ffBase = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, nodes: ff.nodes, onTier: vi.fn(), onEdit: vi.fn(), onSelect: vi.fn(), disabled: false });
+const ffBase = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, nodes: ff.nodes, onEdit: vi.fn(), onSelect: vi.fn(), disabled: false });
 
 // Absent optional fields now render as an "add field" chip instead of an empty control (task 6);
 // a field is reachable either as a live control, its chip, or — for block widgets (object/map/keyvalue/
@@ -47,12 +47,10 @@ describe('Inspector', () => {
       { op: 'set', path: ['deployments', 'hello', 'networkPolicy'], value: { policyTypes: ['Ingress'], ingress: [] } },
     ]);
   });
-  it('tier switch calls onTier and "show all fields" reveals advanced chips', () => {
+  it('tier="advanced" reveals advanced chips hidden on tier="basic"', () => {
     const p = base(dep);
-    const { rerender } = render(<Inspector {...p} />);
+    const { rerender } = render(<Inspector {...p} tier="basic" />);
     expect(reachable('deployments.hello.priorityClassName')).toBeNull();
-    fireEvent.click(screen.getByLabelText('show all fields'));
-    expect(p.onTier).toHaveBeenCalledWith('advanced');
     rerender(<Inspector {...p} tier="advanced" />);
     expect(reachable('deployments.hello.priorityClassName')).toBeTruthy();
   });

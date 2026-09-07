@@ -44,7 +44,7 @@ test('renders, errors, recovers', async ({ page }) => {
   // real manifest node (the one with a "kind:" line in its detail) is last, not first.
   await page.locator('.rnode').last().click();
   // The detail panel opens on the Inspector tab; the rendered manifest lives behind the YAML tab.
-  await page.getByRole('tab', { name: 'YAML' }).click();
+  await page.getByRole('tab', { name: 'Manifest' }).click();
   await expect(page.locator('.detail pre')).toContainText('kind:');
 });
 

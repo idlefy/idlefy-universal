@@ -28,18 +28,12 @@ function nodeFor(nodes: GraphNode[], base: ValuesPath, id: SecondaryId): string 
 
 export function Inspector(p: {
   node: GraphNode; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[];
-  onTier: (t: Tier) => void; onEdit: (ops: EditOp[]) => void; onSelect: (id: string) => void; disabled: boolean;
+  onEdit: (ops: EditOp[]) => void; onSelect: (id: string) => void; disabled: boolean;
 }): ReactElement {
   const t = inspectTarget(p.node, p.root);
   const edit = p.disabled ? () => {} : p.onEdit;
   const rootValue = p.doc.valueAt([]);
   const all = (isObj(rootValue) ? rootValue : {}) as Record<string, unknown>;
-  const showAll = (
-    <label className="showall">
-      <input type="checkbox" aria-label="show all fields" checked={p.tier === 'advanced'} onChange={(e) => p.onTier(e.target.checked ? 'advanced' : 'basic')} />
-      show all fields
-    </label>
-  );
   const notice = p.disabled && <p className="banner-inline">Fix the YAML syntax error in the editor to edit here.</p>;
 
   const workloadPanel = (base: ValuesPath, highlight?: SecondaryId) => {
@@ -140,7 +134,6 @@ export function Inspector(p: {
   const bodyKey = t.kind === 'release' ? 'release' : t.kind === 'none' ? 'none' : t.kind === 'owner-only' ? t.owner.join('.') : t.path.join('.');
   return (
     <div className="inspector" key={bodyKey}>
-      <div className="bar">{showAll}</div>
       {notice}
       {body}
     </div>

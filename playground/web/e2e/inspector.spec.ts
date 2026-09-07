@@ -16,7 +16,7 @@ test('inspector edits values, toggles resources, and undo goes through Monaco', 
   await expect(page.locator('.rnode')).toHaveCount(3, { timeout: 15_000 });
   await openYaml(page);
   await page.locator('.rnode', { hasText: 'Deployment' }).click();
-  await expect(page.locator('.detail .tabs [aria-selected="true"]')).toHaveText('Inspector');
+  await expect(page.locator('.detail [role="tab"][aria-selected="true"]')).toHaveText('Fields');
 
   // field edit → YAML
   const replicas = page.getByLabel('deployments.hello.replicas');
@@ -30,8 +30,8 @@ test('inspector edits values, toggles resources, and undo goes through Monaco', 
   await expect(page.locator('.editor')).toContainText('autoCreateService: false');
 
   // advanced tier reveals a passthrough YAML box
-  await page.getByLabel('Advanced').check();
-  await expect(page.getByLabel('deployments.hello.tolerations')).toBeVisible();
+  await page.getByLabel('show all fields').check();
+  await expect(page.getByLabel('add field deployments.hello.tolerations')).toBeVisible();
 
   // one Ctrl+Z in the editor reverts the last inspector write (the toggle), not the whole session
   await page.locator('.editor').click();

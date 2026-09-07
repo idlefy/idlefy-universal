@@ -30,13 +30,13 @@ test('yaml starts collapsed, panes open/close/resize and persist', async ({ page
   await expect(page.locator('.editor')).toBeHidden();
   await page.locator('.rnode', { hasText: 'Deployment' }).click();
   await expect(page.locator('.detail')).toBeVisible();
-  await page.getByRole('button', { name: 'Inspector' }).click();
+  await page.getByRole('button', { name: 'Inspector', exact: true }).click();
   await expect(page.locator('.detail')).toBeHidden();
   await page.getByRole('button', { name: 'Show the inspector' }).click();
   await expect(page.locator('.detail')).toBeVisible();
 
   // re-clicking the selected node reopens a collapsed inspector (spec §2)
-  await page.getByRole('button', { name: 'Inspector' }).click();
+  await page.getByRole('button', { name: 'Inspector', exact: true }).click();
   await expect(page.locator('.detail')).toBeHidden();
   await page.locator('.rnode', { hasText: 'Deployment' }).click();
   await expect(page.locator('.detail')).toBeVisible();
