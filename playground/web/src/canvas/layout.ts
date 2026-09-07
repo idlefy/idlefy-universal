@@ -8,8 +8,9 @@ export type GroupNodeData = { label: string };
 /** Discriminated union: `n.type` narrows `n.data`, so the canvas never has to widen either side. */
 export type AppNode = Node<ResourceNodeData, 'resource'> | Node<GroupNodeData, 'group'>;
 const elk = new ELK();
-export const NODE_W = 200,
-  NODE_H = 56;
+/** The size is fixed by .rnode in styles.css */
+export const NODE_W = 178,
+  NODE_H = 48;
 const PAD = { top: 36, side: 12, bottom: 12 };
 
 export async function layoutGraph(model: GraphModel): Promise<{ nodes: AppNode[]; edges: Edge[] }> {

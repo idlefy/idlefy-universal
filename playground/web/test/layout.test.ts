@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { layoutGraph } from '../src/canvas/layout';
+import { layoutGraph, NODE_W, NODE_H } from '../src/canvas/layout';
 import { buildGraph } from '../src/graph/build';
 import { loadFixture } from './fixtures';
 
@@ -32,7 +32,7 @@ describe('layoutGraph', () => {
     // elkjs silently ignores malformed layout options, so assert the actual padding offset (top=36, left=12)
     expect(child.position.x).toBeGreaterThanOrEqual(12);
     expect(child.position.y).toBeGreaterThanOrEqual(36);
-    expect(child.position.x + 200).toBeLessThanOrEqual((group.width as number) + 1);
+    expect(child.position.x + NODE_W).toBeLessThanOrEqual((group.width as number) + 1);
     expect(nodes.find((n) => n.id === 'default/PersistentVolumeClaim/uploads')!.parentId).toBeUndefined();
     // Deployment/files owns nothing, so it gets no group
     expect(nodes.find((n) => n.id === 'group:default/Deployment/files')).toBeUndefined();
@@ -47,13 +47,13 @@ describe('layoutGraph', () => {
       const g = byId.get(n.parentId)!;
       expect(n.position.x).toBeGreaterThanOrEqual(0);
       expect(n.position.y).toBeGreaterThanOrEqual(0);
-      expect(n.position.x + 200).toBeLessThanOrEqual((g.width as number) + 1);
-      expect(n.position.y + 56).toBeLessThanOrEqual((g.height as number) + 1);
+      expect(n.position.x + NODE_W).toBeLessThanOrEqual((g.width as number) + 1);
+      expect(n.position.y + NODE_H).toBeLessThanOrEqual((g.height as number) + 1);
     }
     const kids = nodes.filter((n) => n.type === 'resource');
     for (const a of kids) for (const b of kids) {
       if (a === b || a.parentId !== b.parentId) continue;
-      const apart = a.position.x + 200 <= b.position.x || b.position.x + 200 <= a.position.x || a.position.y + 56 <= b.position.y || b.position.y + 56 <= a.position.y;
+      const apart = a.position.x + NODE_W <= b.position.x || b.position.x + NODE_W <= a.position.x || a.position.y + NODE_H <= b.position.y || b.position.y + NODE_H <= a.position.y;
       expect(apart, `${a.id} overlaps ${b.id}`).toBe(true);
     }
   });
