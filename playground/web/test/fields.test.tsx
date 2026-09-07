@@ -74,6 +74,26 @@ describe('field widgets', () => {
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...g, 'port'], value: true }]);
   });
 
+  it('keyvalue: a string map keeps every edited value a string', () => {
+    const onEdit = vi.fn();
+    // nodeSelector/labels/annotations are Kubernetes string maps — the schema's own nodeSelector
+    // example is {"node-role.kubernetes.io/worker": "true"} — so an unquoted true/2 must never be written.
+    render(<FieldList root={root} node={dep} basePath={base} value={{ nodeSelector: { 'kubernetes.io/os': 'linux' } }} tier="advanced" onEdit={onEdit} />);
+    const input = screen.getByLabelText('deployments.web.nodeSelector.kubernetes.io/os');
+    fireEvent.change(input, { target: { value: 'true' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'nodeSelector', 'kubernetes.io/os'], value: 'true' }]);
+    fireEvent.change(input, { target: { value: '2' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'nodeSelector', 'kubernetes.io/os'], value: '2' }]);
+  });
+
+  it('keyvalue: a map with no examples keeps every edited value a string', () => {
+    const onEdit = vi.fn();
+    const node = { type: 'object', properties: { extra: { type: 'object', additionalProperties: true } } };
+    render(<FieldList root={root} node={node} basePath={['x']} value={{ extra: { a: 'b' } }} tier="advanced" onEdit={onEdit} />);
+    fireEvent.change(screen.getByLabelText('x.extra.a'), { target: { value: '7' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['x', 'extra', 'a'], value: '7' }]);
+  });
+
   it('keyvalue: falls back to the YAML editor when a value is not a scalar', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ labels: { team: { nested: 1 } } }} tier="advanced" onEdit={onEdit} />);
