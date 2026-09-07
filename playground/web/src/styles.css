@@ -27,6 +27,9 @@ header { padding: 8px 12px; border-bottom: 1px solid var(--border); background: 
 .canvas-error { position: absolute; left: 12px; top: 12px; z-index: 5; padding: 6px 10px; border: 1px solid var(--err); border-radius: 6px; background: var(--panel); color: var(--err); font-size: 12px; }
 .react-flow__node.selected .rnode { outline: 2px solid var(--accent); outline-offset: 2px; }
 .rnode .react-flow__handle { opacity: 0; }
+.react-flow__node-group { background: transparent; border: 0; padding: 0; }
+.rgroup { position: relative; width: 100%; height: 100%; box-sizing: border-box; border: 1px dashed var(--border); border-radius: 12px; background: color-mix(in srgb, var(--panel) 40%, transparent); }
+.rgroup-label { position: absolute; top: 8px; left: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #888; }
 .toolbar { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid var(--border); background: var(--panel); flex-wrap: wrap; }
 .editor { height: 100%; min-height: 200px; }
 .split { display: grid; grid-template-columns: minmax(360px, 42%) 1fr; height: 100%; min-height: 0; }

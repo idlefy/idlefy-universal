@@ -10,10 +10,51 @@ describe('layoutGraph', () => {
     const { nodes, edges } = await layoutGraph(model);
     expect(nodes.length).toBeGreaterThan(15);
     expect(nodes.every((n) => Number.isFinite(n.position.x) && Number.isFinite(n.position.y))).toBe(true);
-    const pos = new Set(nodes.map((n) => `${Math.round(n.position.x)},${Math.round(n.position.y)}`));
+    // group positions are root-relative while child positions are parent-relative, so the two
+    // coordinate spaces collide; compare within each space.
+    const key = (n: { parentId?: string; position: { x: number; y: number } }) => `${n.parentId ?? 'root'}|${Math.round(n.position.x)},${Math.round(n.position.y)}`;
+    const pos = new Set(nodes.map(key));
     expect(pos.size).toBe(nodes.length);
     expect(nodes.every((n) => n.draggable === false)).toBe(true);
     expect(edges.length).toBe(model.edges.length);
     expect(edges.length).toBeGreaterThan(10);
+  });
+  it('emits group nodes before their children with relative positions', async () => {
+    const { manifests, values } = loadFixture('stateful-storage');
+    const model = buildGraph(manifests, values, 'default');
+    const { nodes } = await layoutGraph(model);
+    const group = nodes.find((n) => n.id === 'group:default/Deployment/web')!;
+    expect(group.type).toBe('group');
+    const child = nodes.find((n) => n.id === 'default/Service/web')!;
+    expect(child.parentId).toBe(group.id);
+    expect(child.extent).toBe('parent');
+    expect(nodes.indexOf(group)).toBeLessThan(nodes.indexOf(child));
+    // elkjs silently ignores malformed layout options, so assert the actual padding offset (top=36, left=12)
+    expect(child.position.x).toBeGreaterThanOrEqual(12);
+    expect(child.position.y).toBeGreaterThanOrEqual(36);
+    expect(child.position.x + 200).toBeLessThanOrEqual((group.width as number) + 1);
+    expect(nodes.find((n) => n.id === 'default/PersistentVolumeClaim/uploads')!.parentId).toBeUndefined();
+    // Deployment/files owns nothing, so it gets no group
+    expect(nodes.find((n) => n.id === 'group:default/Deployment/files')).toBeUndefined();
+    expect(nodes.find((n) => n.id === 'default/Deployment/files')!.parentId).toBeUndefined();
+  });
+  it('keeps every child inside its group and never overlaps siblings (full-features, intra-group edges)', async () => {
+    const { manifests, values } = loadFixture('full-features');
+    const { nodes } = await layoutGraph(buildGraph(manifests, values, 'default'));
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    for (const n of nodes) {
+      if (!n.parentId) continue;
+      const g = byId.get(n.parentId)!;
+      expect(n.position.x).toBeGreaterThanOrEqual(0);
+      expect(n.position.y).toBeGreaterThanOrEqual(0);
+      expect(n.position.x + 200).toBeLessThanOrEqual((g.width as number) + 1);
+      expect(n.position.y + 56).toBeLessThanOrEqual((g.height as number) + 1);
+    }
+    const kids = nodes.filter((n) => n.type === 'resource');
+    for (const a of kids) for (const b of kids) {
+      if (a === b || a.parentId !== b.parentId) continue;
+      const apart = a.position.x + 200 <= b.position.x || b.position.x + 200 <= a.position.x || a.position.y + 56 <= b.position.y || b.position.y + 56 <= a.position.y;
+      expect(apart, `${a.id} overlaps ${b.id}`).toBe(true);
+    }
   });
 });

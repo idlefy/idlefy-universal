@@ -6,15 +6,15 @@ import {
   Controls,
   MiniMap,
   useReactFlow,
-  type Node,
   type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { GraphModel } from "../graph/types";
-import { layoutGraph, type ResourceNodeData } from "./layout";
+import { layoutGraph, type AppNode } from "./layout";
 import { ResourceNode } from "./ResourceNode";
+import { GroupNode } from "./GroupNode";
 
-const nodeTypes = { resource: ResourceNode };
+const nodeTypes = { resource: ResourceNode, group: GroupNode };
 
 /** Re-fit the viewport whenever a new layout lands (the `fitView` prop only fires on mount). */
 function FitOnLayout({ token }: { token: unknown }) {
@@ -37,10 +37,10 @@ export function Canvas({
   selection: string | null;
   onSelect: (id: string | null) => void;
 }) {
-  const [laid, setLaid] = useState<{
-    nodes: Node<ResourceNodeData>[];
-    edges: Edge[];
-  }>({ nodes: [], edges: [] });
+  const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[] }>({
+    nodes: [],
+    edges: [],
+  });
   const [hover, setHover] = useState<string | null>(null);
   const [layoutError, setLayoutError] = useState<string | null>(null);
 
@@ -75,11 +75,16 @@ export function Canvas({
       if (e.target === focus) near.add(e.source);
     }
     return {
-      nodes: laid.nodes.map((n) => ({
-        ...n,
-        data: { ...n.data, dimmed: !near.has(n.id) },
-        selected: n.id === selection,
-      })),
+      // group containers are decoration: they never dim and never carry a selection.
+      nodes: laid.nodes.map((n) =>
+        n.type === "resource"
+          ? {
+              ...n,
+              data: { ...n.data, dimmed: !near.has(n.id) },
+              selected: n.id === selection,
+            }
+          : n,
+      ),
       edges: laid.edges.map((e) => ({
         ...e,
         style: {
@@ -107,9 +112,15 @@ export function Canvas({
           fitViewOptions={{ padding: 0.15 }}
           colorMode="system"
           minZoom={0.2}
-          onNodeClick={(_, n) => onSelect(n.id)}
+          // React Flow fires these for `selectable: false` nodes too, and a group id matches no
+          // GraphModel node (it would close the detail panel and dim everything).
+          onNodeClick={(_, n) => {
+            if (n.type !== "group") onSelect(n.id);
+          }}
           onPaneClick={() => onSelect(null)}
-          onNodeMouseEnter={(_, n) => setHover(n.id)}
+          onNodeMouseEnter={(_, n) => {
+            if (n.type !== "group") setHover(n.id);
+          }}
           onNodeMouseLeave={() => setHover(null)}
           nodesConnectable={false}
           proOptions={{ hideAttribution: true }}
