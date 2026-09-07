@@ -29,23 +29,29 @@ export function buildFields(root: SchemaNode, node: SchemaNode, basePath: Values
   return out;
 }
 
+/** Deep-clones a schema-derived value (an `examples`/`default` entry) so callers never hold a live
+ *  reference into the imported schema module — two "add" actions must not share one object. */
+const clone = <T>(v: T): T => structuredClone(v);
+
 /**
- * A value that satisfies the node well enough to render: the first `examples` entry when it fits the
- * node's own properties, else required keys only. Some docs examples describe the *map entry* that
- * holds the node (PortSpec.examples[0] is `{http: {containerPort: …}}`), so a single-key example whose
- * inner object fits the properties is unwrapped.
+ * A value that satisfies the node well enough to render. Precedence: `default` (when present), else the
+ * first `examples` entry when it fits the node's own properties, else a type-appropriate empty value.
+ * Some docs examples describe the *map entry* that holds the node (PortSpec.examples[0] is
+ * `{http: {containerPort: …}}`), so a single-key example whose inner object fits the properties is
+ * unwrapped. Every example/default-derived value is deep-cloned before returning.
  */
 export function starterValue(root: SchemaNode, node: SchemaNode): unknown {
   const r = resolve(root, node);
+  if (r.default !== undefined) return clone(r.default);
   const props = isObj(r.properties) ? (r.properties as Record<string, unknown>) : undefined;
   const fits = (ex: unknown) => !props || r.additionalProperties !== false || (isObj(ex) && Object.keys(ex).every((k) => k in props));
   if (Array.isArray(r.examples) && r.examples.length) {
     const ex = r.examples[0];
-    if (fits(ex)) return ex;
-    if (isObj(ex) && Object.keys(ex).length === 1) { const inner = Object.values(ex)[0]; if (fits(inner)) return inner; }
+    if (fits(ex)) return clone(ex);
+    if (isObj(ex) && Object.keys(ex).length === 1) { const inner = Object.values(ex)[0]; if (fits(inner)) return clone(inner); }
   }
-  const t = Array.isArray(r.type) ? r.type[0] : r.type;
   if (r.enum?.length) return r.enum[0];
+  const t = Array.isArray(r.type) ? r.type[0] : r.type;
   switch (t) {
     case 'boolean': return false;
     case 'integer': case 'number': return typeof r.minimum === 'number' ? r.minimum : 0;
@@ -57,5 +63,14 @@ export function starterValue(root: SchemaNode, node: SchemaNode): unknown {
     for (const k of r.required ?? []) if (isObj(r.properties?.[k])) o[k] = starterValue(root, r.properties[k]);
     return o;
   }
-  return {};
+  // No direct `type` — e.g. a bare `oneOf`/`anyOf` IntOrString node (PdbConfig.minAvailable,
+  // ServicePort.targetPort). Reuse classify()'s own oneOf/anyOf collapse instead of re-deriving it here.
+  const widget = classify(root, r);
+  switch (widget.kind) {
+    case 'boolean': return false;
+    case 'number': return 0;
+    case 'string': return '';
+    case 'list': return [];
+    default: return {};
+  }
 }
