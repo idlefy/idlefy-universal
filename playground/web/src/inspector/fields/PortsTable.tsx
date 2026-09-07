@@ -1,0 +1,39 @@
+import { useState, type ReactElement } from 'react';
+import type { FieldProps } from './index';
+
+const PROTOCOLS = ['TCP', 'UDP', 'SCTP'];
+const NAME = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;   // Kubernetes port names (IANA_SVC_NAME, ≤15 chars)
+
+/** Map of PortSpec as a table: name | containerPort | servicePort | protocol | ×, plus an add row. */
+export function PortsTable({ field, onEdit }: FieldProps): ReactElement {
+  const id = field.path.join('.');
+  const ports = (field.value && typeof field.value === 'object' ? field.value : {}) as Record<string, Record<string, unknown>>;
+  const names = Object.keys(ports);
+  const [draft, setDraft] = useState('');
+  const k = draft.trim();
+  const bad = k !== '' && (!NAME.test(k) || k.length > 15 || names.includes(k));
+  const num = (name: string, key: 'containerPort' | 'servicePort', t: string) => {
+    if (t === '') return onEdit([{ op: 'delete', path: [...field.path, name, key] }]);
+    if (/^\d+$/.test(t)) onEdit([{ op: 'set', path: [...field.path, name, key], value: Number(t) }]);
+  };
+  return (
+    <div className="ports">
+      <span className="h">name</span><span className="h">container</span><span className="h">service</span><span className="h">protocol</span><span />
+      {names.map((n) => (
+        <span key={n} style={{ display: 'contents' }}>
+          <code>{n}</code>
+          <input className="in" type="text" inputMode="numeric" aria-label={`${id}.${n}.containerPort`} value={ports[n].containerPort === undefined ? '' : String(ports[n].containerPort)} onChange={(e) => num(n, 'containerPort', e.target.value)} />
+          <input className="in" type="text" inputMode="numeric" aria-label={`${id}.${n}.servicePort`} value={ports[n].servicePort === undefined ? '' : String(ports[n].servicePort)} onChange={(e) => num(n, 'servicePort', e.target.value)} />
+          <select className="in" aria-label={`${id}.${n}.protocol`} value={String(ports[n].protocol ?? 'TCP')} onChange={(e) => onEdit([{ op: 'set', path: [...field.path, n, 'protocol'], value: e.target.value }])}>
+            {PROTOCOLS.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <button type="button" className="clear" aria-label={`remove ${id}.${n}`} onClick={() => onEdit([{ op: 'delete', path: [...field.path, n] }])}>×</button>
+        </span>
+      ))}
+      <input className={`in ${bad ? 'invalid' : ''}`} type="text" aria-label={`new port name ${id}`} placeholder="name" value={draft} onChange={(e) => setDraft(e.target.value)} />
+      <button type="button" className="btn small" style={{ gridColumn: '2 / span 2' }} aria-label={`add port ${id}`} disabled={k === '' || bad}
+        onClick={() => { onEdit([{ op: 'set', path: [...field.path, k], value: { containerPort: 8080 } }]); setDraft(''); }}>add port</button>
+      <span style={{ gridColumn: '4 / -1' }} className="field-err">{bad ? (names.includes(k) ? 'already exists' : 'lowercase, digits, dashes, ≤15') : ''}</span>
+    </div>
+  );
+}

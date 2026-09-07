@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { firstSentence } from '../form';
+import { resolve, deref, type SchemaNode } from '../schema';
 import { BooleanField } from './BooleanField';
 import { NumberField } from './NumberField';
 import { TextField } from './TextField';
@@ -9,11 +10,24 @@ import { KeyValueField } from './KeyValueField';
 import { YamlField } from './YamlField';
 import { MapSection } from './MapSection';
 import { ObjectSection } from './ObjectSection';
+import { ContainersField } from './ContainersField';
+import { ResourcesField } from './ResourcesField';
+import { PortsTable } from './PortsTable';
 
 export function FieldRow(p: FieldProps): ReactElement {
-  const { field } = p;
+  const { field, root } = p;
   const id = field.path.join('.');
+  const refName = (n: SchemaNode | undefined) => (n ? (deref(root, n) ?? n)['x-ref-name'] : undefined);
+  const r = resolve(root, field.schema);
+  const itemRef = refName(r.additionalProperties as SchemaNode | undefined);
+  const special =
+    (field.key === 'containers' || field.key === 'initContainers') && itemRef === 'ContainerSpec' ? 'containers'
+    : field.key === 'ports' && itemRef === 'PortSpec' ? 'ports'
+    : field.schema['x-ref-name'] === 'ResourceRequirements' ? 'resources' : null;
   const control = (() => {
+    if (special === 'containers') return <ContainersField {...p} />;
+    if (special === 'ports') return <PortsTable {...p} />;
+    if (special === 'resources') return <ResourcesField {...p} />;
     switch (field.widget.kind) {
       case 'boolean': return <BooleanField {...p} />;
       case 'number': return <NumberField {...p} />;
@@ -25,7 +39,7 @@ export function FieldRow(p: FieldProps): ReactElement {
       case 'yaml': return <YamlField {...p} />;
     }
   })();
-  const block = field.widget.kind === 'map' || field.widget.kind === 'object' || field.widget.kind === 'keyvalue' || field.widget.kind === 'yaml' || field.widget.kind === 'list';
+  const block = special !== null || field.widget.kind === 'map' || field.widget.kind === 'object' || field.widget.kind === 'keyvalue' || field.widget.kind === 'yaml' || field.widget.kind === 'list';
   return (
     <div className={`field ${block ? 'block' : 'inline'} tier-${field.tier} ${field.present ? 'present' : 'absent'}`}>
       <div className="field-head">
