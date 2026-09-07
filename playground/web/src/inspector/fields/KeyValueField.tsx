@@ -39,7 +39,7 @@ export function KeyValueField(props: FieldProps): ReactElement {
     <div className="kv">
       {entries.map(([k, v]) => (
         <div className="kv-row" key={k}>
-          <code>{k}</code>
+          <code title={k}>{k}</code>
           <input type="text" aria-label={`${id}.${k}`} value={v === null || v === undefined ? '' : String(v)}
             onChange={(e) => onEdit([{ op: 'set', path: [...field.path, k], value: scalarFromText(e.target.value, coerce) }])} />
           <button type="button" aria-label={`remove ${id}.${k}`} onClick={() => onEdit([{ op: 'delete', path: [...field.path, k] }])}>×</button>

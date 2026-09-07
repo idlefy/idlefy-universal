@@ -21,7 +21,7 @@ export function DetailPanel(p: {
   const line = node.provenance ? p.doc.lineOf(node.provenance.path) : null;
   const pathText = node.provenance ? (node.provenance.path.length ? node.provenance.path.join('.') : '(root)') : null;
   return (
-    <aside className="detail">
+    <aside className={`detail fam-${node.family}`}>
       <div className="head">
         <KindIcon kind={node.kind} className={`fam-${node.family}`} />
         <div className="ttl">

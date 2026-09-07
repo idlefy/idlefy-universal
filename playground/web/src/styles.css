@@ -116,71 +116,86 @@ code { font-family: var(--mono); font-size: 12px; }
 .inspector { font-size: 13px; }
 .inspector .banner-inline { margin: 10px 14px 0; background: #fee2e2; color: #7f1d1d; padding: 6px 8px; border-radius: 6px; font-size: 12px; }
 .inspector fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
-.inspector .prov { padding: 8px 14px 0; color: var(--muted); font-size: 12px; margin: 0; }
-.sec { padding: 12px 14px 14px; border-bottom: 1px solid var(--line); }
-.sec > h3 { margin: 0 0 10px; font-size: 12px; font-weight: 650; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
-.sec > h3 .k { font-weight: 400; color: var(--muted); font-family: var(--mono); font-size: 11px; }
-.sec > h3 .more { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 11px; white-space: nowrap; }
-.sec.adv { background: var(--panel-2); padding-top: 9px; padding-bottom: 9px; }
-.sec.adv > h3 { color: var(--muted); margin: 0; flex-wrap: wrap; row-gap: 2px; }
+.inspector .prov { padding: 10px 16px 0; color: var(--muted); font-size: 12px; margin: 0; }
+
+/* ── sections: a strong title, the values key tucked to the right ───────────────────────────── */
+.sec { padding: 14px 16px 16px; border-bottom: 1px solid var(--line); }
+.sec > h3 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--ink); display: flex; align-items: baseline; gap: 8px; letter-spacing: -0.01em; }
+.sec > h3 .k { margin-left: auto; font-weight: 400; color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+.sec > h3 .more { font-weight: 400; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sec > h3 .clear { margin-left: 4px; }
+.sec.adv { padding: 9px 16px; background: transparent; }
+.sec.adv > h3 { margin: 0; font-weight: 500; color: var(--muted); flex-wrap: wrap; row-gap: 2px; }
 .sec.adv > h3 .title { white-space: nowrap; }
-/* when the title and the key already fill the row, the note drops to its own line instead of squeezing the title */
 .sec.adv > h3 .more { margin-left: auto; }
-.fields { display: flex; flex-direction: column; gap: 4px; }
-/* the label column grows with the key (serviceAccountName) up to ~45 % of the row, then ellipsises */
-.field { display: grid; grid-template-columns: fit-content(45%) 1fr; align-items: center; gap: 2px 8px; min-height: 30px; min-width: 0; }
-.field.block { grid-template-columns: 1fr; gap: 6px; align-items: stretch; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel-2); }
-.field.block > .field-head { justify-content: space-between; }
-.field.block > .field-head label { color: var(--ink); font-weight: 600; }
-.field.block > .field-desc { margin: -4px 0 2px; }
-.field.block .in, .field.block input[type="text"], .field.block select, .field.block textarea { background: var(--panel); }
-.field .hint { display: block; text-align: right; color: var(--muted); font-size: 10.5px; margin-top: 2px; }
-.field.block.bare { border: 0; background: transparent; padding: 0; }
-.field.block.bare > .field-desc { margin: -6px 0 2px; }
-/* the containers field already lives in its own section and draws a card per container: no outer frame */
-.field.block.sp-containers { border: 0; background: transparent; padding: 0; }
-/* nested block fields (inside container cards) stay flat: one frame is enough */
-.card .field.block { border: 0; background: transparent; padding: 0; }
-.card .field.block > .field-head label { font-weight: 500; }
+
+/* ── field rows: quiet mono key on the left, the value is what reads ─────────────────────────── */
+.fields { display: flex; flex-direction: column; gap: 6px; }
+.field { display: grid; grid-template-columns: fit-content(42%) 1fr; align-items: center; gap: 2px 10px; min-height: 30px; min-width: 0; }
 .field-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.field-head label { font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.field-head label { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .field .req { color: var(--err); margin-left: 2px; }
-.field-desc { grid-column: 1 / -1; margin: -2px 0 4px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+/* descriptions stay out of the way until the row is hovered or being edited */
+.field-desc { display: none; grid-column: 1 / -1; margin: -1px 0 2px; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.field:hover > .field-desc, .field:focus-within > .field-desc { display: block; }
 .field.inline .field-desc { grid-column: 2; }
 .field-err { font-size: 11px; color: var(--err); }
-.in, .field input[type="text"], .field select, .field textarea { width: 100%; height: 26px; padding: 0 7px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--panel); color: var(--ink); font-family: var(--mono); font-size: 12px; }
-.field textarea { height: auto; padding: 4px 7px; }
+.in, .field input[type="text"], .field select, .field textarea, .kv-row input { width: 100%; height: 28px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel); color: var(--ink); font-family: var(--mono); font-size: 12.5px; transition: border-color .12s, box-shadow .12s; }
+.in:focus, .field input:focus, .field select:focus, .field textarea:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.field textarea { height: auto; padding: 5px 8px; line-height: 1.45; }
 .field textarea.yaml { font-size: 12px; }
 .field input.invalid, .field textarea.invalid { border-color: var(--err); }
 .field input[type="checkbox"] { justify-self: start; }
-.add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; color: var(--muted); font-size: 11.5px; }
-.chip { height: 22px; padding: 0 9px; border: 1px dashed var(--line-2); border-radius: 11px; background: transparent; color: var(--ink-2); font-family: var(--mono); font-size: 11px; }
-.chip.more { font-family: inherit; border-style: solid; border-color: transparent; background: var(--panel-2); color: var(--muted); }
-.chip:hover { border-color: var(--accent); color: var(--accent); border-style: solid; }
-.card { border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px 10px; background: var(--panel-2); }
+.field .hint { display: block; text-align: right; color: var(--muted); font-size: 10.5px; margin-top: 2px; }
+
+/* ── block fields (maps, lists, nested objects): no box — a rail in the node's family colour ─── */
+.field.block { grid-template-columns: 1fr; gap: 6px; align-items: stretch; margin: 2px 0; padding: 2px 0 4px 10px; border-left: 2px solid color-mix(in srgb, var(--fam, var(--accent)) 45%, transparent); }
+.field.block > .field-head { justify-content: space-between; min-height: 22px; }
+.field.block > .field-head label { color: var(--ink); font-weight: 600; font-size: 12px; }
+.field.block .field.block { border-left-color: var(--line-2); }
+.field.block.bare, .field.block.sp-containers { border-left: 0; padding-left: 0; margin: 0; }
+.field.block.bare > .field-desc { display: block; margin: -6px 0 4px; }
+
+/* ── "add" chips: tags in the accent tint, clearly actions and clearly not inputs ─────────────── */
+.add { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 11px; }
+.fields + .add { margin-top: 8px; }
+.chip { height: 21px; padding: 0 8px 0 7px; border: 0; border-radius: 5px; background: var(--accent-soft); color: var(--accent); font-family: var(--mono); font-size: 11px; transition: background .12s, color .12s; }
+.chip:not(.more)::before { content: "+"; margin-right: 4px; opacity: .6; }
+.chip:hover { background: var(--accent); color: #fff; }
+.chip.more { background: transparent; color: var(--muted); font-family: inherit; padding: 0 4px; }
+.chip.more:hover { color: var(--accent); }
+
+/* ── container cards ────────────────────────────────────────────────────────────────────────── */
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 12px; background: var(--panel); box-shadow: 0 1px 2px rgba(20, 28, 48, .04); }
 .card + .card { margin-top: 8px; }
-.card > h4 { margin: 0 0 8px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
-.card > h4 code { background: var(--panel); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; }
-.card > h4 .clear { margin-left: auto; }
-.card .field { grid-template-columns: 96px 1fr; }
-.card .field.block { grid-template-columns: 1fr; }
+.card > h4 { margin: 0 0 10px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.card > h4 code { font-size: 12px; font-weight: 600; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); padding: 1px 7px; border-radius: 5px; }
+.card > h4 .clear { margin-left: auto; font-size: 11px; }
+.card .field { grid-template-columns: fit-content(40%) 1fr; }
+.card .field.block { grid-template-columns: 1fr; padding-left: 8px; }
+.card .field.block > .field-head label { font-weight: 500; }
 .two { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center; color: var(--muted); }
 .two input:last-child { max-width: 110px; }
 .grid22 { display: grid; grid-template-columns: auto 1fr 1fr; gap: 4px 8px; align-items: center; font-size: 11px; color: var(--muted); min-width: 0; }
 .grid22 .h { font-family: var(--mono); }
-.grid22 .in { height: 24px; }
+.grid22 .in { height: 26px; }
 .ports { display: grid; grid-template-columns: 1fr 64px 64px 66px auto; gap: 4px 6px; align-items: center; font-size: 11px; color: var(--muted); min-width: 0; }
-.ports .in { height: 24px; }
-.kv { display: flex; flex-direction: column; }
-.kv-row { display: grid; grid-template-columns: minmax(80px, 1fr) 2fr auto; gap: 4px; align-items: center; margin: 2px 0; }
-.kv-row > code { font-size: 12px; }
-.kv-row > code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ports .in { height: 26px; }
+.kv { display: flex; flex-direction: column; gap: 3px; }
+.kv-row { display: grid; grid-template-columns: minmax(80px, 1.1fr) 1.4fr auto; gap: 4px; align-items: center; }
+.kv-row > code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--ink-2); }
+/* the per-row remove is a ghost ×, the add is a real button */
+.kv-row > button[aria-label^="remove "] { width: 24px; height: 24px; border: 0; background: transparent; color: var(--muted); border-radius: 4px; }
+.kv-row > button[aria-label^="remove "]:hover { color: var(--err); background: var(--panel-2); }
+.kv-row.add > button { height: 28px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel); color: var(--ink-2); }
+.kv-row.add > button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.kv-row.add > button:disabled { opacity: .5; }
 .kv-row.add { grid-template-columns: minmax(80px, 1fr) auto; margin-top: 4px; }
 .kv-row.add .field-err { grid-column: 1 / -1; }
 .map details { border-left: 2px solid var(--line); padding-left: 8px; margin: 4px 0; }
 .map summary { cursor: pointer; display: flex; justify-content: space-between; font-family: var(--mono); }
-.object { padding-left: 8px; border-left: 2px solid var(--line); }
-.clear { background: none; border: 0; color: var(--muted); }
+.object { display: contents; }
+.clear { background: none; border: 0; color: var(--muted); font-size: 12px; }
 .clear:hover { color: var(--err); }
 .list .it { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 10px; min-height: 38px; padding: 2px 0; }
 .list .it + .it { border-top: 1px solid var(--line); }
