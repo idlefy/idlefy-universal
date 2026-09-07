@@ -264,3 +264,17 @@ def test_lint_rule9_non_exempt_key_still_flagged_alongside_exempt():
         e.level == "error" and "replicas" in e.message and "DeploymentDefaultsSpec" in e.message
         for e in errors
     )
+
+
+def test_lint_rule10_rejects_unknown_ui_tier():
+    structure = {"$defs": {}, "properties": {"x": {"type": "integer"}}}
+    docs = {"$defs": {}, "properties": {"x": {"x-ui-tier": "expert"}}}
+    errors = lint(structure, docs)
+    assert any(e.level == "error" and "x-ui-tier" in e.message and "expert" in e.message for e in errors)
+
+
+def test_lint_rule10_accepts_basic():
+    structure = {"$defs": {}, "properties": {"x": {"type": "integer"}}}
+    docs = {"$defs": {}, "properties": {"x": {"x-ui-tier": "basic"}}}
+    errors = lint(structure, docs)
+    assert not any("x-ui-tier" in e.message for e in errors)

@@ -120,18 +120,23 @@ properties:
         examples:
           - [{name: ghcr-pull-secret}]
           - [{name: dockerhub-pull-secret}, {name: ecr-pull-secret}]
+        x-ui-tier: basic
       annotations:
         description: |
           Default annotations merged into the metadata of every resource the
           chart emits (Deployments, Services, Ingresses, etc.).
         examples:
           - {"argocd.argoproj.io/sync-wave": "0"}
+        x-ui-tier: basic
       labels:
         description: |
           Default labels merged into the metadata of every resource the chart
           emits. Standard chart labels (app.kubernetes.io/*) are added on top.
         examples:
           - {team: platform, env: prod}
+        x-ui-tier: basic
+      serviceAccountName:
+        x-ui-tier: basic
 
 $defs:
   DeploymentDefaultsSpec:
@@ -155,6 +160,7 @@ $defs:
           own containers; prefer per-deployment definition.
         examples:
           - main: {image: nginx, imageTag: "1.25"}
+        x-ui-tier: basic
       annotations:
         description: |
           Default annotations merged onto every Deployment metadata.
@@ -185,6 +191,7 @@ $defs:
           Per-deployment nodeSelector overrides this entirely.
         examples:
           - {"kubernetes.io/os": linux}
+        x-ui-tier: basic
       tolerations:
         description: |
           Default pod tolerations applied to every deployment (passthrough).
@@ -288,3 +295,24 @@ $defs:
             egress:
               - to: [{namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kube-system}}}]
                 ports: [{protocol: UDP, port: 53}]
+        x-ui-tier: basic
+      replicas:
+        x-ui-tier: basic
+      serviceType:
+        x-ui-tier: basic
+      migrations:
+        x-ui-tier: basic
+      hpa:
+        x-ui-tier: basic
+      pdb:
+        x-ui-tier: basic
+      ingress:
+        x-ui-tier: basic
+      httpRoute:
+        x-ui-tier: basic
+      certificate:
+        x-ui-tier: basic
+      serviceAccount:
+        x-ui-tier: basic
+      serviceMonitor:
+        x-ui-tier: basic

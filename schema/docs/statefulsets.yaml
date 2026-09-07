@@ -48,6 +48,7 @@ $defs:
     properties:
       replicas:
         description: Desired pod count. Defaults to 1.
+        x-ui-tier: basic
       namespace:
         description: Override the release namespace for this resource.
       serviceName:
@@ -56,12 +57,14 @@ $defs:
           network identity. Required by Kubernetes. When
           autoCreateService=true, the chart creates a Service of this
           name with clusterIP=None.
+        x-ui-tier: basic
       containers:
         description: |
           Map of containers keyed by container name. At least one is
           required. The key becomes the Kubernetes container name verbatim.
         examples:
           - main: {image: postgres, imageTag: "16"}
+        x-ui-tier: basic
       initContainers:
         description: |
           Map of init containers keyed by name. Each uses the same shape
@@ -105,6 +108,7 @@ $defs:
           schedule onto nodes that match all listed labels.
         examples:
           - {"kubernetes.io/os": linux}
+        x-ui-tier: basic
       tolerations:
         description: |
           Pod tolerations for tainted nodes (passthrough). Each entry
@@ -190,6 +194,7 @@ $defs:
               spec:
                 accessModes: [ReadWriteOnce]
                 resources: {requests: {storage: 20Gi}}
+        x-ui-tier: basic
       updateStrategy:
         description: Controls rollout behavior. RollingUpdate with optional partition, or OnDelete.
         examples:
@@ -238,6 +243,7 @@ $defs:
         examples:
           - policyTypes: [Ingress]
             ingress: []
+        x-ui-tier: basic
       autoCreateRbac:
         description: |
           When true, chart renders a kind: Role + kind: RoleBinding pair named
@@ -255,3 +261,14 @@ $defs:
               - apiGroups: [""]
                 resources: [configmaps]
                 verbs: [get, list, watch]
+        x-ui-tier: basic
+      serviceHeadless:
+        x-ui-tier: basic
+      serviceType:
+        x-ui-tier: basic
+      pdb:
+        x-ui-tier: basic
+      serviceAccount:
+        x-ui-tier: basic
+      serviceMonitor:
+        x-ui-tier: basic

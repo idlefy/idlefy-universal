@@ -33,6 +33,7 @@ $defs:
           is required. The key becomes the Kubernetes container name verbatim.
         examples:
           - main: {image: worker, imageTag: v1.0.0, command: [./run], args: [--batch]}
+        x-ui-tier: basic
       annotations:
         description: |
           Extra annotations on the Job metadata. Use for GitOps tooling
@@ -112,6 +113,7 @@ $defs:
         examples:
           - policyTypes: [Ingress]
             ingress: []
+        x-ui-tier: basic
       autoCreateRbac:
         description: |
           When true, chart renders a kind: Role + kind: RoleBinding pair named
@@ -129,6 +131,17 @@ $defs:
               - apiGroups: [""]
                 resources: [configmaps]
                 verbs: [get, list, watch]
+        x-ui-tier: basic
+      backoffLimit:
+        x-ui-tier: basic
+      completions:
+        x-ui-tier: basic
+      parallelism:
+        x-ui-tier: basic
+      restartPolicy:
+        x-ui-tier: basic
+      ttlSecondsAfterFinished:
+        x-ui-tier: basic
 
   CronJobSpec:
     description: A single CronJob with cron-style schedule.
@@ -146,6 +159,7 @@ $defs:
           The key becomes the Kubernetes container name verbatim.
         examples:
           - main: {image: backup, imageTag: v1.0.0, args: [snapshot, --target=s3://backups]}
+        x-ui-tier: basic
       annotations:
         description: |
           Extra annotations on the CronJob metadata. Note: this does NOT
@@ -222,6 +236,7 @@ $defs:
         examples:
           - policyTypes: [Ingress]
             ingress: []
+        x-ui-tier: basic
       autoCreateRbac:
         description: |
           When true, chart renders a kind: Role + kind: RoleBinding pair named
@@ -239,3 +254,16 @@ $defs:
               - apiGroups: [""]
                 resources: [configmaps]
                 verbs: [get, list, watch]
+        x-ui-tier: basic
+      schedule:
+        x-ui-tier: basic
+      timezone:
+        x-ui-tier: basic
+      suspend:
+        x-ui-tier: basic
+      concurrencyPolicy:
+        x-ui-tier: basic
+      restartPolicy:
+        x-ui-tier: basic
+      backoffLimit:
+        x-ui-tier: basic

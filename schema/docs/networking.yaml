@@ -6,6 +6,15 @@ $defs:
     examples:
       - {name: http, port: 80, targetPort: 8080}
       - {name: metrics, port: 9090, targetPort: 9090}
+    properties:
+      name:
+        x-ui-tier: basic
+      port:
+        x-ui-tier: basic
+      targetPort:
+        x-ui-tier: basic
+      protocol:
+        x-ui-tier: basic
 
   StandaloneServiceSpec:
     description: |
@@ -25,6 +34,7 @@ $defs:
         examples:
           - - {name: http, port: 80, targetPort: 8080}
             - {name: metrics, port: 9090, targetPort: 9090}
+        x-ui-tier: basic
       selector:
         description: |
           Pod label selector that determines which pods this Service routes to.
@@ -33,6 +43,7 @@ $defs:
         examples:
           - {app: external-redis}
           - {"app.kubernetes.io/name": api, tier: backend}
+        x-ui-tier: basic
       annotations:
         description: |
           Annotations on the Service metadata. Common use: cloud-provider load
@@ -47,6 +58,8 @@ $defs:
           added automatically.
         examples:
           - {team: platform}
+      type:
+        x-ui-tier: basic
 
 properties:
   services:

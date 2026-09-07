@@ -37,6 +37,7 @@ $defs:
         examples:
           - {"config.yaml": "log_level: info", "feature_flags.json": "{\"v2\": true}"}
           - {DB_PASSWORD: "redacted", API_KEY: "abc123"}
+        x-ui-tier: basic
       binaryData:
         description: |
           Pre-base64-encoded values. Use for true binary payloads (TLS certs,
@@ -56,3 +57,5 @@ $defs:
           Extra labels on the ConfigMap/Secret metadata.
         examples:
           - {team: platform, config-class: app}
+      type:
+        x-ui-tier: basic

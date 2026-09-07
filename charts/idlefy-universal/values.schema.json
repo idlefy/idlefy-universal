@@ -17,7 +17,8 @@
       "properties": {
         "clusterIssuer": {
           "description": "cert-manager ClusterIssuer name.",
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "domains": {
           "description": "Additional DNS names beyond the ingress.tls hosts (subject\nalternative names). Useful for certs that cover hostnames not yet\nwired into ingress, or for wildcard + apex combos.\n",
@@ -33,11 +34,13 @@
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "issuer": {
           "description": "cert-manager Issuer name (alternative to clusterIssuer). The template\nuses this only when clusterIssuer is unset.\n",
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         }
       },
       "type": "object",
@@ -99,7 +102,8 @@
               "DB_PASSWORD": "redacted"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "labels": {
           "additionalProperties": true,
@@ -117,7 +121,8 @@
             "configMap",
             "secret"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -167,7 +172,8 @@
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "command": {
           "description": "Entrypoint override — replaces the image's ENTRYPOINT.\nPass as a list of strings (exec form). The shell is NOT invoked\nunless you explicitly include sh/bash as the first element.\n",
@@ -184,7 +190,8 @@
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "env": {
           "description": "Environment variables. Each must use exactly one of value or valueFrom.\n",
@@ -208,7 +215,8 @@
           "items": {
             "$ref": "#/$defs/EnvVar"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "envFrom": {
           "description": "Pulls all keys from a referenced ConfigMap or Secret.",
@@ -223,7 +231,8 @@
           "items": {
             "$ref": "#/$defs/EnvFrom"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "image": {
           "description": "Container image name without registry or tag. Combined at runtime\nwith imageTag and an optional global registry prefix.\n",
@@ -233,7 +242,8 @@
             "postgres"
           ],
           "minLength": 1,
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "imagePullPolicy": {
           "description": "When to pull the image.",
@@ -255,7 +265,8 @@
             "1.25-alpine"
           ],
           "minLength": 1,
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "lifecycle": {
           "$ref": "#/$defs/k8s.io.api.core.v1.Lifecycle",
@@ -302,7 +313,8 @@
               }
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "probes": {
           "additionalProperties": false,
@@ -334,7 +346,8 @@
         },
         "resources": {
           "$ref": "#/$defs/ResourceRequirements",
-          "description": "CPU/memory requests and limits for this container."
+          "description": "CPU/memory requests and limits for this container.",
+          "x-ui-tier": "basic"
         },
         "secretRefs": {
           "description": "Names of secretRefs groups defined at the top level of values.yaml.\nEach group injects multiple env vars derived from Secret keys.\n",
@@ -347,7 +360,8 @@
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "securityContext": {
           "$ref": "#/$defs/k8s.io.api.core.v1.SecurityContext",
@@ -388,7 +402,8 @@
           "items": {
             "$ref": "#/$defs/VolumeMount"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -512,7 +527,8 @@
         },
         "backoffLimit": {
           "minimum": 0,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "concurrencyPolicy": {
           "default": "Allow",
@@ -521,7 +537,8 @@
             "Forbid",
             "Replace"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "containers": {
           "additionalProperties": {
@@ -540,7 +557,8 @@
               }
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "failedJobsHistoryLimit": {
           "minimum": 0,
@@ -570,7 +588,8 @@
                 "Ingress"
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "nodeSelector": {
           "additionalProperties": true,
@@ -620,18 +639,21 @@
                 }
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "restartPolicy": {
           "enum": [
             "OnFailure",
             "Never"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "schedule": {
           "pattern": "^\\S+\\s+\\S+\\s+\\S+\\s+\\S+\\s+\\S+$",
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "securityContext": {
           "$ref": "#/$defs/k8s.io.api.core.v1.PodSecurityContext",
@@ -656,10 +678,12 @@
           "type": "integer"
         },
         "suspend": {
-          "type": "boolean"
+          "type": "boolean",
+          "x-ui-tier": "basic"
         },
         "timezone": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "tolerations": {
           "description": "Pod tolerations applied to spawned Job pods (passthrough).\n",
@@ -846,7 +870,8 @@
               }
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "dnsConfig": {
           "$ref": "#/$defs/k8s.io.api.core.v1.PodDNSConfig"
@@ -933,7 +958,8 @@
                 "Ingress"
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "nodeSelector": {
           "additionalProperties": true,
@@ -943,10 +969,12 @@
               "kubernetes.io/os": "linux"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "pdb": {
-          "$ref": "#/$defs/PdbConfig"
+          "$ref": "#/$defs/PdbConfig",
+          "x-ui-tier": "basic"
         },
         "podAnnotations": {
           "additionalProperties": true,
@@ -1020,7 +1048,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "revisionHistoryLimit": {
           "default": 10,
@@ -1032,13 +1061,15 @@
           "$ref": "#/$defs/k8s.io.api.core.v1.PodSecurityContext"
         },
         "serviceAccount": {
-          "$ref": "#/$defs/ServiceAccountConfig"
+          "$ref": "#/$defs/ServiceAccountConfig",
+          "x-ui-tier": "basic"
         },
         "serviceAccountName": {
           "type": "string"
         },
         "serviceMonitor": {
-          "$ref": "#/$defs/ServiceMonitorConfig"
+          "$ref": "#/$defs/ServiceMonitorConfig",
+          "x-ui-tier": "basic"
         },
         "terminationGracePeriodSeconds": {
           "minimum": 0,
@@ -1294,7 +1325,8 @@
           "type": "boolean"
         },
         "certificate": {
-          "$ref": "#/$defs/CertificateConfig"
+          "$ref": "#/$defs/CertificateConfig",
+          "x-ui-tier": "basic"
         },
         "containers": {
           "additionalProperties": {
@@ -1309,7 +1341,8 @@
               }
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "dnsConfig": {
           "$ref": "#/$defs/k8s.io.api.core.v1.PodDNSConfig",
@@ -1343,13 +1376,16 @@
           "type": "array"
         },
         "hpa": {
-          "$ref": "#/$defs/HpaInlineConfig"
+          "$ref": "#/$defs/HpaInlineConfig",
+          "x-ui-tier": "basic"
         },
         "httpRoute": {
-          "$ref": "#/$defs/HttpRouteConfig"
+          "$ref": "#/$defs/HttpRouteConfig",
+          "x-ui-tier": "basic"
         },
         "ingress": {
-          "$ref": "#/$defs/IngressConfig"
+          "$ref": "#/$defs/IngressConfig",
+          "x-ui-tier": "basic"
         },
         "initContainers": {
           "additionalProperties": {
@@ -1382,7 +1418,8 @@
           "type": "object"
         },
         "migrations": {
-          "$ref": "#/$defs/MigrationsConfig"
+          "$ref": "#/$defs/MigrationsConfig",
+          "x-ui-tier": "basic"
         },
         "namespace": {
           "type": "string"
@@ -1415,7 +1452,8 @@
                 "Egress"
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "nodeSelector": {
           "additionalProperties": true,
@@ -1425,10 +1463,12 @@
               "kubernetes.io/os": "linux"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "pdb": {
-          "$ref": "#/$defs/PdbConfig"
+          "$ref": "#/$defs/PdbConfig",
+          "x-ui-tier": "basic"
         },
         "podAnnotations": {
           "additionalProperties": true,
@@ -1490,7 +1530,8 @@
         },
         "replicas": {
           "minimum": 0,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "securityContext": {
           "$ref": "#/$defs/k8s.io.api.core.v1.PodSecurityContext",
@@ -1504,13 +1545,15 @@
           ]
         },
         "serviceAccount": {
-          "$ref": "#/$defs/ServiceAccountConfig"
+          "$ref": "#/$defs/ServiceAccountConfig",
+          "x-ui-tier": "basic"
         },
         "serviceAccountName": {
           "type": "string"
         },
         "serviceMonitor": {
-          "$ref": "#/$defs/ServiceMonitorConfig"
+          "$ref": "#/$defs/ServiceMonitorConfig",
+          "x-ui-tier": "basic"
         },
         "serviceType": {
           "enum": [
@@ -1518,7 +1561,8 @@
             "NodePort",
             "LoadBalancer"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "strategy": {
           "$ref": "#/$defs/StrategySpec"
@@ -1776,7 +1820,8 @@
           "type": "boolean"
         },
         "certificate": {
-          "$ref": "#/$defs/CertificateConfig"
+          "$ref": "#/$defs/CertificateConfig",
+          "x-ui-tier": "basic"
         },
         "containers": {
           "additionalProperties": {
@@ -1791,7 +1836,8 @@
               }
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "dnsConfig": {
           "$ref": "#/$defs/k8s.io.api.core.v1.PodDNSConfig",
@@ -1848,13 +1894,16 @@
         },
         "hpa": {
           "$ref": "#/$defs/HpaInlineConfig",
-          "description": "Inline HPA configuration. Setting this also creates an HPA tied to this deployment."
+          "description": "Inline HPA configuration. Setting this also creates an HPA tied to this deployment.",
+          "x-ui-tier": "basic"
         },
         "httpRoute": {
-          "$ref": "#/$defs/HttpRouteConfig"
+          "$ref": "#/$defs/HttpRouteConfig",
+          "x-ui-tier": "basic"
         },
         "ingress": {
-          "$ref": "#/$defs/IngressConfig"
+          "$ref": "#/$defs/IngressConfig",
+          "x-ui-tier": "basic"
         },
         "initContainers": {
           "additionalProperties": {
@@ -1906,7 +1955,8 @@
         },
         "migrations": {
           "$ref": "#/$defs/MigrationsConfig",
-          "description": "Pre-deploy Job that runs database migrations before the deployment rolls out."
+          "description": "Pre-deploy Job that runs database migrations before the deployment rolls out.",
+          "x-ui-tier": "basic"
         },
         "namespace": {
           "type": "string"
@@ -1921,7 +1971,8 @@
                 "Ingress"
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "nodeSelector": {
           "additionalProperties": true,
@@ -1934,10 +1985,12 @@
               "node-role.kubernetes.io/worker": "true"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "pdb": {
-          "$ref": "#/$defs/PdbConfig"
+          "$ref": "#/$defs/PdbConfig",
+          "x-ui-tier": "basic"
         },
         "podAnnotations": {
           "additionalProperties": true,
@@ -2019,7 +2072,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "replicas": {
           "default": 1,
@@ -2029,7 +2083,8 @@
             3
           ],
           "minimum": 0,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "securityContext": {
           "$ref": "#/$defs/k8s.io.api.core.v1.PodSecurityContext",
@@ -2043,13 +2098,15 @@
           ]
         },
         "serviceAccount": {
-          "$ref": "#/$defs/ServiceAccountConfig"
+          "$ref": "#/$defs/ServiceAccountConfig",
+          "x-ui-tier": "basic"
         },
         "serviceAccountName": {
           "type": "string"
         },
         "serviceMonitor": {
-          "$ref": "#/$defs/ServiceMonitorConfig"
+          "$ref": "#/$defs/ServiceMonitorConfig",
+          "x-ui-tier": "basic"
         },
         "serviceType": {
           "default": "ClusterIP",
@@ -2058,7 +2115,8 @@
             "NodePort",
             "LoadBalancer"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "strategy": {
           "$ref": "#/$defs/StrategySpec",
@@ -2213,7 +2271,8 @@
       ],
       "properties": {
         "configName": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "optional": {
           "type": "boolean"
@@ -2226,7 +2285,8 @@
             "configMap",
             "secret"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -2269,10 +2329,12 @@
       "properties": {
         "name": {
           "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "value": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "valueFrom": {
           "additionalProperties": false,
@@ -2356,7 +2418,8 @@
               "$ref": "#/$defs/SecretKeyRef"
             }
           },
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -2472,7 +2535,8 @@
         },
         "maxReplicas": {
           "minimum": 1,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "metrics": {
           "description": "One or more HPA metrics driving the autoscaler. Multiple metrics\nOR: the HPA picks the recommendation that yields the highest replica\ncount across all metrics. At least one entry is required.\n",
@@ -2504,11 +2568,13 @@
             "$ref": "#/$defs/HpaMetric"
           },
           "minItems": 1,
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "minReplicas": {
           "minimum": 0,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -2973,7 +3039,8 @@
           "items": {
             "$ref": "#/$defs/HttpRouteHostname"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "labels": {
           "additionalProperties": true,
@@ -3005,7 +3072,8 @@
           "items": {
             "$ref": "#/$defs/HttpRouteParentRef"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "rules": {
           "description": "Routing rules — request matches plus backend destinations.\nAt least one rule is required. Rules are evaluated in array order;\nfirst matching rule wins (per Gateway API spec precedence).\n",
@@ -3049,7 +3117,8 @@
             "$ref": "#/$defs/HttpRouteRule"
           },
           "minItems": 1,
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         }
       },
       "type": "object",
@@ -3595,10 +3664,12 @@
             "$ref": "#/$defs/IngressHost"
           },
           "minItems": 1,
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "ingressClassName": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "labels": {
           "additionalProperties": true,
@@ -3625,7 +3696,8 @@
           "items": {
             "$ref": "#/$defs/IngressTls"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         }
       },
       "type": "object",
@@ -3997,11 +4069,13 @@
         },
         "backoffLimit": {
           "minimum": 0,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "completions": {
           "minimum": 1,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "containers": {
           "additionalProperties": {
@@ -4022,7 +4096,8 @@
               }
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "labels": {
           "additionalProperties": true,
@@ -4048,7 +4123,8 @@
                 "Ingress"
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "nodeSelector": {
           "additionalProperties": true,
@@ -4062,7 +4138,8 @@
         },
         "parallelism": {
           "minimum": 1,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "podAnnotations": {
           "additionalProperties": true,
@@ -4099,14 +4176,16 @@
                 }
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "restartPolicy": {
           "enum": [
             "OnFailure",
             "Never"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "securityContext": {
           "$ref": "#/$defs/k8s.io.api.core.v1.PodSecurityContext",
@@ -4150,7 +4229,8 @@
         },
         "ttlSecondsAfterFinished": {
           "minimum": 0,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "volumes": {
           "description": "Pod volumes available to the Job's containers (passthrough).\nEach entry defines a named volume referenced by volumeMounts on\nthe container.\n",
@@ -4230,7 +4310,8 @@
           "items": {
             "type": "string"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "backoffLimit": {
           "minimum": 0,
@@ -4241,7 +4322,8 @@
           "type": "integer"
         },
         "enabled": {
-          "type": "boolean"
+          "type": "boolean",
+          "x-ui-tier": "basic"
         },
         "parallelism": {
           "minimum": 1,
@@ -4350,7 +4432,8 @@
           "items": {
             "$ref": "#/$defs/k8s.io.api.networking.v1.NetworkPolicyEgressRule"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "ingress": {
           "description": "Required when policyTypes contains 'Ingress'. Empty list `[]` means\ndeny-all-ingress (still explicit — the user has stated intent). Each\nrule is a NetworkPolicyIngressRule from networking.k8s.io/v1.\n",
@@ -4379,7 +4462,8 @@
           "items": {
             "$ref": "#/$defs/k8s.io.api.networking.v1.NetworkPolicyIngressRule"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "labels": {
           "additionalProperties": true,
@@ -4413,7 +4497,8 @@
             "type": "string"
           },
           "minItems": 1,
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -4477,7 +4562,8 @@
               "pattern": "^[0-9]+%$",
               "type": "string"
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "minAvailable": {
           "oneOf": [
@@ -4489,7 +4575,8 @@
               "pattern": "^[0-9]+%$",
               "type": "string"
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         }
       },
       "type": "object",
@@ -4516,7 +4603,8 @@
           ],
           "maximum": 65535,
           "minimum": 1,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "protocol": {
           "default": "TCP",
@@ -4530,7 +4618,8 @@
             "TCP",
             "UDP"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "servicePort": {
           "description": "External port for the auto-created Service. Defaults to containerPort\nwhen omitted.\n",
@@ -4540,7 +4629,8 @@
           ],
           "maximum": 65535,
           "minimum": 1,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -4689,7 +4779,8 @@
             "type": "string"
           },
           "minItems": 1,
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "annotations": {
           "additionalProperties": true,
@@ -4727,10 +4818,12 @@
         },
         "size": {
           "pattern": "^[0-9]+(Ei|Pi|Ti|Gi|Mi|Ki|E|P|T|G|M|K)?$",
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "storageClassName": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "volumeMode": {
           "default": "Filesystem",
@@ -4848,7 +4941,8 @@
             "$ref": "#/$defs/k8s.io.api.rbac.v1.PolicyRule"
           },
           "minItems": 1,
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -4887,7 +4981,8 @@
               "memory": "1Gi"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "requests": {
           "additionalProperties": {
@@ -4905,7 +5000,8 @@
               "nvidia.com/gpu": "1"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         }
       },
       "type": "object",
@@ -4994,7 +5090,8 @@
           "examples": [
             false
           ],
-          "type": "boolean"
+          "type": "boolean",
+          "x-ui-tier": "basic"
         },
         "imagePullSecrets": {
           "description": "Per-ServiceAccount image pull secrets. Pods using this SA inherit\nthese secrets automatically — no need to add them to the pod template.\nFor chart-wide pull secrets, use generic.extraImagePullSecrets instead.\n",
@@ -5043,7 +5140,8 @@
           "examples": [
             "backend-api-sa"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         }
       },
       "type": "object",
@@ -5099,7 +5197,8 @@
         },
         "interval": {
           "pattern": "^([0-9]+(ms|s|m|h))+$",
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "labels": {
           "additionalProperties": true,
@@ -5161,10 +5260,12 @@
           "type": "object"
         },
         "path": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "port": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "relabelings": {
           "description": "Top-level relabelings applied to ALL endpoints (single-endpoint mode).\nFor per-endpoint relabelings use endpoints[i].relabelings instead.\n",
@@ -5388,7 +5489,8 @@
           "type": "string"
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "nodePort": {
           "maximum": 32767,
@@ -5398,7 +5500,8 @@
         "port": {
           "maximum": 65535,
           "minimum": 1,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "protocol": {
           "default": "TCP",
@@ -5407,7 +5510,8 @@
             "UDP",
             "SCTP"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "targetPort": {
           "oneOf": [
@@ -5419,7 +5523,8 @@
             {
               "type": "string"
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -5485,7 +5590,8 @@
         },
         "maxReplicas": {
           "minimum": 1,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "metrics": {
           "description": "List of HPA metrics. At least one entry is required by Kubernetes.\nMultiple metrics combine via max() — the HPA picks the highest\nreplica count across all metric recommendations.\n",
@@ -5517,11 +5623,13 @@
             "$ref": "#/$defs/HpaMetric"
           },
           "minItems": 1,
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "minReplicas": {
           "minimum": 0,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "scaleTargetRef": {
           "additionalProperties": false,
@@ -5559,7 +5667,8 @@
             "kind",
             "name"
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -5637,7 +5746,8 @@
             "$ref": "#/$defs/ServicePort"
           },
           "minItems": 1,
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "selector": {
           "additionalProperties": {
@@ -5653,7 +5763,8 @@
               "tier": "backend"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "sessionAffinity": {
           "enum": [
@@ -5670,7 +5781,8 @@
             "LoadBalancer",
             "ExternalName"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         }
       },
       "required": [
@@ -5846,7 +5958,8 @@
               }
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "dnsConfig": {
           "$ref": "#/$defs/k8s.io.api.core.v1.PodDNSConfig"
@@ -5928,7 +6041,8 @@
                 "Ingress"
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "nodeSelector": {
           "additionalProperties": true,
@@ -5938,10 +6052,12 @@
               "kubernetes.io/os": "linux"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "pdb": {
-          "$ref": "#/$defs/PdbConfig"
+          "$ref": "#/$defs/PdbConfig",
+          "x-ui-tier": "basic"
         },
         "persistentVolumeClaimRetentionPolicy": {
           "additionalProperties": false,
@@ -6054,13 +6170,15 @@
                 }
               ]
             }
-          ]
+          ],
+          "x-ui-tier": "basic"
         },
         "replicas": {
           "default": 1,
           "description": "Desired pod count. Defaults to 1.",
           "minimum": 0,
-          "type": "integer"
+          "type": "integer",
+          "x-ui-tier": "basic"
         },
         "revisionHistoryLimit": {
           "default": 10,
@@ -6072,21 +6190,25 @@
           "$ref": "#/$defs/k8s.io.api.core.v1.PodSecurityContext"
         },
         "serviceAccount": {
-          "$ref": "#/$defs/ServiceAccountConfig"
+          "$ref": "#/$defs/ServiceAccountConfig",
+          "x-ui-tier": "basic"
         },
         "serviceAccountName": {
           "type": "string"
         },
         "serviceHeadless": {
           "description": "When true (the chart's default when autoCreateService=true),\nemit a headless Service (clusterIP=None, publishNotReadyAddresses=true).\nSet to false to get a regular ClusterIP Service for the STS.\n",
-          "type": "boolean"
+          "type": "boolean",
+          "x-ui-tier": "basic"
         },
         "serviceMonitor": {
-          "$ref": "#/$defs/ServiceMonitorConfig"
+          "$ref": "#/$defs/ServiceMonitorConfig",
+          "x-ui-tier": "basic"
         },
         "serviceName": {
           "description": "Name of the headless Service that controls the StatefulSet's\nnetwork identity. Required by Kubernetes. When\nautoCreateService=true, the chart creates a Service of this\nname with clusterIP=None.\n",
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "serviceType": {
           "default": "ClusterIP",
@@ -6095,7 +6217,8 @@
             "NodePort",
             "LoadBalancer"
           ],
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "terminationGracePeriodSeconds": {
           "minimum": 0,
@@ -6259,7 +6382,8 @@
               "Expecting the PVC to be deleted automatically — by default it is retained on STS deletion and scale-down. Use persistentVolumeClaimRetentionPolicy to change this."
             ]
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "volumes": {
           "description": "Pod volumes (passthrough). Each entry defines a named volume\ncontainers reference via volumeMounts. PVC templates from\nvolumeClaimTemplates are mounted by their template name, not here.\n",
@@ -6374,13 +6498,16 @@
       ],
       "properties": {
         "mountPath": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "readOnly": {
-          "type": "boolean"
+          "type": "boolean",
+          "x-ui-tier": "basic"
         },
         "subPath": {
           "type": "string"
@@ -11924,7 +12051,8 @@
               "argocd.argoproj.io/sync-wave": "0"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "extraImagePullSecrets": {
           "description": "Image pull secret references added to every pod template the chart\nrenders. Use for private-registry credentials shared across all\nworkloads. Per-pod / per-ServiceAccount pull secrets stack on top.\n",
@@ -11946,7 +12074,8 @@
           "items": {
             "$ref": "#/$defs/ImagePullSecret"
           },
-          "type": "array"
+          "type": "array",
+          "x-ui-tier": "basic"
         },
         "httpRoutesGeneral": {
           "$ref": "#/$defs/HttpRoutesGeneralConfig"
@@ -11963,10 +12092,12 @@
               "team": "platform"
             }
           ],
-          "type": "object"
+          "type": "object",
+          "x-ui-tier": "basic"
         },
         "serviceAccountName": {
-          "type": "string"
+          "type": "string",
+          "x-ui-tier": "basic"
         },
         "serviceMonitorGeneral": {
           "$ref": "#/$defs/ServiceMonitorGeneralConfig"

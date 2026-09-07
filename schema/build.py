@@ -27,7 +27,11 @@ DOC_KEYS = frozenset({
     "x-agent-related-fields",
     "x-agent-common-mistakes",
     "x-agent-example-use-case",
+    "x-ui-tier",
 })
+
+# Allowed values of the playground tier keyword. Absence means "advanced".
+UI_TIERS = frozenset({"basic"})
 
 
 def load_structure(
@@ -403,6 +407,7 @@ def lint(
       2. No cyclic $ref chains.
       3. Every object with 'properties' declares 'additionalProperties'.
       4. additionalProperties: true requires a whitelist entry in lint-config.yaml.
+      10. x-ui-tier values are restricted to UI_TIERS.
     """
     if lint_config is None:
         lint_config = load_lint_config()
@@ -555,6 +560,23 @@ def lint(
             check_doc_paths(v, child)
 
     check_doc_paths(docs, "")
+
+    # Rule 10: x-ui-tier (playground inspector tier) must be one of UI_TIERS.
+    def check_ui_tier(node: Any, path: str) -> None:
+        if not isinstance(node, dict):
+            return
+        tier = node.get("x-ui-tier")
+        if tier is not None and tier not in UI_TIERS:
+            errors.append(LintError(
+                level="error",
+                path=path,
+                message=f"x-ui-tier must be one of {sorted(UI_TIERS)}, got '{tier}'",
+            ))
+        for k, v in node.items():
+            if k != "x-ui-tier":
+                check_ui_tier(v, f"{path}/{k}")
+
+    check_ui_tier(docs, "")
 
     # Rule 9: DeploymentSpec property keys ≡ DeploymentDefaultsSpec property keys
     # Keys listed under `deployment_defaults_parity_exempt` in lint-config.yaml
