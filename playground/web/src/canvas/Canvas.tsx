@@ -16,14 +16,15 @@ import { ResourceNode } from "./ResourceNode";
 import { GroupNode } from "./GroupNode";
 
 const nodeTypes = { resource: ResourceNode, group: GroupNode };
+const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Re-fit the viewport whenever a new layout lands or the canvas box changes size (pane open/close/drag, window resize). */
 function FitOnLayout({ token }: { token: unknown }) {
   const { fitView } = useReactFlow();
   const box = useStore((s) => `${Math.round(s.width)}x${Math.round(s.height)}`);
-  useEffect(() => { void fitView({ padding: 0.15, duration: 200 }); }, [token, fitView]);
+  useEffect(() => { void fitView({ padding: 0.15, duration: reduceMotion() ? 0 : 200 }); }, [token, fitView]);
   useEffect(() => {
-    const id = requestAnimationFrame(() => void fitView({ padding: 0.15, duration: 150 }));
+    const id = requestAnimationFrame(() => void fitView({ padding: 0.15, duration: reduceMotion() ? 0 : 150 }));
     return () => cancelAnimationFrame(id);
   }, [box, fitView]);
   return null;
@@ -44,7 +45,6 @@ export function Canvas({
     nodes: [],
     edges: [],
   });
-  const [hover, setHover] = useState<string | null>(null);
   const [layoutError, setLayoutError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ export function Canvas({
     };
   }, [model]);
 
-  const focus = hover ?? selection;
+  const focus = selection;
   const { nodes, edges } = useMemo(() => {
     if (!focus) return laid;
     const near = new Set<string>([focus]);
@@ -96,7 +96,7 @@ export function Canvas({
         },
       })),
     };
-  }, [laid, focus, selection]);
+  }, [laid, selection]);
 
   if (!model)
     return (
@@ -115,22 +115,19 @@ export function Canvas({
           fitViewOptions={{ padding: 0.15 }}
           colorMode="system"
           minZoom={0.2}
+          maxZoom={1.25}
           // React Flow fires these for `selectable: false` nodes too, and a group id matches no
           // GraphModel node (it would close the detail panel and dim everything).
           onNodeClick={(_, n) => {
             if (n.type !== "group") onSelect(n.id);
           }}
           onPaneClick={() => onSelect(null)}
-          onNodeMouseEnter={(_, n) => {
-            if (n.type !== "group") setHover(n.id);
-          }}
-          onNodeMouseLeave={() => setHover(null)}
           nodesConnectable={false}
           proOptions={{ hideAttribution: true }}
         >
           <Background />
           <Controls />
-          <MiniMap pannable zoomable />
+          {model.nodes.length >= 12 && <MiniMap pannable zoomable />}
           <FitOnLayout token={laid} />
         </ReactFlow>
       </ReactFlowProvider>
