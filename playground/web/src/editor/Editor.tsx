@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
 import schema from '../chart-bundle/schema.json';
 import { setupMonaco } from './monaco';
-import { minimalEdit } from '../model/textDiff';
+import { externalEdit } from './pushGuard';
 
 // Workers and the yaml schema must be registered before the first createModel/create call.
 // Doing it here (setupMonaco is idempotent) keeps that ordering local to the only component
@@ -40,8 +40,8 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
   // External text replacement (examples picker, inspector edits): one undoable edit covering only
   // the changed range, never setValue — Monaco's undo stack and cursor survive inspector writes.
   useEffect(() => {
-    const m = model.current; if (!m || value === lastEmitted.current) return;
-    const edit = minimalEdit(m.getValue(), value);
+    const m = model.current; if (!m) return;
+    const edit = externalEdit(m.getValue(), lastEmitted.current, value);
     if (!edit) return;
     suppress.current = true;
     try {

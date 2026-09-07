@@ -7,7 +7,7 @@ import type { Field } from './form';
 import { FieldList, FieldRow } from './fields';
 import { Toggles } from './Toggles';
 import { inspectTarget, secondaryById } from './target';
-import { SECONDARY, type SecondaryId } from '../graph/secondary';
+import { SECONDARY, secondariesFor, type SecondaryId } from '../graph/secondary';
 
 // spec §4.5/§4.9: the release node edits release-level settings only — entity maps are palette territory.
 const RELEASE_SECTIONS = ['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs'];
@@ -15,6 +15,10 @@ const KIND_LABEL: Record<string, string> = { deployments: 'Deployment', stateful
 // autoCreate* flags the toggle table owns; every other autoCreate* flag (autoCreateSoftAntiAffinity)
 // has no toggle and must stay reachable as an ordinary field.
 const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));
+// Secondary ids double as the config block keys (ingress, hpa, pdb, …). StatefulSetSpec/DaemonSetSpec
+// still declare blocks the chart only renders for deployments (spec §2.2); editing those is a no-op,
+// so a block is offered only when the toggle table lists it for the kind.
+const ALL_BLOCKS = new Set<string>(SECONDARY.map((s) => s.id));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function Inspector(p: {
@@ -41,12 +45,14 @@ export function Inspector(p: {
     const kindKey = String(base[0]), name = String(base[1]);
     const cfg = p.doc.valueAt(base);
     const node = schemaAt(p.root, base)!;
+    const applicable = new Set<string>(secondariesFor(kindKey).map((s) => s.id));
+    const hide = (k: string) => OWNED_FLAGS.has(k) || (ALL_BLOCKS.has(k) && !applicable.has(k));
     return (
       <>
         <Toggles kindKey={kindKey} name={name} base={base} cfg={isObj(cfg) ? cfg : {}} disabled={p.disabled} highlight={highlight} onEdit={edit} />
         <ul className="hints">{conditionalHints(p.root, node).map((h) => <li key={h}>{h}</li>)}</ul>
         <fieldset disabled={p.disabled}>
-          <FieldList root={p.root} node={node} basePath={base} value={cfg} tier={p.tier} onEdit={edit} hide={(k) => OWNED_FLAGS.has(k)} />
+          <FieldList root={p.root} node={node} basePath={base} value={cfg} tier={p.tier} onEdit={edit} hide={hide} />
         </fieldset>
       </>
     );
@@ -57,7 +63,9 @@ export function Inspector(p: {
   const releaseSection = (k: string): ReactElement => {
     const node = resolve(p.root, p.root.properties[k]);
     const widget = classify(p.root, node);
-    if (widget.kind === 'object') return <FieldList root={p.root} node={node} basePath={[k]} value={all[k]} tier={p.tier} onEdit={edit} />;
+    // _defaults.tpl copies only content keys from <kind>General onto instances, never the autoCreate*
+    // flags (see expectations.ts), so those checkboxes would edit values the chart ignores.
+    if (widget.kind === 'object') return <FieldList root={p.root} node={node} basePath={[k]} value={all[k]} tier={p.tier} onEdit={edit} hide={(x) => OWNED_FLAGS.has(x)} />;
     const field: Field = {
       key: k, path: [k], label: k, description: typeof node.description === 'string' ? node.description.trim() : undefined,
       widget, schema: node, value: all[k], present: all[k] !== undefined, required: false,

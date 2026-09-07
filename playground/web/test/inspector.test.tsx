@@ -60,6 +60,23 @@ describe('Inspector', () => {
     expect(screen.getByLabelText('deployments.api.autoCreateSoftAntiAffinity')).toBeTruthy();
     expect(screen.queryByLabelText('deployments.api.autoCreateService')).toBeNull();
   });
+  // spec §2.2: StatefulSetSpec/DaemonSetSpec still declare ingress/httpRoute/certificate/hpa, but the
+  // chart only renders those for deployments — editing them from a StatefulSet panel would be a no-op.
+  it('hides blocks the chart never renders for this workload kind', () => {
+    const { container } = render(<Inspector {...ffBase(ffNode('StatefulSet', 'cache'))} tier="advanced" />);
+    expect(container.querySelector('label[for="statefulSets.cache.ingress"]')).toBeNull();
+    expect(container.querySelector('label[for="statefulSets.cache.httpRoute"]')).toBeNull();
+    expect(container.querySelector('label[for="statefulSets.cache.certificate"]')).toBeNull();
+    expect(container.querySelector('label[for="statefulSets.cache.hpa"]')).toBeNull();
+    // blocks that *are* applicable to statefulSets stay editable
+    expect(container.querySelector('label[for="statefulSets.cache.pdb"]')).toBeTruthy();
+    expect(container.querySelector('label[for="statefulSets.cache.networkPolicy"]')).toBeTruthy();
+  });
+  it('keeps those same blocks on a Deployment, where the chart does render them', () => {
+    const { container } = render(<Inspector {...ffBase(ffNode('Deployment', 'api'))} tier="advanced" />);
+    expect(container.querySelector('label[for="deployments.api.ingress"]')).toBeTruthy();
+    expect(container.querySelector('label[for="deployments.api.hpa"]')).toBeTruthy();
+  });
   it('widget drafts do not leak into the next selected node', () => {
     const p = ffBase(ffNode('Deployment', 'api'));
     const { rerender } = render(<Inspector {...p} />);
@@ -73,6 +90,16 @@ describe('Inspector', () => {
     const sections = [...container.querySelectorAll('.inspector > fieldset > details > summary')].map((s) => s.textContent);
     expect(sections).toEqual(['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs']);
     expect(screen.queryByText('deployments')).toBeNull();
+  });
+  // _defaults.tpl copies only content keys from <kind>General onto instances, never the autoCreate*
+  // flags (see expectations.ts), so those checkboxes would be inert here.
+  it('release: hides the autoCreate* flags <kind>General cannot propagate', () => {
+    const { container } = render(<Inspector {...base(rel)} tier="advanced" />);
+    expect(container.querySelector('label[for="deploymentsGeneral.autoCreateService"]')).toBeNull();
+    expect(container.querySelector('label[for="deploymentsGeneral.autoCreateIngress"]')).toBeNull();
+    // autoCreateSoftAntiAffinity has no toggle and is honoured by the chart — it stays.
+    expect(container.querySelector('label[for="deploymentsGeneral.autoCreateSoftAntiAffinity"]')).toBeTruthy();
+    expect(container.querySelector('label[for="deploymentsGeneral.replicas"]')).toBeTruthy();
   });
   it('release: a section the schema shapes as a map still gets an editor', () => {
     const p = base(rel);

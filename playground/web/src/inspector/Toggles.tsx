@@ -15,10 +15,12 @@ export function Toggles(p: {
       <h4>Secondary resources</h4>
       {list.map((s) => {
         const on = s.isOn(p.cfg);
-        const blocked = !on && s.blocked?.(p.cfg, p.kindKey);
+        // Computed whether on or off: a flag can be set while the chart still renders nothing (e.g.
+        // autoCreateService with no container port), and then the reason is why no node is on canvas.
+        const blocked = s.blocked?.(p.cfg, p.kindKey);
         return (
           <label key={s.id} className={`toggle ${s.id === p.highlight ? 'highlight' : ''}`} title={blocked || undefined}>
-            <input type="checkbox" aria-label={`toggle ${s.label}`} checked={on} disabled={p.disabled || !!blocked}
+            <input type="checkbox" aria-label={`toggle ${s.label}`} checked={on} disabled={p.disabled || (!on && !!blocked)}
               onChange={(e) => p.onEdit(e.target.checked ? s.on(p.base, p.cfg, p.name) : s.off(p.base))} />
             <span>{s.label}</span>
             {blocked && <span className="field-err">{blocked}</span>}
