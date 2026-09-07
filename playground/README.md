@@ -21,6 +21,14 @@ resource dependency graph. User-facing documentation lives at `docs/playground-g
 
 Field tiers come from the `x-ui-tier` vendor keyword in `values.schema.json`; see `docs/reference/agent-metadata.md`.
 
+### UI
+
+- `web/src/app/Panes.tsx`, `web/src/app/panes.ts` — the three-pane layout (`SplitHandle`, `Rail`, `usePanes`): resizable, collapsible editor and inspector panes around the canvas, sizes persisted to `localStorage`.
+- `web/src/canvas/icons/` — official Kubernetes resource icons; regenerate with `node scripts/fetch-k8s-icons.mjs`, attribution in `web/src/canvas/icons/NOTICE`.
+- `web/src/inspector/sections.ts` — groups inspector fields into Workload, Containers, Auto-created resources, Metadata and (advanced) Placement & security sections.
+- `web/src/inspector/fields/*` — compound widgets (`ContainersField`, `ImageField`, `ResourcesField`, `PortsTable`, …) alongside the primitive ones.
+- `web/src/inspector/AutoCreated.tsx`, `web/src/inspector/summary.ts` — the auto-created-resources switch list, its one-line summaries and `open ›` links.
+
 ## monaco-yaml coverage
 
 Checked against `src/chart-bundle/schema.json` (draft-07, 156 `$defs`) with the editor from

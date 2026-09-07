@@ -6,24 +6,24 @@ what you see is what `helm template` would print. Nothing leaves your browser.
 
 [Open the playground](https://idlefy.github.io/idlefy-universal/playground/){ .md-button .md-button--primary }
 
-- Left: a schema-aware YAML editor with completion and inline validation.
-- Right: every rendered object, with edges for selectors, backends, mounts, RBAC and TLS.
+- Every rendered object appears as a node, with edges for selectors, backends, mounts, RBAC and TLS.
 - Dashed nodes are dependencies the release references but does not create.
-- Click a node to see its manifest; the editor jumps to the values that produced it.
+- Click a node to select it: the inspector opens, and the editor jumps to the values that
+  produced it.
 
-## Object Inspector
+### Layout
 
-Select any node and open the **Inspector** tab in the detail panel:
+The playground is three panes: **values.yaml** on the left, the **resource graph** in the middle, the **inspector** on the right. Drag the dividers to resize; the left and right panes collapse into a narrow rail (click it, or use the **YAML** / **Inspector** buttons in the header, to bring them back). The YAML pane starts collapsed; sizes are remembered in your browser. Selecting a node always opens the inspector.
 
-- **Basic / Advanced** — Basic shows the fields most values files set (marked `x-ui-tier: basic`
-  in the schema) plus anything already present; Advanced shows every field.
-- **Secondary resources** — one toggle per resource the chart can auto-create for that workload
-  (Service, Ingress, HTTPRoute, Certificate, HPA, migrations Job, PDB, ServiceMonitor,
-  NetworkPolicy, RBAC, ServiceAccount). Turning one on writes the flag and a minimal valid block;
-  turning it off applies the same edits `helm` would need to stop rendering it. Toggles the chart
-  cannot honour for a kind are not shown.
-- Kubernetes passthrough fields (affinity, volumes, tolerations, …) are edited as YAML.
-- Every change lands in the editor as a single undoable edit — `Ctrl+Z` in the editor reverts it.
+The editor folds YAML blocks by indentation (chevrons in the gutter), shows indentation guides, pins the parent keys at the top while you scroll inside a block, and marks the whole values block of the selected node.
+
+### Object Inspector
+
+Click a node. The panel header shows the object's icon, name, kind, namespace and the values.yaml line it comes from. **Fields** edits the object; **Manifest** shows the rendered YAML.
+
+Workload panels are grouped: **Workload** (replicas and rollout settings), **Containers** (one card per container with `image:tag`, resources as a cpu/memory grid, ports as a table), **Auto-created resources** (a switch per resource the chart can create for this workload, with a one-line summary and an *open ›* link to its node), **Metadata**, and, with **show all fields** on, **Placement & security**. A field only gets a control once it exists in values.yaml; everything else is an *Add* chip that inserts the schema's starter value. Clearing a control removes the key.
+
+Icons are the official Kubernetes resource icons (© The Kubernetes Authors, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), from [kubernetes/community](https://github.com/kubernetes/community/tree/master/icons)), recolored per resource family.
 
 Workloads and the resources they auto-create are drawn inside a dashed container on the canvas.
 
