@@ -85,6 +85,12 @@ describe('firstSentence / chipValue', () => {
     expect(firstSentence(undefined)).toBeUndefined();
     expect(firstSentence('  ')).toBeUndefined();
   });
+  it('does not cut inside an "e.g." / "i.e." abbreviation', () => {
+    expect(firstSentence('Metric describing a non-pod Kubernetes object (e.g. an Ingress). Second sentence.'))
+      .toBe('Metric describing a non-pod Kubernetes object (e.g. an Ingress).');
+    expect(firstSentence('Uses the given value (i.e. as-is). Second sentence.'))
+      .toBe('Uses the given value (i.e. as-is).');
+  });
   it('chip for a boolean turns it on; others use the starter value', () => {
     const dep = schemaAt(root, ['deployments', 'web'])!;
     const fields = buildFields(root, dep, ['deployments', 'web'], {}, 'advanced');

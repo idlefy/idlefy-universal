@@ -75,12 +75,29 @@ export function starterValue(root: SchemaNode, node: SchemaNode): unknown {
   }
 }
 
-/** First sentence of a schema description (split on `. `, `! `, `? ` or a period at end); falls back to the first line. */
+const SENTENCE_ABBREVIATIONS = new Set(['e.g', 'i.e', 'etc', 'vs', 'ex', 'cf']);
+
+/**
+ * First sentence of a schema description. A `.`/`!`/`?` ends the sentence only when it is followed by
+ * whitespace then an uppercase letter or digit (or by end of text), and the token immediately before it
+ * is not a known abbreviation (`e.g`, `i.e`, `etc`, `vs`, `ex`, `cf`) or a single letter (as in the `e`
+ * and `g` of `e.g.`) — otherwise that punctuation is inside the sentence, not the end of it. Falls back
+ * to the whole first line when no terminator qualifies.
+ */
 export function firstSentence(desc: string | undefined): string | undefined {
   const t = desc?.trim();
   if (!t) return undefined;
-  const m = t.match(/^[\s\S]*?[.!?](?=\s|$)/);
-  return (m ? m[0] : t.split('\n')[0]).trim() || undefined;
+  const re = /[.!?]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(t))) {
+    const idx = m.index;
+    const after = t.slice(idx + 1);
+    if (!/^\s+[A-Z0-9]/.test(after) && after.trim() !== '') continue; // not followed by a new sentence, and not the end of text
+    const word = t.slice(0, idx).match(/[A-Za-z0-9.]+$/)?.[0].toLowerCase();
+    if (word && (SENTENCE_ABBREVIATIONS.has(word) || /^[a-z]$/.test(word))) continue; // abbreviation like "e.g." / "i.e."
+    return t.slice(0, idx + 1).trim();
+  }
+  return t.split('\n')[0].trim() || undefined;
 }
 
 /** Value written when the user adds an absent field from a chip: a boolean chip means "turn it on". */
