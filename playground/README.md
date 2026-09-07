@@ -10,6 +10,17 @@ resource dependency graph. User-facing documentation lives at `docs/playground-g
 - `make playground-build` builds everything inside Docker; `make playground-dev` serves the SPA at
   <http://localhost:5173/playground/> (the Vite `base`, so the bare `/` is a 404).
 
+## Inspector (Phase 2)
+
+- `web/src/inspector/schema.ts` — `$ref`/`allOf` resolution, `schemaAt(path)`, widget classification.
+- `web/src/inspector/form.ts` — `buildFields(schema, value, tier)`: basic tier = `x-ui-tier: basic`, required, or present in the document.
+- `web/src/inspector/fields/*` — one widget per kind (boolean, number, string, list, keyvalue, object, map, yaml).
+- `web/src/inspector/target.ts`, `Toggles.tsx`, `Inspector.tsx` — where a graph node opens, secondary-resource toggles, the panel.
+- `web/src/graph/secondary.ts` — the one table of auto-created resources (kinds, on/off ops); `expectations.ts` reads it too.
+- `web/src/canvas/groups.ts` — a workload and the resources it owns are drawn inside one container.
+
+Field tiers come from the `x-ui-tier` vendor keyword in `values.schema.json`; see `docs/reference/agent-metadata.md`.
+
 ## monaco-yaml coverage
 
 Checked against `src/chart-bundle/schema.json` (draft-07, 156 `$defs`) with the editor from
