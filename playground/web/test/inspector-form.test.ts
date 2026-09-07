@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import schema from '../src/chart-bundle/schema.json';
-import { buildFields, starterValue } from '../src/inspector/form';
+import { buildFields, starterValue, firstSentence, chipValue } from '../src/inspector/form';
 import { classify, schemaAt } from '../src/inspector/schema';
 
 const root = schema as any;
@@ -75,5 +75,22 @@ describe('buildFields', () => {
         });
       }
     }
+  });
+});
+
+describe('firstSentence / chipValue', () => {
+  it('cuts at the first sentence end, not the first line', () => {
+    expect(firstSentence('Additional DNS names beyond the ingress.tls hosts (subject\nalternative names). Second sentence.')).toBe('Additional DNS names beyond the ingress.tls hosts (subject\nalternative names).');
+    expect(firstSentence('No period here\nsecond line')).toBe('No period here');
+    expect(firstSentence(undefined)).toBeUndefined();
+    expect(firstSentence('  ')).toBeUndefined();
+  });
+  it('chip for a boolean turns it on; others use the starter value', () => {
+    const dep = schemaAt(root, ['deployments', 'web'])!;
+    const fields = buildFields(root, dep, ['deployments', 'web'], {}, 'advanced');
+    const f = (k: string) => fields.find((x) => x.key === k)!;
+    expect(chipValue(root, f('autoCreateSoftAntiAffinity'))).toBe(true);
+    expect(typeof chipValue(root, f('replicas'))).toBe('number');   // default or examples[0] or 0
+    expect(chipValue(root, f('labels'))).toEqual(expect.any(Object));
   });
 });

@@ -74,3 +74,17 @@ export function starterValue(root: SchemaNode, node: SchemaNode): unknown {
     default: return {};
   }
 }
+
+/** First sentence of a schema description (split on `. `, `! `, `? ` or a period at end); falls back to the first line. */
+export function firstSentence(desc: string | undefined): string | undefined {
+  const t = desc?.trim();
+  if (!t) return undefined;
+  const m = t.match(/^[\s\S]*?[.!?](?=\s|$)/);
+  return (m ? m[0] : t.split('\n')[0]).trim() || undefined;
+}
+
+/** Value written when the user adds an absent field from a chip: a boolean chip means "turn it on". */
+export function chipValue(root: SchemaNode, field: Field): unknown {
+  if (field.widget.kind === 'boolean') return true;
+  return starterValue(root, field.schema);
+}

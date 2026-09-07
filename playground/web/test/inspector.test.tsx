@@ -24,6 +24,13 @@ const ff = (() => { const f = loadFixture('full-features'); return buildGraph(f.
 const ffNode = (kind: string, name: string) => ff.nodes.find((n) => n.kind === kind && n.name === name)!;
 const ffBase = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, onTier: vi.fn(), onEdit: vi.fn(), disabled: false });
 
+// Absent optional fields now render as an "add field" chip instead of an empty control (task 6);
+// a field is reachable either as a live control, its chip, or — for block widgets (object/map/keyvalue/
+// yaml), whose own <label for=id> targets a wrapper <div> that carries no matching id — the row's label
+// element itself. Reused by task 7.
+const reachable = (id: string) =>
+  screen.queryByLabelText(id) ?? screen.queryByLabelText(`add field ${id}`) ?? document.querySelector(`label[for="${CSS.escape(id)}"]`);
+
 describe('Inspector', () => {
   it('workload: shows applicable toggles with state, hides autoCreate* from the field list', () => {
     const p = base(dep);
@@ -43,11 +50,11 @@ describe('Inspector', () => {
   it('tier switch calls onTier and advanced reveals more fields', () => {
     const p = base(dep);
     const { rerender } = render(<Inspector {...p} />);
-    expect(screen.queryByLabelText('deployments.hello.priorityClassName')).toBeNull();
+    expect(reachable('deployments.hello.priorityClassName')).toBeNull();
     fireEvent.click(screen.getByLabelText('Advanced'));
     expect(p.onTier).toHaveBeenCalledWith('advanced');
     rerender(<Inspector {...p} tier="advanced" />);
-    expect(screen.getByLabelText('deployments.hello.priorityClassName')).toBeTruthy();
+    expect(reachable('deployments.hello.priorityClassName')).toBeTruthy();
   });
   it('auto-created Service opens the owner and names the toggle', () => {
     render(<Inspector {...base(svc)} />);
@@ -57,25 +64,25 @@ describe('Inspector', () => {
   it('hides only the autoCreate flags the toggle table owns', () => {
     render(<Inspector {...ffBase(ffNode('Deployment', 'api'))} tier="advanced" />);
     // no toggle exists for autoCreateSoftAntiAffinity, so it has to stay reachable as a field
-    expect(screen.getByLabelText('deployments.api.autoCreateSoftAntiAffinity')).toBeTruthy();
-    expect(screen.queryByLabelText('deployments.api.autoCreateService')).toBeNull();
+    expect(reachable('deployments.api.autoCreateSoftAntiAffinity')).toBeTruthy();
+    expect(reachable('deployments.api.autoCreateService')).toBeNull();
   });
   // spec §2.2: StatefulSetSpec/DaemonSetSpec still declare ingress/httpRoute/certificate/hpa, but the
   // chart only renders those for deployments — editing them from a StatefulSet panel would be a no-op.
   it('hides blocks the chart never renders for this workload kind', () => {
-    const { container } = render(<Inspector {...ffBase(ffNode('StatefulSet', 'cache'))} tier="advanced" />);
-    expect(container.querySelector('label[for="statefulSets.cache.ingress"]')).toBeNull();
-    expect(container.querySelector('label[for="statefulSets.cache.httpRoute"]')).toBeNull();
-    expect(container.querySelector('label[for="statefulSets.cache.certificate"]')).toBeNull();
-    expect(container.querySelector('label[for="statefulSets.cache.hpa"]')).toBeNull();
-    // blocks that *are* applicable to statefulSets stay editable
-    expect(container.querySelector('label[for="statefulSets.cache.pdb"]')).toBeTruthy();
-    expect(container.querySelector('label[for="statefulSets.cache.networkPolicy"]')).toBeTruthy();
+    render(<Inspector {...ffBase(ffNode('StatefulSet', 'cache'))} tier="advanced" />);
+    expect(reachable('statefulSets.cache.ingress')).toBeNull();
+    expect(reachable('statefulSets.cache.httpRoute')).toBeNull();
+    expect(reachable('statefulSets.cache.certificate')).toBeNull();
+    expect(reachable('statefulSets.cache.hpa')).toBeNull();
+    // blocks that *are* applicable to statefulSets stay editable (as a control or an add chip)
+    expect(reachable('statefulSets.cache.pdb')).toBeTruthy();
+    expect(reachable('statefulSets.cache.networkPolicy')).toBeTruthy();
   });
   it('keeps those same blocks on a Deployment, where the chart does render them', () => {
-    const { container } = render(<Inspector {...ffBase(ffNode('Deployment', 'api'))} tier="advanced" />);
-    expect(container.querySelector('label[for="deployments.api.ingress"]')).toBeTruthy();
-    expect(container.querySelector('label[for="deployments.api.hpa"]')).toBeTruthy();
+    render(<Inspector {...ffBase(ffNode('Deployment', 'api'))} tier="advanced" />);
+    expect(reachable('deployments.api.ingress')).toBeTruthy();
+    expect(reachable('deployments.api.hpa')).toBeTruthy();
   });
   it('widget drafts do not leak into the next selected node', () => {
     const p = ffBase(ffNode('Deployment', 'api'));
@@ -94,12 +101,12 @@ describe('Inspector', () => {
   // _defaults.tpl copies only content keys from <kind>General onto instances, never the autoCreate*
   // flags (see expectations.ts), so those checkboxes would be inert here.
   it('release: hides the autoCreate* flags <kind>General cannot propagate', () => {
-    const { container } = render(<Inspector {...base(rel)} tier="advanced" />);
-    expect(container.querySelector('label[for="deploymentsGeneral.autoCreateService"]')).toBeNull();
-    expect(container.querySelector('label[for="deploymentsGeneral.autoCreateIngress"]')).toBeNull();
+    render(<Inspector {...base(rel)} tier="advanced" />);
+    expect(reachable('deploymentsGeneral.autoCreateService')).toBeNull();
+    expect(reachable('deploymentsGeneral.autoCreateIngress')).toBeNull();
     // autoCreateSoftAntiAffinity has no toggle and is honoured by the chart — it stays.
-    expect(container.querySelector('label[for="deploymentsGeneral.autoCreateSoftAntiAffinity"]')).toBeTruthy();
-    expect(container.querySelector('label[for="deploymentsGeneral.replicas"]')).toBeTruthy();
+    expect(reachable('deploymentsGeneral.autoCreateSoftAntiAffinity')).toBeTruthy();
+    expect(reachable('deploymentsGeneral.replicas')).toBeTruthy();
   });
   it('release: a section the schema shapes as a map still gets an editor', () => {
     const p = base(rel);

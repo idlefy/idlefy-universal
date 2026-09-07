@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import type { FieldProps } from './index';
+import { firstSentence } from '../form';
 import { BooleanField } from './BooleanField';
 import { NumberField } from './NumberField';
 import { TextField } from './TextField';
@@ -34,7 +35,7 @@ export function FieldRow(p: FieldProps): ReactElement {
         )}
       </div>
       {control}
-      {field.description && <p className="field-desc">{field.description.split('\n')[0]}</p>}
+      {field.description && <p className="field-desc">{firstSentence(field.description)}</p>}
     </div>
   );
 }

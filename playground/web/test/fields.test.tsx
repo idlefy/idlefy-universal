@@ -26,19 +26,42 @@ describe('field widgets', () => {
     expect(onEdit).not.toHaveBeenCalled();
   });
 
-  it('boolean and enum', () => {
+  it('boolean and enum: absent fields are chips, present ones are controls', () => {
     const onEdit = vi.fn();
-    render(<FieldList root={root} node={dep} basePath={base} value={{}} tier="advanced" onEdit={onEdit} />);
-    fireEvent.click(screen.getByLabelText('deployments.web.autoCreateSoftAntiAffinity'));
+    const { rerender } = render(<FieldList root={root} node={dep} basePath={base} value={{}} tier="advanced" onEdit={onEdit} />);
+    expect(screen.queryByLabelText('deployments.web.autoCreateSoftAntiAffinity')).toBeNull();
+    fireEvent.click(screen.getByLabelText('add field deployments.web.autoCreateSoftAntiAffinity'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'autoCreateSoftAntiAffinity'], value: true }]);
+    fireEvent.click(screen.getByLabelText('add field deployments.web.serviceType'));
+    const st = onEdit.mock.calls.at(-1)![0][0];
+    expect(st.op).toBe('set'); expect(st.path).toEqual([...base, 'serviceType']); expect(typeof st.value).toBe('string');
+    rerender(<FieldList root={root} node={dep} basePath={base} value={{ autoCreateSoftAntiAffinity: true, serviceType: 'ClusterIP' }} tier="advanced" onEdit={onEdit} />);
+    fireEvent.click(screen.getByLabelText('deployments.web.autoCreateSoftAntiAffinity'));
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'autoCreateSoftAntiAffinity'], value: false }]);
     fireEvent.change(screen.getByLabelText('deployments.web.serviceType'), { target: { value: 'NodePort' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'serviceType'], value: 'NodePort' }]);
+  });
+
+  it('order: listed keys first in the given order, others keep schema order', () => {
+    render(<FieldList root={root} node={dep} basePath={base} value={{ replicas: 1, priorityClassName: 'x', strategy: { type: 'Recreate' } }} tier="advanced" onEdit={vi.fn()} order={['replicas', 'strategy']} />);
+    const labels = [...document.querySelectorAll('.fields .field-head label')].map((l) => l.textContent!.replace('*', ''));
+    expect(labels.slice(0, 2)).toEqual(['replicas', 'strategy']);
+    expect(labels.indexOf('priorityClassName')).toBeGreaterThan(1);
+  });
+
+  it('chips: basic tier lists basic-tier absent fields only; advanced lists all', () => {
+    const { rerender } = render(<FieldList root={root} node={dep} basePath={base} value={{}} tier="basic" onEdit={vi.fn()} />);
+    expect(screen.getByLabelText('add field deployments.web.replicas')).toBeTruthy();
+    expect(screen.queryByLabelText('add field deployments.web.priorityClassName')).toBeNull();
+    rerender(<FieldList root={root} node={dep} basePath={base} value={{}} tier="advanced" onEdit={vi.fn()} />);
+    expect(screen.getByLabelText('add field deployments.web.priorityClassName')).toBeTruthy();
+    expect(screen.getByText(/^Add$/)).toBeTruthy();
   });
 
   it('list: one item per line, trailing blank lines dropped', () => {
     const onEdit = vi.fn();
     const c = schemaAt(root, cbase)!;
-    render(<FieldList root={root} node={c} basePath={cbase} value={{ image: 'x', imageTag: '1' }} tier="advanced" onEdit={onEdit} />);
+    render(<FieldList root={root} node={c} basePath={cbase} value={{ image: 'x', imageTag: '1', args: ['a'] }} tier="advanced" onEdit={onEdit} />);
     fireEvent.change(screen.getByLabelText('deployments.web.containers.main.args'), { target: { value: 'migrate\nup\n' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'args'], value: ['migrate', 'up'] }]);
   });
