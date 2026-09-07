@@ -2,6 +2,8 @@ import { Document, parseDocument, isMap, isSeq, isPair, LineCounter } from 'yaml
 
 export type ValuesPath = (string | number)[];
 
+export type EditOp = { op: 'set'; path: ValuesPath; value: unknown } | { op: 'delete'; path: ValuesPath };
+
 export class ValuesDocument {
   private doc: Document;
   private lc: LineCounter;
@@ -84,10 +86,33 @@ export class ValuesDocument {
     // which `yaml` would otherwise render as the literal text "null\n" —
     // return the original source instead.
     if (this.errors.length || this.doc.contents == null) return this.source;
-    return this.doc.toString();
+    // lineWidth 0 disables folding; flowCollectionPadding false keeps `{a: b}` from becoming
+    // `{ a: b }` on every round-trip, which would make the "minimal" diff span the whole file.
+    return this.doc.toString({ lineWidth: 0, flowCollectionPadding: false });
   }
 
   clone(): ValuesDocument { return ValuesDocument.parse(this.toString()); }
+
+  /** Clone, apply ops in order, return the new document. `this` is never mutated. Invalid documents pass through unchanged. */
+  apply(ops: EditOp[]): ValuesDocument {
+    if (this.errors.length) return this.clone();
+    const next = this.clone();
+    for (const o of ops) {
+      if (o.op === 'set') next.setIn(o.path, o.value);
+      else next.deleteIn(o.path);
+    }
+    return next;
+  }
+
+  /** Plain-JS value at path (undefined when absent). `[]` returns the whole document as JS. */
+  valueAt(path: ValuesPath): unknown {
+    let cur: any = this.toJS();
+    for (const seg of path) {
+      if (cur === null || typeof cur !== 'object') return undefined;
+      cur = cur[seg as any];
+    }
+    return cur;
+  }
 
   /** 1-based line of the key node at path, or null. */
   lineOf(path: ValuesPath): number | null {

@@ -1,9 +1,9 @@
 import type { Manifest } from '../engine/types';
-import type { ValuesPath } from '../model/ValuesDocument';
+import type { ValuesPath, EditOp } from '../model/ValuesDocument';
 
 export type ResourceKey = string; // `${ns}/${kind}/${name}`
 export type Family = 'workload' | 'network' | 'config' | 'security' | 'observability' | 'scaling' | 'storage' | 'external';
-export type RemoveAction = { op: 'set'; path: ValuesPath; value: unknown } | { op: 'delete'; path: ValuesPath };
+export type RemoveAction = EditOp;
 export type Provenance = { path: ValuesPath; owner?: ValuesPath; governingCondition: string; removeAction: RemoveAction[] };
 export type GraphNode = {
   id: string;

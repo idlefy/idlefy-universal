@@ -97,4 +97,35 @@ describe('ValuesDocument', () => {
     expect(() => d.deleteIn(['a', 'b'])).not.toThrow();
     expect(d.toJS()).toEqual({ a: 5 });
   });
+  it('apply() returns a new document with set/delete ops and leaves the original untouched', () => {
+    const d = ValuesDocument.parse('a:\n  b: 1   # keep\n  c: 2\n');
+    const e = d.apply([{ op: 'set', path: ['a', 'b'], value: 5 }, { op: 'delete', path: ['a', 'c'] }, { op: 'set', path: ['a', 'd', 'e'], value: true }]);
+    expect(e.toString()).toBe('a:\n  b: 5 # keep\n  d:\n    e: true\n'); // yaml 2.9 collapses the pre-comment gutter to one space
+    // d itself was never mutated, but toString() always re-serialises through yaml (never caches
+    // the original source for a valid document), which collapses the gutter the same way here too.
+    expect(d.toString()).toBe('a:\n  b: 1 # keep\n  c: 2\n');
+  });
+  it('apply() on an invalid document returns an equal document without throwing', () => {
+    const d = ValuesDocument.parse('a: [\n');
+    const e = d.apply([{ op: 'set', path: ['a'], value: 1 }]);
+    expect(e.toString()).toBe('a: [\n');
+    expect(e.errors.length).toBeGreaterThan(0);
+  });
+  it('valueAt() reads nested values from the parsed document', () => {
+    const d = ValuesDocument.parse('deployments:\n  web:\n    replicas: 2\n    containers: {main: {image: nginx}}\n');
+    expect(d.valueAt(['deployments', 'web', 'replicas'])).toBe(2);
+    expect(d.valueAt(['deployments', 'web', 'containers', 'main'])).toEqual({ image: 'nginx' });
+    expect(d.valueAt(['deployments', 'nope'])).toBeUndefined();
+    expect(d.valueAt([])).toEqual({ deployments: { web: { replicas: 2, containers: { main: { image: 'nginx' } } } } });
+  });
+  it('toString() does not re-wrap long scalars', () => {
+    const long = 'word '.repeat(30).trim(); // 149 chars with spaces: foldable unless lineWidth is 0
+    const d = ValuesDocument.parse(`a: ${long}\n`);
+    expect(d.apply([{ op: 'set', path: ['b'], value: 1 }]).toString()).toBe(`a: ${long}\nb: 1\n`);
+  });
+  it('re-serialising an untouched subtree is byte-identical (minimal-diff precondition)', () => {
+    const src = 'a:\n  r: {cpu: 10m, memory: 32Mi}\n  n: 1\n';
+    expect(ValuesDocument.parse(src).apply([{ op: 'set', path: ['a', 'n'], value: 2 }]).toString())
+      .toBe('a:\n  r: {cpu: 10m, memory: 32Mi}\n  n: 2\n');
+  });
 });
