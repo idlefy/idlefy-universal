@@ -15,10 +15,11 @@ const text = fs.readFileSync(
   'utf8',
 );
 const { manifests, values } = loadFixture('example-01-hello-world');
-const dep = buildGraph(manifests, values, 'default').nodes.find((n) => n.kind === 'Deployment')!;
+const g = buildGraph(manifests, values, 'default');
+const dep = g.nodes.find((n) => n.kind === 'Deployment')!;
 const base = () => ({
-  node: dep, root: schema as any, doc: ValuesDocument.parse(text), tier: 'basic' as const,
-  disabled: false, onTab: vi.fn(), onTier: vi.fn(), onEdit: vi.fn(), onClose: vi.fn(), onHide: vi.fn(),
+  node: dep, nodes: g.nodes, root: schema as any, doc: ValuesDocument.parse(text), tier: 'basic' as const,
+  disabled: false, onTab: vi.fn(), onTier: vi.fn(), onEdit: vi.fn(), onSelect: vi.fn(), onClose: vi.fn(), onHide: vi.fn(),
 });
 
 describe('DetailPanel', () => {

@@ -6,6 +6,7 @@ import { Inspector } from '../inspector/Inspector';
 
 export function DetailPanel(p: {
   node: GraphNode | null;
+  nodes: GraphNode[];
   tab: DetailTab;
   tier: Tier;
   doc: ValuesDocument;
@@ -14,6 +15,7 @@ export function DetailPanel(p: {
   onTab: (t: DetailTab) => void;
   onTier: (t: Tier) => void;
   onEdit: (ops: EditOp[]) => void;
+  onSelect: (id: string) => void;
   onClose: () => void;
   onHide: () => void;
 }) {
@@ -63,11 +65,13 @@ export function DetailPanel(p: {
       {p.tab === 'inspector' ? (
         <Inspector
           node={node}
+          nodes={p.nodes}
           root={p.root}
           doc={p.doc}
           tier={p.tier}
           onTier={p.onTier}
           onEdit={p.onEdit}
+          onSelect={p.onSelect}
           disabled={p.disabled}
         />
       ) : (

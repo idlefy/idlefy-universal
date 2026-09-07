@@ -48,7 +48,7 @@ export const SECONDARY: readonly Secondary[] = [
     off: (b) => [setFalse([...b, 'autoCreateCertificate'])] },
   { id: 'hpa', label: 'HorizontalPodAutoscaler', kinds: DEPLOY_ONLY, isOn: (c) => isObj(c.hpa),
     on: (b) => [set([...b, 'hpa'], { minReplicas: 1, maxReplicas: 3 })], off: (b) => [del([...b, 'hpa'])] },
-  { id: 'migrations', label: 'migrations Job', kinds: DEPLOY_ONLY, isOn: (c) => c.migrations?.enabled === true,   // job.yaml tests `eq true`
+  { id: 'migrations', label: 'Migrations Job', kinds: DEPLOY_ONLY, isOn: (c) => c.migrations?.enabled === true,   // job.yaml tests `eq true`
     on: (b) => [set([...b, 'migrations', 'enabled'], true)], off: (b) => [setFalse([...b, 'migrations', 'enabled'])] },
   { id: 'pdb', label: 'PodDisruptionBudget', kinds: PDB_KINDS, isOn: (c) => !!c.autoCreatePdb || isFilledObj(c.pdb),
     on: (b) => [set([...b, 'autoCreatePdb'], true)], off: (b) => [setFalse([...b, 'autoCreatePdb']), del([...b, 'pdb'])] },

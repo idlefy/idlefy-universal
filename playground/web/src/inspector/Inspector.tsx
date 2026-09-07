@@ -5,7 +5,7 @@ import type { Tier } from '../app/state';
 import { schemaAt, classify, resolve, type SchemaNode } from './schema';
 import { buildFields, type Field } from './form';
 import { FieldList, FieldRow } from './fields';
-import { Toggles } from './Toggles';
+import { AutoCreated } from './AutoCreated';
 import { inspectTarget, secondaryById } from './target';
 import { SECONDARY, type SecondaryId } from '../graph/secondary';
 import { WORKLOAD_SECTIONS, RELEASE_TITLES, partition } from './sections';
@@ -18,9 +18,17 @@ const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCas
 const ALL_BLOCKS = new Set<string>(SECONDARY.map((s) => s.id));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 
+const TAIL: Record<SecondaryId, string> = { service: 'service', ingress: 'ingress', httpRoute: 'httpRoute', certificate: 'certificate', hpa: 'hpa', migrations: 'migrations', pdb: 'pdb', serviceMonitor: 'serviceMonitor', networkPolicy: 'networkPolicy', rbac: 'rbac', serviceAccount: 'serviceAccount' };
+const sameP = (a: ValuesPath | undefined, b: ValuesPath) => !!a && a.length === b.length && a.every((x, i) => x === b[i]);
+/** Graph node produced by the secondary block of `base` (first match in graph order; for rbac either Role or RoleBinding, both open the same block). */
+function nodeFor(nodes: GraphNode[], base: ValuesPath, id: SecondaryId): string | null {
+  const hit = nodes.find((n) => n.manifest && sameP(n.provenance?.owner, base) && n.provenance!.path.length === 3 && String(n.provenance!.path[2]) === TAIL[id]);
+  return hit?.id ?? null;
+}
+
 export function Inspector(p: {
-  node: GraphNode; root: SchemaNode; doc: ValuesDocument; tier: Tier;
-  onTier: (t: Tier) => void; onEdit: (ops: EditOp[]) => void; disabled: boolean;
+  node: GraphNode; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[];
+  onTier: (t: Tier) => void; onEdit: (ops: EditOp[]) => void; onSelect: (id: string) => void; disabled: boolean;
 }): ReactElement {
   const t = inspectTarget(p.node, p.root);
   const edit = p.disabled ? () => {} : p.onEdit;
@@ -63,7 +71,9 @@ export function Inspector(p: {
         {sectionEl('containers')}
         <div className="sec">
           <h3>Auto-created resources</h3>
-          <Toggles kindKey={kindKey} name={name} base={base} cfg={isObj(cfg) ? cfg : {}} disabled={p.disabled} highlight={highlight} onEdit={edit} />
+          <AutoCreated kindKey={kindKey} name={name} base={base} cfg={isObj(cfg) ? cfg : {}} disabled={p.disabled} highlight={highlight} onEdit={edit}
+            nodeFor={(id) => nodeFor(p.nodes, base, id)} onSelect={p.onSelect}
+            renderBlock={(id) => { const bn = schemaAt(p.root, [...base, id]); return bn ? <FieldList root={p.root} node={bn} basePath={[...base, id]} value={p.doc.valueAt([...base, id])} tier={p.tier} onEdit={edit} /> : null; }} />
         </div>
         {sectionEl('metadata')}
         {sectionEl('placement')}

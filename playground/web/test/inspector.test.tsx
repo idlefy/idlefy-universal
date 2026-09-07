@@ -17,12 +17,12 @@ const g = buildGraph(manifests, values, 'default');
 const dep = g.nodes.find((n) => n.kind === 'Deployment')!;
 const svc = g.nodes.find((n) => n.kind === 'Service')!;
 const rel = g.nodes.find((n) => n.kind === 'Release')!;
-const base = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(text), tier: 'basic' as const, onTier: vi.fn(), onEdit: vi.fn(), disabled: false });
+const base = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(text), tier: 'basic' as const, nodes: g.nodes, onTier: vi.fn(), onEdit: vi.fn(), onSelect: vi.fn(), disabled: false });
 
 const ffText = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'graph', '__fixtures__', 'full-features.values.yaml'), 'utf8');
 const ff = (() => { const f = loadFixture('full-features'); return buildGraph(f.manifests, f.values, 'default'); })();
 const ffNode = (kind: string, name: string) => ff.nodes.find((n) => n.kind === kind && n.name === name)!;
-const ffBase = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, onTier: vi.fn(), onEdit: vi.fn(), disabled: false });
+const ffBase = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, nodes: ff.nodes, onTier: vi.fn(), onEdit: vi.fn(), onSelect: vi.fn(), disabled: false });
 
 // Absent optional fields now render as an "add field" chip instead of an empty control (task 6);
 // a field is reachable either as a live control, its chip, or — for block widgets (object/map/keyvalue/
@@ -126,5 +126,11 @@ describe('Inspector', () => {
     render(<Inspector {...p} />);
     expect(screen.getByText(/fix the YAML/i)).toBeTruthy();
     expect((screen.getByLabelText('toggle Service') as HTMLInputElement).disabled).toBe(true);
+  });
+  it('"open ›" on an auto-created row selects that node', () => {
+    const p = { ...base(dep), nodes: g.nodes };
+    render(<Inspector {...p} />);
+    fireEvent.click(screen.getByLabelText('open Service'));
+    expect(p.onSelect).toHaveBeenCalledWith(svc.id);
   });
 });

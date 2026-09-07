@@ -114,10 +114,11 @@ export function App() {
               onDrag={(dx) => setWidth("inspector", dragStart.current.inspector - dx)} onReset={() => reset("inspector")} />
             <section className="pane pane-inspector" style={{ width: panes.inspector.width }}>
               <DetailPanel
-                node={selected} tab={state.ui.tab} tier={state.ui.tier} doc={inspectorDoc} root={schema as SchemaNode}
+                node={selected} nodes={state.graph?.nodes ?? []} tab={state.ui.tab} tier={state.ui.tier} doc={inspectorDoc} root={schema as SchemaNode}
                 disabled={state.doc.errors.length > 0}
                 onTab={(tab) => dispatch({ type: "tab", tab })} onTier={(tier) => dispatch({ type: "tier", tier })}
-                onEdit={(ops) => dispatch({ type: "edit", ops })} onClose={() => dispatch({ type: "select", id: null })}
+                onEdit={(ops) => dispatch({ type: "edit", ops })} onSelect={(id) => dispatch({ type: "select", id })}
+                onClose={() => dispatch({ type: "select", id: null })}
                 onHide={() => setOpen("inspector", false)}
               />
             </section>
