@@ -1,6 +1,22 @@
 import type { GraphNode } from '../graph/types';
+import type { EditOp, ValuesDocument } from '../model/ValuesDocument';
+import type { DetailTab, Tier } from '../app/state';
+import type { SchemaNode } from '../inspector/schema';
+import { Inspector } from '../inspector/Inspector';
 
-export function DetailPanel({ node, onClose }: { node: GraphNode | null; onClose: () => void }) {
+export function DetailPanel(p: {
+  node: GraphNode | null;
+  tab: DetailTab;
+  tier: Tier;
+  doc: ValuesDocument;
+  root: SchemaNode;
+  disabled: boolean;
+  onTab: (t: DetailTab) => void;
+  onTier: (t: Tier) => void;
+  onEdit: (ops: EditOp[]) => void;
+  onClose: () => void;
+}) {
+  const { node } = p;
   if (!node) return null;
   // A node can lack a manifest in three ways: it is external (referenced only), it is the
   // synthetic Release node, or it is created at runtime by another resource (a Certificate's Secret).
@@ -18,7 +34,7 @@ export function DetailPanel({ node, onClose }: { node: GraphNode | null; onClose
         {navigator.clipboard && (
           <button onClick={() => navigator.clipboard.writeText(text).catch(() => {})}>Copy</button>
         )}
-        <button onClick={onClose} aria-label="close">
+        <button onClick={p.onClose} aria-label="close">
           ×
         </button>
       </header>
@@ -34,7 +50,27 @@ export function DetailPanel({ node, onClose }: { node: GraphNode | null; onClose
           {w}
         </p>
       ))}
-      <pre>{text}</pre>
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={p.tab === 'inspector'} onClick={() => p.onTab('inspector')}>
+          Inspector
+        </button>
+        <button role="tab" aria-selected={p.tab === 'yaml'} onClick={() => p.onTab('yaml')}>
+          YAML
+        </button>
+      </div>
+      {p.tab === 'inspector' ? (
+        <Inspector
+          node={node}
+          root={p.root}
+          doc={p.doc}
+          tier={p.tier}
+          onTier={p.onTier}
+          onEdit={p.onEdit}
+          disabled={p.disabled}
+        />
+      ) : (
+        <pre>{text}</pre>
+      )}
     </aside>
   );
 }

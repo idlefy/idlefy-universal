@@ -1,10 +1,12 @@
-import { useCallback, useMemo, useReducer } from "react";
+import { useCallback, useMemo, useReducer, useRef } from "react";
 import chartMeta from "../chart-bundle/chart-meta.json";
 import examples from "../chart-bundle/examples.json";
+import schema from "../chart-bundle/schema.json";
 import { Editor } from "../editor/Editor";
 import { Toolbar } from "../editor/Toolbar";
 import { Canvas } from "../canvas/Canvas";
 import { DetailPanel } from "../canvas/DetailPanel";
+import type { SchemaNode } from "../inspector/schema";
 import { initialState, markersFrom, reducer } from "./state";
 import { useRenderPipeline } from "./useRenderPipeline";
 
@@ -27,6 +29,14 @@ export function App() {
   const revealLine = selected?.provenance
     ? state.doc.lineOf(selected.provenance.path)
     : null;
+  // A document with syntax errors reads as empty (`toJS()` gives `{}`), which would make every
+  // inspector field look absent while the user is mid-typo. The inspector is disabled then anyway
+  // (spec §6), so it keeps showing the last document that parsed.
+  const lastGoodDoc = useRef(state.doc);
+  const inspectorDoc = useMemo(() => {
+    if (state.doc.errors.length === 0) lastGoodDoc.current = state.doc;
+    return lastGoodDoc.current;
+  }, [state.doc]);
   const error = state.render && !state.render.ok ? state.render.error : null;
   const warnings = state.graph?.warnings ?? [];
 
@@ -103,6 +113,14 @@ export function App() {
           />
           <DetailPanel
             node={selected}
+            tab={state.ui.tab}
+            tier={state.ui.tier}
+            doc={inspectorDoc}
+            root={schema as SchemaNode}
+            disabled={state.doc.errors.length > 0}
+            onTab={(tab) => dispatch({ type: "tab", tab })}
+            onTier={(tier) => dispatch({ type: "tier", tier })}
+            onEdit={(ops) => dispatch({ type: "edit", ops })}
             onClose={() => dispatch({ type: "select", id: null })}
           />
         </section>
