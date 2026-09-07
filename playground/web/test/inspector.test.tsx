@@ -19,6 +19,11 @@ const svc = g.nodes.find((n) => n.kind === 'Service')!;
 const rel = g.nodes.find((n) => n.kind === 'Release')!;
 const base = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(text), tier: 'basic' as const, onTier: vi.fn(), onEdit: vi.fn(), disabled: false });
 
+const ffText = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'graph', '__fixtures__', 'full-features.values.yaml'), 'utf8');
+const ff = (() => { const f = loadFixture('full-features'); return buildGraph(f.manifests, f.values, 'default'); })();
+const ffNode = (kind: string, name: string) => ff.nodes.find((n) => n.kind === kind && n.name === name)!;
+const ffBase = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, onTier: vi.fn(), onEdit: vi.fn(), disabled: false });
+
 describe('Inspector', () => {
   it('workload: shows applicable toggles with state, hides autoCreate* from the field list', () => {
     const p = base(dep);
@@ -49,10 +54,34 @@ describe('Inspector', () => {
     expect(screen.getByText(/configured on Deployment hello/i)).toBeTruthy();
     expect((screen.getByLabelText('toggle Service') as HTMLInputElement).checked).toBe(true);
   });
+  it('hides only the autoCreate flags the toggle table owns', () => {
+    render(<Inspector {...ffBase(ffNode('Deployment', 'api'))} tier="advanced" />);
+    // no toggle exists for autoCreateSoftAntiAffinity, so it has to stay reachable as a field
+    expect(screen.getByLabelText('deployments.api.autoCreateSoftAntiAffinity')).toBeTruthy();
+    expect(screen.queryByLabelText('deployments.api.autoCreateService')).toBeNull();
+  });
+  it('widget drafts do not leak into the next selected node', () => {
+    const p = ffBase(ffNode('Deployment', 'api'));
+    const { rerender } = render(<Inspector {...p} />);
+    fireEvent.change(screen.getByLabelText('new key deployments.api.containers'), { target: { value: 'sidecar' } });
+    expect((screen.getByLabelText('new key deployments.api.containers') as HTMLInputElement).value).toBe('sidecar');
+    rerender(<Inspector {...p} node={ffNode('StatefulSet', 'cache')} />);
+    expect((screen.getByLabelText('new key statefulSets.cache.containers') as HTMLInputElement).value).toBe('');
+  });
   it('release node lists only the release-level sections', () => {
-    render(<Inspector {...base(rel)} tier="advanced" />);
-    for (const k of ['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs']) expect(screen.getByText(k)).toBeTruthy();
+    const { container } = render(<Inspector {...base(rel)} tier="advanced" />);
+    const sections = [...container.querySelectorAll('.inspector > fieldset > details > summary')].map((s) => s.textContent);
+    expect(sections).toEqual(['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs']);
     expect(screen.queryByText('deployments')).toBeNull();
+  });
+  it('release: a section the schema shapes as a map still gets an editor', () => {
+    const p = base(rel);
+    render(<Inspector {...p} tier="advanced" />);
+    const ta = screen.getByLabelText('secretRefs') as HTMLTextAreaElement;
+    expect(ta.tagName).toBe('TEXTAREA');
+    fireEvent.change(ta, { target: { value: 'db:\n  - name: DB_URL\n    secretName: db\n    key: url\n' } });
+    fireEvent.blur(ta);
+    expect(p.onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['secretRefs'], value: { db: [{ name: 'DB_URL', secretName: 'db', key: 'url' }] } }]);
   });
   it('disabled state blocks edits and says why', () => {
     const p = { ...base(dep), disabled: true };

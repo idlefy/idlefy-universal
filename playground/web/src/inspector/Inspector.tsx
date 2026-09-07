@@ -2,15 +2,19 @@ import type { ReactElement } from 'react';
 import type { GraphNode } from '../graph/types';
 import type { EditOp, ValuesDocument, ValuesPath } from '../model/ValuesDocument';
 import type { Tier } from '../app/state';
-import { schemaAt, conditionalHints, type SchemaNode } from './schema';
-import { FieldList } from './fields';
+import { schemaAt, classify, resolve, conditionalHints, type SchemaNode } from './schema';
+import type { Field } from './form';
+import { FieldList, FieldRow } from './fields';
 import { Toggles } from './Toggles';
 import { inspectTarget, secondaryById } from './target';
-import type { SecondaryId } from '../graph/secondary';
+import { SECONDARY, type SecondaryId } from '../graph/secondary';
 
 // spec §4.5/§4.9: the release node edits release-level settings only — entity maps are palette territory.
 const RELEASE_SECTIONS = ['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs'];
 const KIND_LABEL: Record<string, string> = { deployments: 'Deployment', statefulSets: 'StatefulSet', daemonSets: 'DaemonSet', jobs: 'Job', cronJobs: 'CronJob' };
+// autoCreate* flags the toggle table owns; every other autoCreate* flag (autoCreateSoftAntiAffinity)
+// has no toggle and must stay reachable as an ordinary field.
+const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function Inspector(p: {
@@ -19,6 +23,8 @@ export function Inspector(p: {
 }): ReactElement {
   const t = inspectTarget(p.node, p.root);
   const edit = p.disabled ? () => {} : p.onEdit;
+  const rootValue = p.doc.valueAt([]);
+  const all = (isObj(rootValue) ? rootValue : {}) as Record<string, unknown>;
   const tierBar = (
     <div className="tier" role="radiogroup" aria-label="tier">
       {(['basic', 'advanced'] as Tier[]).map((x) => (
@@ -40,10 +46,24 @@ export function Inspector(p: {
         <Toggles kindKey={kindKey} name={name} base={base} cfg={isObj(cfg) ? cfg : {}} disabled={p.disabled} highlight={highlight} onEdit={edit} />
         <ul className="hints">{conditionalHints(p.root, node).map((h) => <li key={h}>{h}</li>)}</ul>
         <fieldset disabled={p.disabled}>
-          <FieldList root={p.root} node={node} basePath={base} value={cfg} tier={p.tier} onEdit={edit} hide={(k) => k.startsWith('autoCreate')} />
+          <FieldList root={p.root} node={node} basePath={base} value={cfg} tier={p.tier} onEdit={edit} hide={(k) => OWNED_FLAGS.has(k)} />
         </fieldset>
       </>
     );
+  };
+
+  // Most release sections are property-shaped and list their fields; `secretRefs` is a bare
+  // additionalProperties map that buildFields cannot walk, so it is rendered through its own widget.
+  const releaseSection = (k: string): ReactElement => {
+    const node = resolve(p.root, p.root.properties[k]);
+    const widget = classify(p.root, node);
+    if (widget.kind === 'object') return <FieldList root={p.root} node={node} basePath={[k]} value={all[k]} tier={p.tier} onEdit={edit} />;
+    const field: Field = {
+      key: k, path: [k], label: k, description: typeof node.description === 'string' ? node.description.trim() : undefined,
+      widget, schema: node, value: all[k], present: all[k] !== undefined, required: false,
+      tier: node['x-ui-tier'] === 'basic' ? 'basic' : 'advanced',
+    };
+    return <FieldRow root={p.root} field={field} tier={p.tier} onEdit={edit} />;
   };
 
   let body: ReactElement; // @types/react 19 has no global JSX namespace
@@ -55,7 +75,7 @@ export function Inspector(p: {
           {RELEASE_SECTIONS.map((k) => (
             <details key={k} open={k === 'generic'}>
               <summary>{k}</summary>
-              <FieldList root={p.root} node={p.root.properties[k]} basePath={[k]} value={p.doc.valueAt([k])} tier={p.tier} onEdit={edit} />
+              {releaseSection(k)}
             </details>
           ))}
         </fieldset>
@@ -82,10 +102,14 @@ export function Inspector(p: {
           </fieldset>
         </>
       );
+      break;
     }
   }
+  // Widgets keep local drafts (MapSection's new-key box, KeyValueField's), and selecting another node
+  // of the same shape renders an identical tree — key the panel on the target so React remounts it.
+  const bodyKey = t.kind === 'release' ? 'release' : t.kind === 'none' ? 'none' : t.kind === 'owner-only' ? t.owner.join('.') : t.path.join('.');
   return (
-    <div className="inspector">
+    <div className="inspector" key={bodyKey}>
       {tierBar}
       {notice}
       {body}
