@@ -132,4 +132,28 @@ export class ValuesDocument {
     if (!range) return null;
     return this.lc.linePos(range[0]).line;
   }
+
+  /** 1-based inclusive line span from the key at `path` to the end of its value, or null when absent. */
+  rangeOf(path: ValuesPath): { start: number; end: number } | null {
+    if (path.length === 0) return null;
+    let node: any = this.doc.contents;
+    let keyNode: any = null;
+    for (const seg of path) {
+      if (isMap(node)) {
+        const pair = node.items.find((p: any) => isPair(p) && String((p.key as any)?.value ?? p.key) === String(seg));
+        if (!pair) return null;
+        keyNode = pair.key; node = pair.value;
+      } else if (isSeq(node) && typeof seg === 'number') {
+        node = node.items[seg]; keyNode = node;
+        if (!node) return null;
+      } else return null;
+    }
+    const startPos = keyNode?.range?.[0];
+    if (typeof startPos !== 'number') return null;
+    // yaml Node.range = [start, valueEnd, nodeEnd]; valueEnd excludes trailing whitespace/comments.
+    const endPos: number | undefined = node?.range?.[1] ?? keyNode?.range?.[1];
+    const start = this.lc.linePos(startPos).line;
+    const end = typeof endPos === 'number' ? this.lc.linePos(Math.max(startPos, endPos - 1)).line : start;
+    return { start, end: Math.max(start, end) };
+  }
 }

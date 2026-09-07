@@ -27,9 +27,11 @@ export function App() {
   const markers = useMemo(() => markersFrom(state), [state.doc, state.render]); // markersFrom reads only these two
   const selected =
     state.graph?.nodes.find((n) => n.id === state.selection) ?? null;
-  const revealLine = selected?.provenance
-    ? state.doc.lineOf(selected.provenance.path)
-    : null;
+  // state.doc is a new object on every keystroke; memoise on the line numbers so the editor effect
+  // (which scrolls) only re-runs when the block actually moves.
+  const range = selected?.provenance ? state.doc.rangeOf(selected.provenance.path) : null;
+  const hStart = range?.start ?? null, hEnd = range?.end ?? null;
+  const highlight = useMemo(() => (hStart === null || hEnd === null ? null : { start: hStart, end: hEnd }), [hStart, hEnd]);
   // A document with syntax errors reads as empty (`toJS()` gives `{}`), which would make every
   // inspector field look absent while the user is mid-typo. The inspector is disabled then anyway
   // (spec §6), so it keeps showing the last document that parsed.
@@ -94,14 +96,17 @@ export function App() {
             }}
             valuesText={state.text} chartVersion={chartMeta.version} onHide={() => setOpen("editor", false)}
           />
-          <Editor value={state.text} onChange={onChange} markers={markers} revealLine={revealLine} />
+          <Editor value={state.text} onChange={onChange} markers={markers} highlight={highlight} />
         </section>
-        <SplitHandle label="Resize values.yaml" disabled={!panes.editor.open}
-          onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
+        {panes.editor.open && (
+          <SplitHandle label="Resize values.yaml" disabled={!panes.editor.open}
+            onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
+        )}
         <section className="pane pane-canvas">
           {error && <div className={`banner ${error.kind}`}><pre>{error.message}</pre></div>}
           {!error && warnings.length > 0 && <div className="banner warn">{warnings.map((w) => <div key={w}>{w}</div>)}</div>}
-          <Canvas model={state.graph} stale={!!error || state.doc.errors.length > 0} selection={state.selection} onSelect={(id) => dispatch({ type: "select", id })} />
+          <Canvas model={state.graph} stale={!!error || state.doc.errors.length > 0} selection={state.selection}
+            onSelect={(id) => { dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }} />
         </section>
         {selected && panes.inspector.open && (
           <>

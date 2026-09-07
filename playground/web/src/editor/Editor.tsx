@@ -3,6 +3,7 @@ import * as monaco from 'monaco-editor';
 import schema from '../chart-bundle/schema.json';
 import { setupMonaco } from './monaco';
 import { externalEdit } from './pushGuard';
+import { blockDecorations, type LineRange } from './decorations';
 
 // Workers and the yaml schema must be registered before the first createModel/create call.
 // Doing it here (setupMonaco is idempotent) keeps that ordering local to the only component
@@ -11,10 +12,11 @@ setupMonaco(schema);
 
 export type EditorMarker = { line: number; col?: number; message: string; severity: 'error' | 'warning' };
 
-export function Editor({ value, onChange, markers, revealLine }: { value: string; onChange: (t: string) => void; markers: EditorMarker[]; revealLine: number | null }) {
+export function Editor({ value, onChange, markers, highlight }: { value: string; onChange: (t: string) => void; markers: EditorMarker[]; highlight: LineRange | null }) {
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const model = useRef<monaco.editor.ITextModel | null>(null);
+  const decos = useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
   // Set while this component writes to the model itself; programmatic writes never emit onChange.
   const suppress = useRef(false);
   // Text the model is known to already hold — set from onDidChangeContent and after every
@@ -28,12 +30,17 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
     model.current = m;
     const ed = monaco.editor.create(host.current!, {
       model: m, automaticLayout: true, minimap: { enabled: false }, fontSize: 13, tabSize: 2, scrollBeyondLastLine: false,
+      folding: true, showFoldingControls: 'always', foldingStrategy: 'indentation',
+      guides: { indentation: true, bracketPairs: false },
+      stickyScroll: { enabled: true, maxLineCount: 4 },
+      lineNumbersMinChars: 3, renderLineHighlight: 'line', padding: { top: 6 },
       // YAML flow maps and quotes are typed literally; auto-closing produces broken YAML and makes e2e typing non-deterministic.
       autoClosingBrackets: 'never', autoClosingQuotes: 'never', autoIndent: 'keep',
     });
     editor.current = ed;
+    decos.current = ed.createDecorationsCollection();
     const sub = m.onDidChangeContent(() => { if (!suppress.current) { const t = m.getValue(); lastEmitted.current = t; onChange(t); } });
-    return () => { sub.dispose(); ed.dispose(); m.dispose(); model.current = null; editor.current = null; };
+    return () => { sub.dispose(); decos.current?.clear(); ed.dispose(); m.dispose(); model.current = null; editor.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -66,7 +73,11 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
     }));
   }, [markers]);
 
-  useEffect(() => { if (revealLine && editor.current) editor.current.revealLineInCenter(revealLine); }, [revealLine]);
+  useEffect(() => {
+    const ed = editor.current; if (!ed) return;
+    decos.current?.set(blockDecorations(highlight));
+    if (highlight) ed.revealLineInCenterIfOutsideViewport(highlight.start);
+  }, [highlight]);
 
   return <div ref={host} className="editor" />;
 }

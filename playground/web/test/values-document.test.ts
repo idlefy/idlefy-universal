@@ -128,4 +128,12 @@ describe('ValuesDocument', () => {
     expect(ValuesDocument.parse(src).apply([{ op: 'set', path: ['a', 'n'], value: 2 }]).toString())
       .toBe('a:\n  r: {cpu: 10m, memory: 32Mi}\n  n: 2\n');
   });
+  it('rangeOf gives the 1-based line span of a block, null when absent', () => {
+    const d = ValuesDocument.parse(src);
+    expect(d.rangeOf(['deployments', 'api'])).toEqual({ start: 3, end: 6 });
+    expect(d.rangeOf(['deployments', 'api', 'replicas'])).toEqual({ start: 4, end: 4 });
+    expect(d.rangeOf(['deployments'])).toEqual({ start: 2, end: 6 });
+    expect(d.rangeOf(['nope'])).toBeNull();
+    expect(d.rangeOf([])).toBeNull();
+  });
 });
