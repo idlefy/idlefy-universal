@@ -28,6 +28,7 @@ export function Editor({ value, onChange, markers, highlight, visible }: { value
   useEffect(() => {
     const m = monaco.editor.createModel(value, 'yaml', monaco.Uri.parse('inmemory://idlefy/values.yaml'));
     model.current = m;
+    const darkMedia = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
     const ed = monaco.editor.create(host.current!, {
       model: m, automaticLayout: true, minimap: { enabled: false }, fontSize: 13, tabSize: 2, scrollBeyondLastLine: false,
       folding: true, showFoldingControls: 'always', foldingStrategy: 'indentation',
@@ -36,11 +37,15 @@ export function Editor({ value, onChange, markers, highlight, visible }: { value
       lineNumbersMinChars: 3, renderLineHighlight: 'line', padding: { top: 6 },
       // YAML flow maps and quotes are typed literally; auto-closing produces broken YAML and makes e2e typing non-deterministic.
       autoClosingBrackets: 'never', autoClosingQuotes: 'never', autoIndent: 'keep',
+      theme: darkMedia?.matches ? 'vs-dark' : 'vs',
     });
     editor.current = ed;
     decos.current = ed.createDecorationsCollection();
     const sub = m.onDidChangeContent(() => { if (!suppress.current) { const t = m.getValue(); lastEmitted.current = t; onChange(t); } });
-    return () => { sub.dispose(); decos.current?.clear(); ed.dispose(); m.dispose(); model.current = null; editor.current = null; };
+    // Monaco's theme is a global registry, not per-editor, but there is only ever one Editor mounted.
+    const onSchemeChange = (e: MediaQueryListEvent) => monaco.editor.setTheme(e.matches ? 'vs-dark' : 'vs');
+    darkMedia?.addEventListener('change', onSchemeChange);
+    return () => { darkMedia?.removeEventListener('change', onSchemeChange); sub.dispose(); decos.current?.clear(); ed.dispose(); m.dispose(); model.current = null; editor.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
