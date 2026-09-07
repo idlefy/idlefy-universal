@@ -99,7 +99,7 @@ export function App() {
           <Editor value={state.text} onChange={onChange} markers={markers} highlight={highlight} visible={panes.editor.open} />
         </section>
         {panes.editor.open && (
-          <SplitHandle label="Resize values.yaml" disabled={!panes.editor.open}
+          <SplitHandle label="Resize values.yaml"
             onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
         )}
         <section className="pane pane-canvas">
@@ -110,7 +110,7 @@ export function App() {
         </section>
         {selected && panes.inspector.open && (
           <>
-            <SplitHandle label="Resize the inspector" disabled={false}
+            <SplitHandle label="Resize the inspector"
               onDrag={(dx) => setWidth("inspector", dragStart.current.inspector - dx)} onReset={() => reset("inspector")} />
             <section className="pane pane-inspector" style={{ width: panes.inspector.width }}>
               <DetailPanel

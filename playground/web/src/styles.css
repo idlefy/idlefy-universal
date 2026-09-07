@@ -37,14 +37,11 @@ code { font-family: var(--mono); font-size: 12px; }
 .handle::after { content: ""; position: absolute; left: 2px; top: 50%; width: 3px; height: 36px; margin-top: -18px; border-radius: 2px; background: var(--line-2); }
 .handle:hover, .handle.on { background: var(--accent-soft); }
 .handle:hover::after, .handle.on::after { background: var(--accent); }
-.handle.off { cursor: default; }
-.handle.off::after { display: none; }
 .rail { flex: none; width: var(--rail); display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0; border: 0; background: var(--panel-2); color: var(--ink-2); }
 .rail-left { border-right: 1px solid var(--line); } .rail-right { border-left: 1px solid var(--line); }
 .rail:hover { background: var(--accent-soft); color: var(--accent); }
 .rail-arrow { font-size: 13px; color: var(--muted); }
 .rail-text { writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--mono); font-size: 12px; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rail .kicon { width: 20px; height: 20px; }
 .icon-btn { width: 26px; height: 26px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--muted); display: grid; place-items: center; font-size: 14px; }
 .icon-btn:hover { border-color: var(--line-2); color: var(--ink); }
 .btn { height: 28px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--panel); white-space: nowrap; }
@@ -176,9 +173,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .list .go { border: 0; background: transparent; color: var(--accent); font-size: 12px; white-space: nowrap; }
 .list .it.highlight { background: var(--accent-soft); margin: 0 -14px; padding: 2px 14px; }
 .list .inline-block { grid-column: 2 / -1; padding: 4px 0 6px; }
-.containers .card + .card { margin-top: 8px; }
 .switch { appearance: none; position: relative; width: 32px; height: 18px; border-radius: 9px; background: var(--line-2); border: 0; margin: 0; }
 .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
 .switch:checked { background: var(--accent); } .switch:checked::after { left: 16px; }
 .switch:disabled { opacity: .45; cursor: not-allowed; }
-.foot { padding: 12px 14px; color: var(--muted); font-size: 11.5px; }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import schema from '../src/chart-bundle/schema.json';
-import { resolve, schemaAt, classify, conditionalHints } from '../src/inspector/schema';
+import { resolve, schemaAt, classify } from '../src/inspector/schema';
 
 const root = schema as any;
 
@@ -36,12 +36,6 @@ describe('inspector schema resolver', () => {
     const pvc = resolve(root, schemaAt(root, ['persistentVolumeClaims', 'x'])!).properties;
     expect(classify(root, pvc.accessModes).kind).toBe('list');
     expect((classify(root, pvc.accessModes) as any).enum).toContain('ReadWriteOnce');
-  });
-  it('turns allOf if/then into hints', () => {
-    const hints = conditionalHints(root, root.properties.deployments.additionalProperties);
-    expect(hints).toContain('autoCreateCertificate: true requires autoCreateIngress: true');
-    expect(hints).toContain('autoCreateNetworkPolicy: true requires networkPolicy');
-    expect(hints).toContain('autoCreateRbac: true requires rbac');
   });
   it('classifies inline k8s-passthrough objects (non-scalar examples) as yaml, plain maps as keyvalue', () => {
     const dep = resolve(root, schemaAt(root, ['deployments', 'web'])!);

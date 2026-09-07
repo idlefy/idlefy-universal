@@ -75,9 +75,9 @@ export async function layoutGraph(model: GraphModel): Promise<{ nodes: AppNode[]
       type: 'resource',
       position: { x: p.x, y: p.y },
       // React Flow hides a node it has not measured yet. Canvas rebuilds the node
-      // objects on every hover/selection change, so without explicit dimensions the
-      // hovered node blinks out, fires mouseleave, and swallows the click that
-      // follows. The size is fixed by `.rnode` in styles.css.
+      // objects on every selection change, so without explicit dimensions a node
+      // would blink out and back in on each click. The size is fixed by `.rnode`
+      // in styles.css.
       width: NODE_W,
       height: NODE_H,
       data: { node: n, dimmed: false },

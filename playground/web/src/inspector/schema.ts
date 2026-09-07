@@ -50,7 +50,7 @@ const isIntOrString = (n: SchemaNode): boolean => {
   return false;
 };
 
-/** Dereferences and folds `allOf` members that carry properties/required into the node. if/then members are kept aside for conditionalHints. */
+/** Dereferences and folds `allOf` members that carry properties/required into the node. if/then members are kept aside under `x-conditionals`. */
 export function resolve(root: SchemaNode, node: SchemaNode): SchemaNode {
   const d = deref(root, node) ?? node;
   if (!Array.isArray(d.allOf)) return d;
@@ -134,18 +134,4 @@ export function classify(root: SchemaNode, node: SchemaNode): Widget {
     return hasNonScalarExamples(r) ? { kind: 'yaml' } : { kind: 'keyvalue' };
   }
   return { kind: 'yaml' };
-}
-
-/** "<flag>: <const> requires <field>[: <const>]" lines derived from allOf if/then members. */
-export function conditionalHints(root: SchemaNode, node: SchemaNode): string[] {
-  const r = resolve(root, node);
-  const out: string[] = [];
-  for (const c of r['x-conditionals'] ?? []) {
-    const cond = Object.entries<any>(c.if?.properties ?? {}).map(([k, v]) => `${k}: ${JSON.stringify(v.const)}`).join(', ');
-    const then = c.then ?? {};
-    const consts = Object.entries<any>(then.properties ?? {}).map(([k, v]) => `${k}: ${JSON.stringify(v.const)}`);
-    const reqs = (then.required ?? []).filter((k: string) => !(then.properties ?? {})[k]);
-    for (const x of [...consts, ...reqs]) out.push(`${cond} requires ${x}`);
-  }
-  return out;
 }
