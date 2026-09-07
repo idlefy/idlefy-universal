@@ -43,4 +43,34 @@ describe('inspector schema resolver', () => {
     expect(hints).toContain('autoCreateNetworkPolicy: true requires networkPolicy');
     expect(hints).toContain('autoCreateRbac: true requires rbac');
   });
+  it('classifies inline k8s-passthrough objects (non-scalar examples) as yaml, plain maps as keyvalue', () => {
+    const dep = resolve(root, schemaAt(root, ['deployments', 'web'])!);
+    // labels/nodeSelector: additionalProperties:true, but every example value is scalar -> keyvalue.
+    expect(classify(root, dep.properties.labels)).toEqual({ kind: 'keyvalue' });
+    expect(classify(root, dep.properties.nodeSelector)).toEqual({ kind: 'keyvalue' });
+    // httpGet: additionalProperties:true, but an example holds `httpHeaders: [...]` (non-scalar) -> yaml.
+    const httpGet = schemaAt(root, ['deployments', 'web', 'containers', 'main', 'probes', 'livenessProbe', 'httpGet']);
+    expect(classify(root, httpGet!)).toEqual({ kind: 'yaml' });
+  });
+  it('classifies IntOrString unions as string widgets flagged intOrString', () => {
+    expect(classify(root, schemaAt(root, ['deployments', 'web', 'pdb', 'minAvailable'])!)).toEqual({ kind: 'string', intOrString: true });
+    const dep = resolve(root, schemaAt(root, ['deployments', 'web'])!);
+    expect(classify(root, dep.properties.serviceType)).toEqual({ kind: 'string', enum: ['ClusterIP', 'NodePort', 'LoadBalancer'] });
+  });
+  it('resolve merges properties/required from non-if/then allOf members (synthetic)', () => {
+    const syntheticRoot = {};
+    const node = {
+      type: 'object',
+      properties: { a: { type: 'string' } },
+      allOf: [
+        { properties: { b: { type: 'integer' } }, required: ['b'] },
+        { if: { properties: { a: { const: 'x' } } }, then: { required: ['c'] } },
+      ],
+    };
+    const r = resolve(syntheticRoot, node);
+    expect(r.allOf).toBeUndefined();
+    expect(r.properties.a.type).toBe('string');
+    expect(r.properties.b.type).toBe('integer');
+    expect(r.required).toContain('b');
+  });
 });

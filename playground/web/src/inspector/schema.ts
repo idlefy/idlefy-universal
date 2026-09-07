@@ -4,7 +4,7 @@ export type SchemaNode = Record<string, any>;
 export type Widget =
   | { kind: 'boolean' }
   | { kind: 'number'; integer: boolean; min?: number; max?: number }
-  | { kind: 'string'; enum?: string[]; pattern?: string }
+  | { kind: 'string'; enum?: string[]; pattern?: string; intOrString?: true }
   | { kind: 'list'; enum?: string[] }
   | { kind: 'keyvalue' }
   | { kind: 'object' }
@@ -24,6 +24,31 @@ export function deref(root: SchemaNode, node: SchemaNode | undefined, depth = 0)
 }
 
 const isObj = (v: unknown): v is SchemaNode => !!v && typeof v === 'object' && !Array.isArray(v);
+const isScalar = (v: unknown): boolean => v === null || typeof v !== 'object';
+
+/** True when at least one `examples` entry is an object with a non-scalar (object/array) value —
+ *  a flat key/value widget can't represent that, so the node needs the `yaml` widget instead. */
+const hasNonScalarExamples = (n: SchemaNode): boolean => {
+  const examples = Array.isArray(n.examples) ? n.examples : [];
+  return examples.some((ex: unknown) => isObj(ex) && Object.values(ex).some((v) => !isScalar(v)));
+};
+
+/** True for a node (or its `oneOf`/`anyOf` alternatives) that admits both a number and a string —
+ *  Kubernetes' IntOrString shape, used for things like PDB `minAvailable` or `targetPort`. */
+const isIntOrString = (n: SchemaNode): boolean => {
+  if (Array.isArray(n.type)) {
+    const types = new Set(n.type);
+    if ((types.has('integer') || types.has('number')) && types.has('string')) return true;
+  }
+  const alts = n.oneOf ?? n.anyOf;
+  if (Array.isArray(alts)) {
+    const types = alts.map((a: SchemaNode) => a.type).filter(Boolean);
+    const hasNum = types.some((t: string) => t === 'integer' || t === 'number');
+    const hasStr = types.some((t: string) => t === 'string');
+    if (hasNum && hasStr) return true;
+  }
+  return false;
+};
 
 /** Dereferences and folds `allOf` members that carry properties/required into the node. if/then members are kept aside for conditionalHints. */
 export function resolve(root: SchemaNode, node: SchemaNode): SchemaNode {
@@ -83,6 +108,7 @@ export function classify(root: SchemaNode, node: SchemaNode): Widget {
     const w: Widget = { kind: 'string' };
     if (Array.isArray(r.enum)) w.enum = r.enum.map(String);
     if (typeof r.pattern === 'string') w.pattern = r.pattern;
+    if (isIntOrString(r)) w.intOrString = true;
     return w;
   }
   if (t === 'array') {
@@ -103,9 +129,9 @@ export function classify(root: SchemaNode, node: SchemaNode): Widget {
         return w;
       }
       if (apt === 'array') return { kind: 'yaml' };
-      return { kind: 'keyvalue' };
+      return hasNonScalarExamples(r) ? { kind: 'yaml' } : { kind: 'keyvalue' };
     }
-    return { kind: 'keyvalue' };
+    return hasNonScalarExamples(r) ? { kind: 'yaml' } : { kind: 'keyvalue' };
   }
   return { kind: 'yaml' };
 }
