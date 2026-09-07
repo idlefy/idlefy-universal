@@ -17,7 +17,10 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
   const model = useRef<monaco.editor.ITextModel | null>(null);
   // Set while this component writes to the model itself; programmatic writes never emit onChange.
   const suppress = useRef(false);
-  // Text this component itself emitted; the `value` prop echoing it back must never be re-applied.
+  // Text the model is known to already hold — set from onDidChangeContent and after every
+  // programmatic push — so a `value` prop that merely echoes current model text is never re-applied.
+  // Assumes onChange is dispatched synchronously and undebounced; a future debounce would let a
+  // stale value slip through this guard and revert characters typed since.
   const lastEmitted = useRef<string | null>(null);
 
   useEffect(() => {
@@ -46,6 +49,7 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
       m.pushStackElement();
       m.pushEditOperations([], [{ range: new monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column), text: edit.text }], () => null);
       m.pushStackElement();
+      lastEmitted.current = value;
     } finally { suppress.current = false; }
   }, [value]);
 
