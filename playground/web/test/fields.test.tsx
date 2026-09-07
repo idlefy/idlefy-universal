@@ -11,6 +11,9 @@ const dep = schemaAt(root, ['deployments', 'web'])!;
 const base = ['deployments', 'web'];
 const cbase = [...base, 'containers', 'main'];
 
+// chips beyond the cap sit behind a "+N more" chip; tests that look for a specific chip open it first
+const showAllChips = () => screen.queryAllByRole('button', { name: /^show \d+ more fields$/ }).forEach((b) => fireEvent.click(b));
+
 describe('field widgets', () => {
   it('number: change emits set, empty emits delete, junk emits nothing', () => {
     const onEdit = vi.fn();
@@ -29,6 +32,7 @@ describe('field widgets', () => {
   it('boolean and enum: absent fields are chips, present ones are controls', () => {
     const onEdit = vi.fn();
     const { rerender } = render(<FieldList root={root} node={dep} basePath={base} value={{}} tier="advanced" onEdit={onEdit} />);
+    showAllChips();
     expect(screen.queryByLabelText('deployments.web.autoCreateSoftAntiAffinity')).toBeNull();
     fireEvent.click(screen.getByLabelText('add field deployments.web.autoCreateSoftAntiAffinity'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'autoCreateSoftAntiAffinity'], value: true }]);
@@ -51,11 +55,23 @@ describe('field widgets', () => {
 
   it('chips: basic tier lists basic-tier absent fields only; advanced lists all', () => {
     const { rerender } = render(<FieldList root={root} node={dep} basePath={base} value={{}} tier="basic" onEdit={vi.fn()} />);
+    showAllChips();
     expect(screen.getByLabelText('add field deployments.web.replicas')).toBeTruthy();
     expect(screen.queryByLabelText('add field deployments.web.priorityClassName')).toBeNull();
     rerender(<FieldList root={root} node={dep} basePath={base} value={{}} tier="advanced" onEdit={vi.fn()} />);
+    showAllChips();
     expect(screen.getByLabelText('add field deployments.web.priorityClassName')).toBeTruthy();
     expect(screen.getByText(/^Add$/)).toBeTruthy();
+  });
+
+  it('chips: more than the cap collapse behind a "+N more" chip that reveals the rest', () => {
+    render(<FieldList root={root} node={dep} basePath={base} value={{}} tier="advanced" onEdit={vi.fn()} />);
+    const chipsBefore = document.querySelectorAll('.chip:not(.more)').length;
+    const more = screen.getByRole('button', { name: /^show \d+ more fields$/ });
+    expect(chipsBefore).toBe(8);
+    fireEvent.click(more);
+    expect(screen.queryByRole('button', { name: /^show \d+ more fields$/ })).toBeNull();
+    expect(document.querySelectorAll('.chip').length).toBeGreaterThan(chipsBefore);
   });
 
   it('list: one item per line, trailing blank lines dropped', () => {

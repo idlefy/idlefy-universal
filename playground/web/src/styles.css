@@ -117,15 +117,31 @@ code { font-family: var(--mono); font-size: 12px; }
 .inspector .banner-inline { margin: 10px 14px 0; background: #fee2e2; color: #7f1d1d; padding: 6px 8px; border-radius: 6px; font-size: 12px; }
 .inspector fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .inspector .prov { padding: 8px 14px 0; color: var(--muted); font-size: 12px; margin: 0; }
-.sec { padding: 10px 14px 12px; border-bottom: 1px solid var(--line); }
-.sec > h3 { margin: 0 0 8px; font-size: 12px; font-weight: 650; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+.sec { padding: 12px 14px 14px; border-bottom: 1px solid var(--line); }
+.sec > h3 { margin: 0 0 10px; font-size: 12px; font-weight: 650; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
 .sec > h3 .k { font-weight: 400; color: var(--muted); font-family: var(--mono); font-size: 11px; }
-.sec > h3 .more { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 11px; }
-.sec.adv { background: var(--panel-2); }
-.sec.adv > h3 { color: var(--muted); margin: 0; }
-.fields { display: flex; flex-direction: column; gap: 2px; }
-.field { display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 2px 8px; min-height: 30px; min-width: 0; }
-.field.block { grid-template-columns: 1fr; }
+.sec > h3 .more { margin-left: auto; font-weight: 400; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.sec.adv { background: var(--panel-2); padding-top: 9px; padding-bottom: 9px; }
+.sec.adv > h3 { color: var(--muted); margin: 0; flex-wrap: wrap; row-gap: 2px; }
+.sec.adv > h3 .title { white-space: nowrap; }
+/* when the title and the key already fill the row, the note drops to its own line instead of squeezing the title */
+.sec.adv > h3 .more { margin-left: auto; }
+.fields { display: flex; flex-direction: column; gap: 4px; }
+/* the label column grows with the key (serviceAccountName) up to ~45 % of the row, then ellipsises */
+.field { display: grid; grid-template-columns: fit-content(45%) 1fr; align-items: center; gap: 2px 8px; min-height: 30px; min-width: 0; }
+.field.block { grid-template-columns: 1fr; gap: 6px; align-items: stretch; padding: 8px 10px 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel-2); }
+.field.block > .field-head { justify-content: space-between; }
+.field.block > .field-head label { color: var(--ink); font-weight: 600; }
+.field.block > .field-desc { margin: -4px 0 2px; }
+.field.block .in, .field.block input[type="text"], .field.block select, .field.block textarea { background: var(--panel); }
+.field .hint { display: block; text-align: right; color: var(--muted); font-size: 10.5px; margin-top: 2px; }
+.field.block.bare { border: 0; background: transparent; padding: 0; }
+.field.block.bare > .field-desc { margin: -6px 0 2px; }
+/* the containers field already lives in its own section and draws a card per container: no outer frame */
+.field.block.sp-containers { border: 0; background: transparent; padding: 0; }
+/* nested block fields (inside container cards) stay flat: one frame is enough */
+.card .field.block { border: 0; background: transparent; padding: 0; }
+.card .field.block > .field-head label { font-weight: 500; }
 .field-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .field-head label { font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .field .req { color: var(--err); margin-left: 2px; }
@@ -138,7 +154,8 @@ code { font-family: var(--mono); font-size: 12px; }
 .field input.invalid, .field textarea.invalid { border-color: var(--err); }
 .field input[type="checkbox"] { justify-self: start; }
 .add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; color: var(--muted); font-size: 11.5px; }
-.chip { height: 22px; padding: 0 8px; border: 1px dashed var(--line-2); border-radius: 11px; background: transparent; color: var(--ink-2); font-family: var(--mono); font-size: 11px; }
+.chip { height: 22px; padding: 0 9px; border: 1px dashed var(--line-2); border-radius: 11px; background: transparent; color: var(--ink-2); font-family: var(--mono); font-size: 11px; }
+.chip.more { font-family: inherit; border-style: solid; border-color: transparent; background: var(--panel-2); color: var(--muted); }
 .chip:hover { border-color: var(--accent); color: var(--accent); border-style: solid; }
 .card { border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px 10px; background: var(--panel-2); }
 .card + .card { margin-top: 8px; }
@@ -156,7 +173,8 @@ code { font-family: var(--mono); font-size: 12px; }
 .ports .in { height: 24px; }
 .kv { display: flex; flex-direction: column; }
 .kv-row { display: grid; grid-template-columns: minmax(80px, 1fr) 2fr auto; gap: 4px; align-items: center; margin: 2px 0; }
-.kv-row > code { overflow: hidden; text-overflow: ellipsis; }
+.kv-row > code { font-size: 12px; }
+.kv-row > code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kv-row.add { grid-template-columns: minmax(80px, 1fr) auto; margin-top: 4px; }
 .kv-row.add .field-err { grid-column: 1 / -1; }
 .map details { border-left: 2px solid var(--line); padding-left: 8px; margin: 4px 0; }

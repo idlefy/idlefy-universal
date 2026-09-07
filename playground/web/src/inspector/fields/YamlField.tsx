@@ -22,7 +22,7 @@ export function YamlField({ field, onEdit }: FieldProps): ReactElement {
         value={text} onChange={(e) => setText(e.target.value)} onBlur={commit} />
       {err && <span className="field-err">{err}</span>}
       {/* keep this wording: the test matches the error span with /^YAML: / and this help text must not start with "YAML: " */}
-      <span className="field-desc">Kubernetes passthrough — edited as YAML; applied when the box loses focus.</span>
+      <span className="hint">raw YAML · applied when the box loses focus</span>
     </>
   );
 }

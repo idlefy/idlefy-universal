@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import type { ValuesPath, EditOp } from '../../model/ValuesDocument';
 import type { Tier } from '../../app/state';
 import type { SchemaNode } from '../schema';
@@ -8,12 +8,20 @@ import { FieldRow } from './FieldRow';
 export type FieldProps = { root: SchemaNode; field: Field; tier: Tier; onEdit: (ops: EditOp[]) => void };
 export { FieldRow };
 
+/** More chips than this collapse behind a "+N more" chip, so a section with many optional keys stays a row, not a wall. */
+const CHIP_CAP = 8;
+
 export function AddChips({ root, fields, onEdit }: { root: SchemaNode; fields: Field[]; onEdit: (ops: EditOp[]) => void }): ReactElement | null {
+  const [expanded, setExpanded] = useState(false);
   if (fields.length === 0) return null;
+  // collapsing 9 chips behind "+1 more" would be silly: only collapse when it hides at least three
+  const collapse = !expanded && fields.length >= CHIP_CAP + 3;
+  const shown = collapse ? fields.slice(0, CHIP_CAP) : fields;
+  const rest = fields.length - shown.length;
   return (
     <div className="add">
       <span>Add</span>
-      {fields.map((f) => {
+      {shown.map((f) => {
         const id = f.path.join('.');
         return (
           <button key={f.key} type="button" className="chip" aria-label={`add field ${id}`} title={f.description}
@@ -22,6 +30,9 @@ export function AddChips({ root, fields, onEdit }: { root: SchemaNode; fields: F
           </button>
         );
       })}
+      {rest > 0 && (
+        <button type="button" className="chip more" aria-label={`show ${rest} more fields`} onClick={() => setExpanded(true)}>+{rest} more</button>
+      )}
     </div>
   );
 }

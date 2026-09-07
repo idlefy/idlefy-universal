@@ -86,7 +86,7 @@ export function Inspector(p: {
       widget, schema: node, value: all[k], present: all[k] !== undefined, required: false,
       tier: node['x-ui-tier'] === 'basic' ? 'basic' : 'advanced',
     };
-    return <FieldRow root={p.root} field={field} tier={p.tier} onEdit={edit} />;
+    return <FieldRow root={p.root} field={field} tier={p.tier} onEdit={edit} bare />;
   };
 
   let body: ReactElement;
@@ -95,12 +95,32 @@ export function Inspector(p: {
     case 'release':
       body = (
         <fieldset disabled={p.disabled}>
-          {RELEASE_SECTIONS.map((k) => (
-            <div key={k} className="sec">
-              <h3>{RELEASE_TITLES[k] ?? k} <span className="k">{k}</span></h3>
-              {releaseSection(k)}
-            </div>
-          ))}
+          {RELEASE_SECTIONS.map((k) => {
+            const node = resolve(p.root, p.root.properties[k]);
+            if (classify(p.root, node).kind === 'object') {
+              const count = (tier: Tier) => buildFields(p.root, node, [k], all[k], tier, { hide: (x) => OWNED_FLAGS.has(x) }).length;
+              if (count(p.tier) === 0) {
+                // nothing on this tier: a heading over "No fields here." is noise — point at the switch, or drop the section
+                if (p.tier === 'advanced' || count('advanced') === 0) return null;
+                return (
+                  <div key={k} className="sec adv">
+                    <h3><span className="title">{RELEASE_TITLES[k] ?? k}</span><span className="k">{k}</span><span className="more">hidden · turn on “show all fields”</span></h3>
+                  </div>
+                );
+              }
+            }
+            // a map/passthrough-shaped section (secretRefs) renders bare under the heading, which then carries its clear button
+            const bareBlock = classify(p.root, node).kind !== 'object' && all[k] !== undefined;
+            return (
+              <div key={k} className="sec">
+                <h3>
+                  {RELEASE_TITLES[k] ?? k} <span className="k">{k}</span>
+                  {bareBlock && <button type="button" className="clear more" aria-label={`clear ${k}`} title="Remove this block from values.yaml" onClick={() => edit([{ op: 'delete', path: [k] }])}>×</button>}
+                </h3>
+                {releaseSection(k)}
+              </div>
+            );
+          })}
         </fieldset>
       );
       break;

@@ -14,7 +14,8 @@ import { ContainersField } from './ContainersField';
 import { ResourcesField } from './ResourcesField';
 import { PortsTable } from './PortsTable';
 
-export function FieldRow(p: FieldProps): ReactElement {
+/** `bare`: the caller already shows the label (a section heading) — render only description + control, no frame. */
+export function FieldRow(p: FieldProps & { bare?: boolean }): ReactElement {
   const { field, root } = p;
   const id = field.path.join('.');
   const refName = (n: SchemaNode | undefined) => (n ? (deref(root, n) ?? n)['x-ref-name'] : undefined);
@@ -41,15 +42,17 @@ export function FieldRow(p: FieldProps): ReactElement {
   })();
   const block = special !== null || field.widget.kind === 'map' || field.widget.kind === 'object' || field.widget.kind === 'keyvalue' || field.widget.kind === 'yaml' || field.widget.kind === 'list';
   return (
-    <div className={`field ${block ? 'block' : 'inline'} tier-${field.tier} ${field.present ? 'present' : 'absent'}`}>
-      <div className="field-head">
+    <div className={`field ${block ? 'block' : 'inline'} ${p.bare ? 'bare' : ''} ${special ? `sp-${special}` : ''} tier-${field.tier} ${field.present ? 'present' : 'absent'}`}>
+      {!p.bare && <div className="field-head">
         <label htmlFor={id} title={field.description}>{field.label}{field.required && <span className="req" title="required">*</span>}</label>
         {field.present && block && (
           <button type="button" className="clear" aria-label={`clear ${id}`} title="Remove this block from values.yaml" onClick={() => p.onEdit([{ op: 'delete', path: field.path }])}>×</button>
         )}
-      </div>
+      </div>}
+      {/* block fields read label → what it is → the control; inline rows keep the hint under the control */}
+      {block && field.description && <p className="field-desc">{firstSentence(field.description)}</p>}
       {control}
-      {field.description && <p className="field-desc">{firstSentence(field.description)}</p>}
+      {!block && field.description && <p className="field-desc">{firstSentence(field.description)}</p>}
     </div>
   );
 }

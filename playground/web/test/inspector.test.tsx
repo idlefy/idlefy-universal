@@ -104,6 +104,7 @@ describe('Inspector', () => {
   // flags (see expectations.ts), so those checkboxes would be inert here.
   it('release: hides the autoCreate* flags <kind>General cannot propagate', () => {
     render(<Inspector {...base(rel)} tier="advanced" />);
+    screen.queryAllByRole('button', { name: /^show \d+ more fields$/ }).forEach((b) => fireEvent.click(b));
     expect(reachable('deploymentsGeneral.autoCreateService')).toBeNull();
     expect(reachable('deploymentsGeneral.autoCreateIngress')).toBeNull();
     // autoCreateSoftAntiAffinity has no toggle and is honoured by the chart — it stays.
