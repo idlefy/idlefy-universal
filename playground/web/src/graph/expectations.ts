@@ -1,5 +1,6 @@
 import type { Provenance, RemoveAction } from './types';
 import type { ValuesPath } from '../model/ValuesDocument';
+import { SECONDARY, SVC_KINDS, SA_KINDS, SM_KINDS, PDB_KINDS, hasAnyPort } from './secondary';
 
 export type Expectation = {
   kind: string; name: string; namespace: string;
@@ -14,21 +15,13 @@ export type Expectation = {
 // pdb.yaml, serviceaccount.yaml, _autocreate-servicemonitor → deployments, statefulSets, daemonSets;
 // networkpolicy.yaml, rbac.yaml → all five kinds.
 const WORKLOAD_KINDS: Record<string, string> = { deployments: 'Deployment', statefulSets: 'StatefulSet', daemonSets: 'DaemonSet', jobs: 'Job', cronJobs: 'CronJob' };
-const SVC_KINDS = new Set(['deployments', 'statefulSets']);
-const SA_KINDS = new Set(['deployments', 'statefulSets', 'daemonSets']);
-const SM_KINDS = new Set(['deployments', 'statefulSets', 'daemonSets']);
-const PDB_KINDS = new Set(['deployments', 'statefulSets', 'daemonSets']);
+
+const sec = (id: string) => SECONDARY.find((s) => s.id === id)!;
+const on = (id: string, cfg: Record<string, any>) => sec(id).isOn(cfg);
+const off = (id: string, base: ValuesPath) => sec(id).off(base);
 
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
-// Go templates treat an empty map as falsy, so `pdb: {}` renders nothing — an expectation built
-// from it would be unconsumed. Only a non-empty block counts as "present".
-const isFilledObj = (v: unknown): v is Record<string, any> => isObj(v) && Object.keys(v).length > 0;
-const setFalse = (p: ValuesPath): RemoveAction => ({ op: 'set', path: p, value: false });
 const del = (p: ValuesPath): RemoveAction => ({ op: 'delete', path: p });
-
-function hasAnyPort(cfg: Record<string, any>): boolean {
-  return Object.values(cfg.containers ?? {}).some((c: any) => isObj(c?.ports) && Object.keys(c.ports).length > 0);
-}
 
 type Extra = { owner?: ValuesPath; standalone?: boolean; matchBy?: Expectation['matchBy']; templateFile?: string };
 
@@ -60,50 +53,48 @@ export function buildExpectations(values: any, ns: string): Expectation[] {
       // jobs.N renders in job.yaml before the migrations block, hence standalone: true.
       push(kind, name, base, `${kindKey}.${name} present`, [del(base)], { standalone: kindKey === 'jobs' });
 
-      if (kindKey === 'deployments' && cfg.migrations?.enabled === true) {
-        push('Job', `${name}-migrations`, [...base, 'migrations'], 'migrations.enabled: true', [setFalse([...base, 'migrations', 'enabled'])], owner);
+      if (kindKey === 'deployments' && on('migrations', cfg)) {
+        push('Job', `${name}-migrations`, [...base, 'migrations'], 'migrations.enabled: true', off('migrations', base), owner);
       }
-      if (SVC_KINDS.has(kindKey) && cfg.autoCreateService) {
+      if (SVC_KINDS.has(kindKey) && on('service', cfg)) {
         // deployments: the chart renders nothing without at least one container port (autoCreateServicePortsList);
         // statefulSets: validation fails instead, so the manifest exists whenever the render succeeds.
         const renders = kindKey === 'statefulSets' || hasAnyPort(cfg);
         if (renders) {
           const svcName = kindKey === 'statefulSets' ? String(cfg.serviceName ?? name) : name;
-          push('Service', svcName, [...base, 'service'], 'autoCreateService: true and at least one container port', [setFalse([...base, 'autoCreateService'])], owner);
+          push('Service', svcName, [...base, 'service'], 'autoCreateService: true and at least one container port', off('service', base), owner);
         }
       }
       if (kindKey === 'deployments') {
-        if (cfg.autoCreateIngress) push('Ingress', name, [...base, 'ingress'], 'autoCreateIngress: true', [setFalse([...base, 'autoCreateIngress']), setFalse([...base, 'autoCreateCertificate'])], owner);
-        if (cfg.autoCreateHttpRoute) push('HTTPRoute', name, [...base, 'httpRoute'], 'autoCreateHttpRoute: true', [setFalse([...base, 'autoCreateHttpRoute'])], owner);
-        if (cfg.autoCreateCertificate && cfg.autoCreateIngress && cfg.ingress) push('Certificate', name, [...base, 'certificate'], 'autoCreateCertificate && autoCreateIngress && ingress', [setFalse([...base, 'autoCreateCertificate'])], owner);
-        if (isObj(cfg.hpa)) push('HorizontalPodAutoscaler', name, [...base, 'hpa'], 'hpa block present', [del([...base, 'hpa'])], { ...owner, templateFile: 'hpa.yaml' });
+        if (on('ingress', cfg)) push('Ingress', name, [...base, 'ingress'], 'autoCreateIngress: true', off('ingress', base), owner);
+        if (on('httpRoute', cfg)) push('HTTPRoute', name, [...base, 'httpRoute'], 'autoCreateHttpRoute: true', off('httpRoute', base), owner);
+        if (on('certificate', cfg)) push('Certificate', name, [...base, 'certificate'], 'autoCreateCertificate && autoCreateIngress && ingress', off('certificate', base), owner);
+        if (on('hpa', cfg)) push('HorizontalPodAutoscaler', name, [...base, 'hpa'], 'hpa block present', off('hpa', base), { ...owner, templateFile: 'hpa.yaml' });
       }
-      if (PDB_KINDS.has(kindKey) && (cfg.autoCreatePdb || isFilledObj(cfg.pdb))) {
-        push('PodDisruptionBudget', name, [...base, 'pdb'], 'autoCreatePdb: true or pdb block present', [setFalse([...base, 'autoCreatePdb']), del([...base, 'pdb'])], owner);
+      if (PDB_KINDS.has(kindKey) && on('pdb', cfg)) {
+        push('PodDisruptionBudget', name, [...base, 'pdb'], 'autoCreatePdb: true or pdb block present', off('pdb', base), owner);
       }
-      if (SM_KINDS.has(kindKey) && cfg.autoCreateServiceMonitor) {
-        push('ServiceMonitor', name, [...base, 'serviceMonitor'], 'autoCreateServiceMonitor: true', [setFalse([...base, 'autoCreateServiceMonitor'])], owner);
+      if (SM_KINDS.has(kindKey) && on('serviceMonitor', cfg)) {
+        push('ServiceMonitor', name, [...base, 'serviceMonitor'], 'autoCreateServiceMonitor: true', off('serviceMonitor', base), owner);
       }
       // networkpolicy.yaml and rbac.yaml branch on the *defaulted* config, but _defaults.tpl copies
       // only content keys (networkPolicy, securityContext, nodeSelector, …) from <kind>General — never
       // the autoCreate* flags. So both flags are per-instance for all five workload kinds; a flag set
       // only in deploymentsGeneral renders nothing (values.schema.json says so too, and `helm template`
       // confirms it). Reading *General here would over-generate.
-      const npOn = cfg.autoCreateNetworkPolicy;
-      const rbacOn = cfg.autoCreateRbac;
-      if (npOn) {
+      if (on('networkPolicy', cfg)) {
         // Note: <kind>General.networkPolicy is merged in by _defaults.tpl; deleting the instance block may leave an inherited one.
-        push('NetworkPolicy', name, [...base, 'networkPolicy'], 'autoCreateNetworkPolicy: true', [setFalse([...base, 'autoCreateNetworkPolicy']), del([...base, 'networkPolicy'])], owner);
+        push('NetworkPolicy', name, [...base, 'networkPolicy'], 'autoCreateNetworkPolicy: true', off('networkPolicy', base), owner);
       }
-      if (rbacOn) {
-        const ra = [setFalse([...base, 'autoCreateRbac']), del([...base, 'rbac'])];
+      if (on('rbac', cfg)) {
+        const ra = off('rbac', base);
         push('Role', name, [...base, 'rbac'], 'autoCreateRbac: true', ra, owner);
         push('RoleBinding', name, [...base, 'rbac'], 'autoCreateRbac: true', ra, owner);
       }
-      if (SA_KINDS.has(kindKey) && (cfg.autoCreateServiceAccount || isFilledObj(cfg.serviceAccount))) {
+      if (SA_KINDS.has(kindKey) && on('serviceAccount', cfg)) {
         const saName = String(cfg.serviceAccount?.name ?? name);
         push('ServiceAccount', saName, [...base, 'serviceAccount'], 'autoCreateServiceAccount: true or serviceAccount block present',
-          [setFalse([...base, 'autoCreateServiceAccount']), del([...base, 'serviceAccount'])], { ...owner, matchBy: { label: 'app.kubernetes.io/name', value: name } });
+          off('serviceAccount', base), { ...owner, matchBy: { label: 'app.kubernetes.io/name', value: name } });
       }
     }
   }
