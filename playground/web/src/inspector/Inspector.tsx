@@ -18,11 +18,10 @@ const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCas
 const ALL_BLOCKS = new Set<string>(SECONDARY.map((s) => s.id));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 
-const TAIL: Record<SecondaryId, string> = { service: 'service', ingress: 'ingress', httpRoute: 'httpRoute', certificate: 'certificate', hpa: 'hpa', migrations: 'migrations', pdb: 'pdb', serviceMonitor: 'serviceMonitor', networkPolicy: 'networkPolicy', rbac: 'rbac', serviceAccount: 'serviceAccount' };
 const sameP = (a: ValuesPath | undefined, b: ValuesPath) => !!a && a.length === b.length && a.every((x, i) => x === b[i]);
 /** Graph node produced by the secondary block of `base` (first match in graph order; for rbac either Role or RoleBinding, both open the same block). */
 function nodeFor(nodes: GraphNode[], base: ValuesPath, id: SecondaryId): string | null {
-  const hit = nodes.find((n) => n.manifest && sameP(n.provenance?.owner, base) && n.provenance!.path.length === 3 && String(n.provenance!.path[2]) === TAIL[id]);
+  const hit = nodes.find((n) => n.manifest && sameP(n.provenance?.owner, base) && n.provenance!.path.length === 3 && String(n.provenance!.path[2]) === id);
   return hit?.id ?? null;
 }
 

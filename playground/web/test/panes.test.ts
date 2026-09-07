@@ -18,6 +18,8 @@ describe('panes', () => {
     expect(parsePanes('not json')).toEqual(DEFAULT_PANES);
     expect(parsePanes('{"editor":{"open":true,"width":9999}}')).toEqual({ editor: { open: true, width: 720 }, inspector: { open: true, width: 400 } });
     expect(parsePanes('{"inspector":{"open":"yes","width":"330"}}').inspector).toEqual({ open: true, width: 330 });
+    // width: null must fall back to the pane default, not Number(null) === 0 clamped to min.
+    expect(parsePanes('{"editor":{"width":null}}').editor).toEqual({ open: false, width: 400 });
   });
   it('load/save go through the given storage and swallow throws', () => {
     const store = new Map<string, string>();

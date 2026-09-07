@@ -45,6 +45,21 @@ describe('AutoCreated', () => {
     expect(screen.getByTestId('block-hpa')).toBeTruthy();       // on, no node → inline
     expect(screen.queryByTestId('block-ingress')).toBeNull();   // off → nothing
   });
+  it('keeps a stale block reachable when its switch is off but the YAML still has it configured', () => {
+    const p = props('deployments', { autoCreateIngress: false, ingress: { hosts: [{ host: 'a.example.com' }] } },
+      { renderBlock: (id) => <div data-testid={`block-${id}`} /> });
+    render(<AutoCreated {...p} />);
+    const sw = screen.getByLabelText('toggle Ingress') as HTMLInputElement;
+    expect(sw.checked).toBe(false);
+    expect(screen.getByTestId('block-ingress')).toBeTruthy();
+    expect(screen.getByText('configured, not created')).toBeTruthy();
+  });
+  it('renders nothing extra when the switch is off and the block is empty', () => {
+    const p = props('deployments', { autoCreateIngress: false }, { renderBlock: (id) => <div data-testid={`block-${id}`} /> });
+    render(<AutoCreated {...p} />);
+    expect(screen.queryByTestId('block-ingress')).toBeNull();
+    expect(screen.queryByText('configured, not created')).toBeNull();
+  });
   it('orders rows by the spec and only lists applicable ones', () => {
     render(<AutoCreated {...props('statefulSets', {})} />);
     const labels = screen.getAllByRole('switch').map((e) => e.getAttribute('aria-label'));

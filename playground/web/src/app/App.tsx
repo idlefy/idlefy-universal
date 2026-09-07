@@ -96,7 +96,7 @@ export function App() {
             }}
             valuesText={state.text} chartVersion={chartMeta.version} onHide={() => setOpen("editor", false)}
           />
-          <Editor value={state.text} onChange={onChange} markers={markers} highlight={highlight} />
+          <Editor value={state.text} onChange={onChange} markers={markers} highlight={highlight} visible={panes.editor.open} />
         </section>
         {panes.editor.open && (
           <SplitHandle label="Resize values.yaml" disabled={!panes.editor.open}

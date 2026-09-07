@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { kindOfSecondary, hintOf, summaryOf } from '../src/inspector/summary';
+import { ORDER, kindOfSecondary, hintOf, summaryOf } from '../src/inspector/summary';
+import { SECONDARY } from '../src/graph/secondary';
 
 describe('secondary summaries', () => {
+  it('ORDER lists every secondary id exactly once', () => {
+    expect(new Set(ORDER)).toEqual(new Set(SECONDARY.map((s) => s.id)));
+  });
   it('maps ids to node kinds', () => {
     expect(kindOfSecondary('rbac')).toBe('Role');
     expect(kindOfSecondary('migrations')).toBe('Job');

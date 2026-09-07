@@ -98,7 +98,7 @@ code { font-family: var(--mono); font-size: 12px; }
 /* ---------- inspector ---------- */
 .detail { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: 13px; }
 .detail .head { display: flex; align-items: flex-start; gap: 10px; padding: 12px 10px 10px 14px; border-bottom: 1px solid var(--line); }
-.detail .head .kicon { flex: none; width: 36px; height: 36px; }
+.detail .head .kicon { flex: none; width: 36px; height: 36px; color: var(--fam); }
 .detail .head .ttl { min-width: 0; flex: 1; }
 .detail .head .ttl b { font-size: 15px; font-weight: 650; }
 .detail .head .ttl .kind { color: var(--muted); margin-left: 6px; }

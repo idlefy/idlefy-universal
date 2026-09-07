@@ -16,7 +16,7 @@ export const WORKLOAD_SECTIONS: readonly Section[] = [
     'persistentVolumeClaimRetentionPolicy', 'probes', 'namespace',
   ] },
 ];
-export const OTHER_SECTION: Section = { id: 'other', title: 'Other', keys: [], advanced: true };
+export const OTHER_SECTION: Section = { id: 'other', title: 'Other', keys: [] };
 
 export function partition(keys: string[], sections: readonly Section[]): { section: Section; keys: string[] }[] {
   const left = new Set(keys);

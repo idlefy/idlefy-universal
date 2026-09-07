@@ -12,7 +12,7 @@ setupMonaco(schema);
 
 export type EditorMarker = { line: number; col?: number; message: string; severity: 'error' | 'warning' };
 
-export function Editor({ value, onChange, markers, highlight }: { value: string; onChange: (t: string) => void; markers: EditorMarker[]; highlight: LineRange | null }) {
+export function Editor({ value, onChange, markers, highlight, visible }: { value: string; onChange: (t: string) => void; markers: EditorMarker[]; highlight: LineRange | null; visible: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const model = useRef<monaco.editor.ITextModel | null>(null);
@@ -76,8 +76,11 @@ export function Editor({ value, onChange, markers, highlight }: { value: string;
   useEffect(() => {
     const ed = editor.current; if (!ed) return;
     decos.current?.set(blockDecorations(highlight));
-    if (highlight) ed.revealLineInCenterIfOutsideViewport(highlight.start);
-  }, [highlight]);
+    // Reveal only while the pane is actually visible: Monaco has no real viewport while `hidden`,
+    // so a reveal computed then is a no-op and the block is never centred once the pane opens.
+    // Re-layout first so the just-opened pane's real size is what the reveal centres against.
+    if (highlight && visible) { ed.layout(); ed.revealLineInCenterIfOutsideViewport(highlight.start); }
+  }, [highlight, visible]);
 
   return <div ref={host} className="editor" />;
 }

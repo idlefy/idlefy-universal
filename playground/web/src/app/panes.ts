@@ -28,7 +28,7 @@ export function parsePanes(raw: string | null): PanesState {
     const p = obj[id];
     if (!p || typeof p !== 'object') continue;
     if (typeof p.open === 'boolean') out[id].open = p.open;
-    out[id].width = clampWidth(id, Number(p.width));
+    out[id].width = clampWidth(id, p.width == null ? PANE_LIMITS[id].default : Number(p.width));
   }
   return out;
 }
