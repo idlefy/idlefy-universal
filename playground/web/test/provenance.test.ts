@@ -4,7 +4,7 @@ import { attachProvenance } from '../src/graph/provenance';
 import { loadFixture } from './fixtures';
 import { splitManifests } from '../src/engine/split';
 
-const fixtures = ['minimal', 'full-features', 'example-01-hello-world', 'example-02-web-with-tls', 'example-03-observed-api', 'example-04-isolated-workload', 'example-05-gateway-api'];
+const fixtures = ['minimal', 'full-features', 'example-01-hello-world', 'example-02-web-with-tls', 'example-03-observed-api', 'example-04-isolated-workload', 'example-05-gateway-api', 'stateful-storage'];
 
 describe('provenance completeness', () => {
   for (const f of fixtures) {

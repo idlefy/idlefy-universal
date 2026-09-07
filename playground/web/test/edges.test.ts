@@ -106,4 +106,16 @@ describe('extractRefs', () => {
     expect(rel(refs, 'protects').sort()).toEqual(['PodDisruptionBudget/all->Deployment/a', 'PodDisruptionBudget/all->Deployment/b']);
     expect(rel(refs, 'guards')).toEqual(['NetworkPolicy/tiered->Deployment/a']);
   });
+  it('stateful-storage covers mounts, reads, precedes and the StatefulSet service', () => {
+    const refs = refsOf('stateful-storage');
+    expect(rel(refs, 'mounts')).toEqual(['Deployment/files->PersistentVolumeClaim/uploads']);
+    // the migrations Job inherits the deployment pod spec, so it reads the same configs
+    expect(rel(refs, 'reads').sort()).toEqual([
+      'Deployment/web->ConfigMap/app-config', 'Deployment/web->Secret/app-secrets',
+      'Job/web-migrations->ConfigMap/app-config', 'Job/web-migrations->Secret/app-secrets',
+    ]);
+    expect(rel(refs, 'precedes')).toEqual(['Job/web-migrations->Deployment/web']);
+    expect(rel(refs, 'governed-by')).toEqual(['StatefulSet/cache->Service/cache-headless']);
+    expect(rel(refs, 'selects').sort()).toEqual(['Service/cache-headless->StatefulSet/cache', 'Service/web->Deployment/web']);
+  });
 });

@@ -87,4 +87,17 @@ describe('buildGraph', () => {
     const nodeIds = new Set(ids);
     for (const e of g.edges) { expect(nodeIds.has(e.source)).toBe(true); expect(nodeIds.has(e.target)).toBe(true); }
   });
+  it('stateful-storage: full provenance, hook badge on the migrations Job, no external nodes', () => {
+    const { manifests, values } = loadFixture('stateful-storage');
+    const g = buildGraph(manifests, values, 'default');
+    const rendered = g.nodes.filter((n) => n.manifest);
+    expect(rendered.length).toBe(manifests.length);
+    expect(rendered.every((n) => n.provenance)).toBe(true);
+    expect(g.nodes.filter((n) => n.external)).toEqual([]);
+    const job = g.nodes.find((n) => n.kind === 'Job')!;
+    expect(job.hookBadge).toBe(true);
+    expect(job.provenance?.owner).toEqual(['deployments', 'web']);
+    expect(g.nodes.find((n) => n.kind === 'Secret')?.provenance?.path).toEqual(['configs', 'app-secrets']);
+    expect(g.nodes.find((n) => n.kind === 'PersistentVolumeClaim')?.provenance?.path).toEqual(['persistentVolumeClaims', 'uploads']);
+  });
 });
