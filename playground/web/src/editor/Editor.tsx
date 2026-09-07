@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as monaco from 'monaco-editor';
 import schema from '../chart-bundle/schema.json';
 import { setupMonaco } from './monaco';
+import { minimalEdit } from '../model/textDiff';
 
 // Workers and the yaml schema must be registered before the first createModel/create call.
 // Doing it here (setupMonaco is idempotent) keeps that ordering local to the only component
@@ -16,6 +17,8 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
   const model = useRef<monaco.editor.ITextModel | null>(null);
   // Set while this component writes to the model itself; programmatic writes never emit onChange.
   const suppress = useRef(false);
+  // Text this component itself emitted; the `value` prop echoing it back must never be re-applied.
+  const lastEmitted = useRef<string | null>(null);
 
   useEffect(() => {
     const m = monaco.editor.createModel(value, 'yaml', monaco.Uri.parse('inmemory://idlefy/values.yaml'));
@@ -26,17 +29,24 @@ export function Editor({ value, onChange, markers, revealLine }: { value: string
       autoClosingBrackets: 'never', autoClosingQuotes: 'never', autoIndent: 'keep',
     });
     editor.current = ed;
-    const sub = m.onDidChangeContent(() => { if (!suppress.current) onChange(m.getValue()); });
+    const sub = m.onDidChangeContent(() => { if (!suppress.current) { const t = m.getValue(); lastEmitted.current = t; onChange(t); } });
     return () => { sub.dispose(); ed.dispose(); m.dispose(); model.current = null; editor.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // External text replacement (examples picker): single undoable edit, never setValue.
+  // External text replacement (examples picker, inspector edits): one undoable edit covering only
+  // the changed range, never setValue — Monaco's undo stack and cursor survive inspector writes.
   useEffect(() => {
-    const m = model.current; if (!m || m.getValue() === value) return;
+    const m = model.current; if (!m || value === lastEmitted.current) return;
+    const edit = minimalEdit(m.getValue(), value);
+    if (!edit) return;
     suppress.current = true;
-    try { m.pushEditOperations([], [{ range: m.getFullModelRange(), text: value }], () => null); }
-    finally { suppress.current = false; }
+    try {
+      const start = m.getPositionAt(edit.start), end = m.getPositionAt(edit.end);
+      m.pushStackElement();
+      m.pushEditOperations([], [{ range: new monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column), text: edit.text }], () => null);
+      m.pushStackElement();
+    } finally { suppress.current = false; }
   }, [value]);
 
   useEffect(() => {

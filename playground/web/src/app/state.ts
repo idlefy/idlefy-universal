@@ -1,22 +1,27 @@
-import { ValuesDocument } from '../model/ValuesDocument';
+import { ValuesDocument, type EditOp } from '../model/ValuesDocument';
 import { SUPERSEDED, type RenderResult } from '../engine/types';   // types.ts has no side effects, so this test stays bundle-free
 import type { GraphModel } from '../graph/types';
 import type { EditorMarker } from '../editor/Editor';
+
+export type Tier = 'basic' | 'advanced';
+export type DetailTab = 'inspector' | 'yaml';
 
 export type AppState = {
   text: string; doc: ValuesDocument; releaseName: string; namespace: string;
   render: RenderResult | null; graph: GraphModel | null; selection: string | null; exampleId: string | null; rendering: boolean;
   engineError: string | null;                   // helm.wasm failed to load → full-page message
+  ui: { tier: Tier; tab: DetailTab };
 };
 export type Action =
   | { type: 'text'; text: string } | { type: 'example'; id: string; text: string }
   | { type: 'release'; v: string } | { type: 'ns'; v: string }
   | { type: 'render-start' } | { type: 'render-done'; result: RenderResult; graph: GraphModel | null }
   | { type: 'select'; id: string | null }
-  | { type: 'engine-failed'; message: string };
+  | { type: 'engine-failed'; message: string }
+  | { type: 'edit'; ops: EditOp[] } | { type: 'tier'; tier: Tier } | { type: 'tab'; tab: DetailTab };
 
 export function initialState(text: string): AppState {
-  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, exampleId: null, rendering: false, engineError: null };
+  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, exampleId: null, rendering: false, engineError: null, ui: { tier: 'basic', tab: 'inspector' } };
 }
 
 export function reducer(s: AppState, a: Action): AppState {
@@ -37,6 +42,16 @@ export function reducer(s: AppState, a: Action): AppState {
     }
     case 'select': return { ...s, selection: a.id };
     case 'engine-failed': return { ...s, rendering: false, engineError: a.message };
+    case 'edit': {
+      // Spec §6: the inspector is disabled while the YAML is invalid; §5: text is canonical, so the
+      // edited document is serialised and re-parsed rather than kept.
+      if (s.doc.errors.length || a.ops.length === 0) return s;
+      const text = s.doc.apply(a.ops).toString();
+      if (text === s.text) return s;
+      return { ...s, text, doc: ValuesDocument.parse(text) };
+    }
+    case 'tier': return s.ui.tier === a.tier ? s : { ...s, ui: { ...s.ui, tier: a.tier } };
+    case 'tab': return s.ui.tab === a.tab ? s : { ...s, ui: { ...s.ui, tab: a.tab } };
   }
 }
 

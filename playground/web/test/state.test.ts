@@ -60,4 +60,28 @@ describe('app state', () => {
   it('unescapes JSON pointer segments and numbers array indices', () => {
     expect(pointerToPath('/a~1b/c~0d/0')).toEqual(['a/b', 'c~d', 0]);
   });
+  it('edit applies ops to the document and re-derives text (selection preserved)', () => {
+    let s = initialState('deployments:\n  web:\n    replicas: 1\n');
+    s = reducer(s, { type: 'select', id: 'default/Deployment/web' });
+    s = reducer(s, { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'web', 'replicas'], value: 3 }] });
+    expect(s.text).toBe('deployments:\n  web:\n    replicas: 3\n');
+    expect(s.doc.valueAt(['deployments', 'web', 'replicas'])).toBe(3);
+    expect(s.selection).toBe('default/Deployment/web');
+  });
+  it('edit is a no-op while the document has syntax errors', () => {
+    const s0 = initialState('deployments: [\n');
+    const s1 = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['x'], value: 1 }] });
+    expect(s1).toBe(s0);
+  });
+  it('edit is a no-op when nothing changes', () => {
+    const s0 = initialState('a: 1\n');
+    expect(reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['a'], value: 1 }] })).toBe(s0);
+  });
+  it('tier and tab actions update ui state', () => {
+    let s = initialState('a: 1\n');
+    expect(s.ui).toEqual({ tier: 'basic', tab: 'inspector' });
+    s = reducer(s, { type: 'tier', tier: 'advanced' });
+    s = reducer(s, { type: 'tab', tab: 'yaml' });
+    expect(s.ui).toEqual({ tier: 'advanced', tab: 'yaml' });
+  });
 });
