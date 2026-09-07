@@ -1,10 +1,20 @@
 import { test, expect } from '@playwright/test';
 
+// The YAML pane starts collapsed (spec §2); tests that use the toolbar or type into Monaco open it first.
+// Waits for either the rail or an already-visible editor so it cannot race the first paint.
+const openYaml = async (page: import('@playwright/test').Page) => {
+  const rail = page.getByRole('button', { name: 'Show values.yaml' });
+  await rail.or(page.locator('.editor:visible')).first().waitFor();
+  if (await rail.isVisible()) await rail.click();
+  await expect(page.locator('.editor')).toBeVisible();
+};
+
 test('inspector edits values, toggles resources, and undo goes through Monaco', async ({ page }) => {
   await page.goto('./');
   await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
   // example 01 is loaded by default: release + Service hello + Deployment hello
   await expect(page.locator('.rnode')).toHaveCount(3, { timeout: 15_000 });
+  await openYaml(page);
   await page.locator('.rnode', { hasText: 'Deployment' }).click();
   await expect(page.locator('.detail .tabs [aria-selected="true"]')).toHaveText('Inspector');
 
@@ -33,6 +43,7 @@ test('inspector edits values, toggles resources, and undo goes through Monaco', 
 test('inspector is disabled while the YAML is broken', async ({ page }) => {
   await page.goto('./');
   await expect(page.locator('.rnode')).toHaveCount(3, { timeout: 30_000 });
+  await openYaml(page);
   await page.locator('.rnode', { hasText: 'Deployment' }).click();
   await page.locator('.editor').click();
   await page.keyboard.press('ControlOrMeta+End');

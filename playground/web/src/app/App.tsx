@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import chartMeta from "../chart-bundle/chart-meta.json";
 import examples from "../chart-bundle/examples.json";
 import schema from "../chart-bundle/schema.json";
@@ -9,6 +9,7 @@ import { DetailPanel } from "../canvas/DetailPanel";
 import type { SchemaNode } from "../inspector/schema";
 import { initialState, markersFrom, reducer } from "./state";
 import { useRenderPipeline } from "./useRenderPipeline";
+import { usePanes, SplitHandle, Rail } from "./Panes";
 
 const FIRST = (examples as { id: string; values: string }[])[0];
 
@@ -39,6 +40,16 @@ export function App() {
   }, [state.doc]);
   const error = state.render && !state.render.ok ? state.render.error : null;
   const warnings = state.graph?.warnings ?? [];
+  const { panes, setOpen, setWidth, reset } = usePanes();
+  // A node click always shows the inspector, even after the user collapsed it for the previous node.
+  useEffect(() => { if (state.selection) setOpen("inspector", true); }, [state.selection, setOpen]);
+  const dragStart = useRef<{ editor: number; inspector: number }>({ editor: 0, inspector: 0 });
+  useEffect(() => {
+    const snap = () => { dragStart.current = { editor: panes.editor.width, inspector: panes.inspector.width }; };
+    document.addEventListener("pointerdown", snap, true);
+    return () => document.removeEventListener("pointerdown", snap, true);
+  }, [panes.editor.width, panes.inspector.width]);
+  const lineCount = useMemo(() => state.text.split("\n").length, [state.text]);
 
   if (state.engineError) {
     return (
@@ -57,73 +68,59 @@ export function App() {
   return (
     <div className="app-shell">
       <header>
-        <strong>idlefy-universal playground</strong> · chart {chartMeta.version}
-        {state.render?.ok && (
-          <span className="muted">
-            {" "}
-            · rendered {state.render.manifests.length} objects in{" "}
-            {state.render.durationMs} ms
-          </span>
-        )}
-        <a className="muted" href="../" style={{ marginLeft: "auto" }}>
-          docs
-        </a>
+        <strong>idlefy-universal playground</strong>
+        <span className="muted">chart {chartMeta.version}</span>
+        <div className="pane-buttons" role="group" aria-label="panes">
+          <button type="button" className={panes.editor.open ? "on" : ""} aria-pressed={panes.editor.open} onClick={() => setOpen("editor", !panes.editor.open)}>YAML</button>
+          <button type="button" className="on" aria-pressed="true" disabled>Graph</button>
+          <button type="button" className={selected && panes.inspector.open ? "on" : ""} aria-pressed={!!selected && panes.inspector.open} disabled={!selected}
+            onClick={() => setOpen("inspector", !panes.inspector.open)}>Inspector</button>
+        </div>
+        <span className="status">
+          {state.render?.ok && <><span className="dot ok" aria-hidden="true" /> rendered {state.render.manifests.length} objects in {state.render.durationMs} ms</>}
+          <a className="muted" href="../">docs</a>
+        </span>
       </header>
-      <div className="split">
-        <section className="pane-left">
+      <div className="panes">
+        {!panes.editor.open && <Rail side="left" name="values.yaml" label={`values.yaml · ${lineCount} lines`} onOpen={() => setOpen("editor", true)} />}
+        {/* kept mounted while collapsed so Monaco's undo stack survives */}
+        <section className="pane pane-editor" hidden={!panes.editor.open} style={{ width: panes.editor.width }}>
           <Toolbar
-            release={state.releaseName}
-            ns={state.namespace}
-            onRelease={(v) => dispatch({ type: "release", v })}
-            onNs={(v) => dispatch({ type: "ns", v })}
+            release={state.releaseName} ns={state.namespace}
+            onRelease={(v) => dispatch({ type: "release", v })} onNs={(v) => dispatch({ type: "ns", v })}
             onPickExample={(id) => {
-              const ex = (examples as { id: string; values: string }[]).find(
-                (e) => e.id === id,
-              );
+              const ex = (examples as { id: string; values: string }[]).find((e) => e.id === id);
               if (ex) dispatch({ type: "example", id, text: ex.values });
             }}
-            valuesText={state.text}
-            chartVersion={chartMeta.version}
+            valuesText={state.text} chartVersion={chartMeta.version} onHide={() => setOpen("editor", false)}
           />
-          <Editor
-            value={state.text}
-            onChange={onChange}
-            markers={markers}
-            revealLine={revealLine}
-          />
+          <Editor value={state.text} onChange={onChange} markers={markers} revealLine={revealLine} />
         </section>
-        <section className="pane-right">
-          {error && (
-            <div className={`banner ${error.kind}`}>
-              <pre>{error.message}</pre>
-            </div>
-          )}
-          {!error && warnings.length > 0 && (
-            <div className="banner warn">
-              {warnings.map((w) => (
-                <div key={w}>{w}</div>
-              ))}
-            </div>
-          )}
-          <Canvas
-            model={state.graph}
-            stale={!!error || state.doc.errors.length > 0}
-            selection={state.selection}
-            onSelect={(id) => dispatch({ type: "select", id })}
-          />
-          <DetailPanel
-            node={selected}
-            tab={state.ui.tab}
-            tier={state.ui.tier}
-            doc={inspectorDoc}
-            root={schema as SchemaNode}
-            disabled={state.doc.errors.length > 0}
-            onTab={(tab) => dispatch({ type: "tab", tab })}
-            onTier={(tier) => dispatch({ type: "tier", tier })}
-            onEdit={(ops) => dispatch({ type: "edit", ops })}
-            onClose={() => dispatch({ type: "select", id: null })}
-          />
+        <SplitHandle label="Resize values.yaml" disabled={!panes.editor.open}
+          onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
+        <section className="pane pane-canvas">
+          {error && <div className={`banner ${error.kind}`}><pre>{error.message}</pre></div>}
+          {!error && warnings.length > 0 && <div className="banner warn">{warnings.map((w) => <div key={w}>{w}</div>)}</div>}
+          <Canvas model={state.graph} stale={!!error || state.doc.errors.length > 0} selection={state.selection} onSelect={(id) => dispatch({ type: "select", id })} />
         </section>
+        {selected && panes.inspector.open && (
+          <>
+            <SplitHandle label="Resize the inspector" disabled={false}
+              onDrag={(dx) => setWidth("inspector", dragStart.current.inspector - dx)} onReset={() => reset("inspector")} />
+            <section className="pane pane-inspector" style={{ width: panes.inspector.width }}>
+              <DetailPanel
+                node={selected} tab={state.ui.tab} tier={state.ui.tier} doc={inspectorDoc} root={schema as SchemaNode}
+                disabled={state.doc.errors.length > 0}
+                onTab={(tab) => dispatch({ type: "tab", tab })} onTier={(tier) => dispatch({ type: "tier", tier })}
+                onEdit={(ops) => dispatch({ type: "edit", ops })} onClose={() => dispatch({ type: "select", id: null })}
+                onHide={() => setOpen("inspector", false)}
+              />
+            </section>
+          </>
+        )}
+        {selected && !panes.inspector.open && (
+          <Rail side="right" name="the inspector" label={`${selected.name} · ${selected.kind}`} onOpen={() => setOpen("inspector", true)} />
+        )}
       </div>
     </div>
   );

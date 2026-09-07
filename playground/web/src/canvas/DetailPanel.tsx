@@ -15,8 +15,10 @@ export function DetailPanel(p: {
   onTier: (t: Tier) => void;
   onEdit: (ops: EditOp[]) => void;
   onClose: () => void;
+  onHide: () => void;
 }) {
   const { node } = p;
+  void p.onHide; // rendered by Task 10
   if (!node) return null;
   // A node can lack a manifest in three ways: it is external (referenced only), it is the
   // synthetic Release node, or it is created at runtime by another resource (a Certificate's Secret).

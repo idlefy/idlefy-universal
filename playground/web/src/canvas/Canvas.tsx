@@ -6,6 +6,7 @@ import {
   Controls,
   MiniMap,
   useReactFlow,
+  useStore,
   type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -16,13 +17,15 @@ import { GroupNode } from "./GroupNode";
 
 const nodeTypes = { resource: ResourceNode, group: GroupNode };
 
-/** Re-fit the viewport whenever a new layout lands (the `fitView` prop only fires on mount). */
+/** Re-fit the viewport whenever a new layout lands or the canvas box changes size (pane open/close/drag, window resize). */
 function FitOnLayout({ token }: { token: unknown }) {
   const { fitView } = useReactFlow();
+  const box = useStore((s) => `${Math.round(s.width)}x${Math.round(s.height)}`);
+  useEffect(() => { void fitView({ padding: 0.15, duration: 200 }); }, [token, fitView]);
   useEffect(() => {
-    // fitView is queued by React Flow and resolves once the new nodes are measured.
-    void fitView({ padding: 0.15, duration: 200 });
-  }, [token, fitView]);
+    const id = requestAnimationFrame(() => void fitView({ padding: 0.15, duration: 150 }));
+    return () => cancelAnimationFrame(id);
+  }, [box, fitView]);
   return null;
 }
 
