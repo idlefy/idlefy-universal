@@ -47,11 +47,11 @@ describe('Inspector', () => {
       { op: 'set', path: ['deployments', 'hello', 'networkPolicy'], value: { policyTypes: ['Ingress'], ingress: [] } },
     ]);
   });
-  it('tier switch calls onTier and advanced reveals more fields', () => {
+  it('tier switch calls onTier and "show all fields" reveals advanced chips', () => {
     const p = base(dep);
     const { rerender } = render(<Inspector {...p} />);
     expect(reachable('deployments.hello.priorityClassName')).toBeNull();
-    fireEvent.click(screen.getByLabelText('Advanced'));
+    fireEvent.click(screen.getByLabelText('show all fields'));
     expect(p.onTier).toHaveBeenCalledWith('advanced');
     rerender(<Inspector {...p} tier="advanced" />);
     expect(reachable('deployments.hello.priorityClassName')).toBeTruthy();
@@ -67,22 +67,26 @@ describe('Inspector', () => {
     expect(reachable('deployments.api.autoCreateSoftAntiAffinity')).toBeTruthy();
     expect(reachable('deployments.api.autoCreateService')).toBeNull();
   });
-  // spec §2.2: StatefulSetSpec/DaemonSetSpec still declare ingress/httpRoute/certificate/hpa, but the
-  // chart only renders those for deployments — editing them from a StatefulSet panel would be a no-op.
-  it('hides blocks the chart never renders for this workload kind', () => {
+  // Secondary config blocks are reached through the auto-created list, never as fields (spec §5.2);
+  // the list itself only offers what the chart renders for the kind (spec 2026-09-05 §2.2).
+  it('offers no secondary block as a field and only applicable switches', () => {
     render(<Inspector {...ffBase(ffNode('StatefulSet', 'cache'))} tier="advanced" />);
-    expect(reachable('statefulSets.cache.ingress')).toBeNull();
-    expect(reachable('statefulSets.cache.httpRoute')).toBeNull();
-    expect(reachable('statefulSets.cache.certificate')).toBeNull();
-    expect(reachable('statefulSets.cache.hpa')).toBeNull();
-    // blocks that *are* applicable to statefulSets stay editable (as a control or an add chip)
-    expect(reachable('statefulSets.cache.pdb')).toBeTruthy();
-    expect(reachable('statefulSets.cache.networkPolicy')).toBeTruthy();
+    for (const k of ['ingress', 'httpRoute', 'certificate', 'hpa', 'pdb', 'networkPolicy']) expect(reachable(`statefulSets.cache.${k}`), k).toBeNull();
+    expect(screen.queryByLabelText('toggle Ingress')).toBeNull();
+    expect(screen.getByLabelText('toggle PodDisruptionBudget')).toBeTruthy();
+    expect(screen.getByLabelText('toggle NetworkPolicy')).toBeTruthy();
   });
-  it('keeps those same blocks on a Deployment, where the chart does render them', () => {
-    render(<Inspector {...ffBase(ffNode('Deployment', 'api'))} tier="advanced" />);
-    expect(reachable('deployments.api.ingress')).toBeTruthy();
-    expect(reachable('deployments.api.hpa')).toBeTruthy();
+  it('groups workload fields into named sections in spec order', () => {
+    const { container } = render(<Inspector {...ffBase(ffNode('Deployment', 'api'))} tier="advanced" />);
+    const titles = [...container.querySelectorAll('.sec > h3')].map((h) => h.firstChild!.textContent!.trim());
+    expect(titles.slice(0, 4)).toEqual(['Workload', 'Containers', 'Auto-created resources', 'Metadata']);
+    expect(titles).toContain('Placement & security');
+    expect(container.querySelector('.sec .fields .field-head label')!.textContent).toContain('replicas');
+  });
+  it('release panel names its sections', () => {
+    render(<Inspector {...base(rel)} />);
+    expect(screen.getByText('Release-wide')).toBeTruthy();
+    expect(screen.getByText('Defaults for every Deployment')).toBeTruthy();
   });
   it('widget drafts do not leak into the next selected node', () => {
     const p = ffBase(ffNode('Deployment', 'api'));
@@ -94,7 +98,7 @@ describe('Inspector', () => {
   });
   it('release node lists only the release-level sections', () => {
     const { container } = render(<Inspector {...base(rel)} tier="advanced" />);
-    const sections = [...container.querySelectorAll('.inspector > fieldset > details > summary')].map((s) => s.textContent);
+    const sections = [...container.querySelectorAll('.inspector > fieldset > .sec > h3 > .k')].map((s) => s.textContent);
     expect(sections).toEqual(['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs']);
     expect(screen.queryByText('deployments')).toBeNull();
   });
