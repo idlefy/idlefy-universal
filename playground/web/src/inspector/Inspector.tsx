@@ -13,6 +13,7 @@ import { WORKLOAD_SECTIONS, RELEASE_TITLES, KIND_LABEL } from './sections';
 import { Sections } from './Sections';
 import { OwnerStrip } from './OwnerStrip';
 import { GroupPanel } from './GroupPanel';
+import { SecondaryPanel } from './SecondaryPanel';
 import { HiddenNote } from './HiddenNote';
 import { sameP } from './paths';
 
@@ -96,7 +97,7 @@ export function Inspector(p: InspectorProps): ReactElement {
     case 'release': body = releasePanel(); break;
     case 'workload': body = workloadPanel(t.path, t.name); break;
     case 'group': body = <GroupPanel owner={t.owner} members={t.members} root={p.root} doc={p.doc} disabled={p.disabled} onEdit={edit} onSelect={p.onSelect} focusToken={p.focusToken ?? 0} />; break;
-    case 'secondary': body = <p className="muted prov">secondary</p>; break; // Task 10
+    case 'secondary': body = <SecondaryPanel target={t} root={p.root} doc={p.doc} tier={p.tier} nodes={p.nodes} disabled={p.disabled} onEdit={edit} onSelect={p.onSelect} onTier={p.onTier} />; break;
     case 'entity': {
       const owner = p.sel.kind === 'node' ? p.sel.node.provenance?.owner : undefined;
       body = (

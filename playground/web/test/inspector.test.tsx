@@ -6,7 +6,7 @@ import { buildGraph } from '../src/graph/build';
 import { loadFixture } from './fixtures';
 import { ValuesDocument } from '../src/model/ValuesDocument';
 import { Inspector } from '../src/inspector/Inspector';
-import { resolveSelection, groupId } from '../src/app/selection';
+import { resolveSelection, groupId, blockId } from '../src/app/selection';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -52,11 +52,51 @@ describe('Inspector', () => {
     rerender(<Inspector {...p} tier="advanced" />);
     expect(reachable('deployments.hello.priorityClassName')).toBeTruthy();
   });
-  it.skip('auto-created Service opens the owner and names the toggle', () => {
-    // rewritten in Task 10
-    render(<Inspector {...base(nodeSel(svc))} />);
-    expect(screen.getByText(/configured on Deployment hello/i)).toBeTruthy();
+  it('secondary: Service panel names its owner, shows owner service keys and ports', () => {
+    const p = base(nodeSel(svc));
+    render(<Inspector {...p} />);
+    expect(document.querySelector('.owner')!.textContent).toContain('Created for Deployment hello');
+    fireEvent.click(screen.getByLabelText('open owner'));
+    expect(p.onSelect).toHaveBeenCalledWith(dep.id);
     expect((screen.getByLabelText('toggle Service') as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText('turning off keeps the settings in values.yaml')).toBeTruthy();
+    expect(reachable('deployments.hello.serviceType')).toBeTruthy();
+    expect(screen.getByText('Ports')).toBeTruthy();
+    const ports = [...document.querySelectorAll('.sec')].find((s) => s.querySelector('h3')?.textContent === 'Ports')!;
+    expect(ports.querySelector('.fields')!.textContent).toContain('80 → 80/TCP');
+    fireEvent.click(screen.getByLabelText('edit ports on owner'));
+    expect(p.onSelect).toHaveBeenLastCalledWith(dep.id);
+    expect(screen.queryByLabelText('deployments.hello.replicas')).toBeNull();
+  });
+  it('secondary: StatefulSet Service exposes serviceName and serviceHeadless', () => {
+    render(<Inspector {...ffBase(nodeSel(ffNode('Service', 'cache-headless')))} />);
+    expect(reachable('statefulSets.cache.serviceName')).toBeTruthy();
+    expect(reachable('statefulSets.cache.serviceHeadless')).toBeTruthy();
+  });
+  it('secondary: Ingress panel renders only its block in spec sections', () => {
+    const { container } = render(<Inspector {...ffBase(nodeSel(ffNode('Ingress', 'api')))} tier="advanced" />);
+    const titles = [...container.querySelectorAll('.sec > h3')].map((h) => h.firstChild!.textContent!.trim());
+    expect(titles[0]).toBe('Routing');
+    expect(reachable('deployments.api.ingress.hosts')).toBeTruthy();
+    expect(reachable('deployments.api.replicas')).toBeNull();
+    expect(screen.queryByLabelText('toggle Service')).toBeNull();
+  });
+  it('secondary: switching off a block that is deleted hands the selection to the group', () => {
+    const p = ffBase(nodeSel(ffNode('PodDisruptionBudget', 'api')));
+    render(<Inspector {...p} />);
+    expect(screen.getByText('turning off removes its settings from values.yaml')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('toggle PodDisruptionBudget'));
+    expect(p.onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['deployments', 'api', 'autoCreatePdb'], value: false }, { op: 'delete', path: ['deployments', 'api', 'pdb'] }]);
+    expect(p.onSelect).toHaveBeenLastCalledWith(groupId(ffNode('Deployment', 'api').id));
+  });
+  it('secondary: a nodeless block opens with its switch off and its fields editable', () => {
+    const p = ffBase(resolveSelection(ff, blockId(['deployments', 'api', 'hpa']))!);
+    render(<Inspector {...p} />);
+    const sw = screen.getByLabelText('toggle HorizontalPodAutoscaler') as HTMLInputElement;
+    expect(sw.checked).toBe(false);
+    fireEvent.click(sw);
+    expect(p.onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['deployments', 'api', 'hpa'], value: { minReplicas: 1, maxReplicas: 3 } }]);
+    expect(reachable('deployments.api.hpa.minReplicas')).toBeTruthy();   // Scaling section chips/fields render from the schema even while unset
   });
   it('hides only the autoCreate flags the toggle table owns', () => {
     render(<Inspector {...ffBase(nodeSel(ffNode('Deployment', 'api')))} tier="advanced" />);
