@@ -238,3 +238,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .switch:checked { background: var(--accent); } .switch:checked::after { left: 16px; }
 .switch:disabled { opacity: .45; cursor: default; }
 .switch.sm { width: 28px; height: 16px; } .switch.sm::after { width: 12px; height: 12px; } .switch.sm:checked::after { left: 14px; }
+
+/* string-list rows */
+.slist { display: flex; flex-direction: column; gap: 6px; }
+.srow { display: grid; grid-template-columns: 1fr 26px; gap: 6px; align-items: center; }

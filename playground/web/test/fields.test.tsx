@@ -74,12 +74,33 @@ describe('field widgets', () => {
     expect(document.querySelectorAll('.chip').length).toBeGreaterThan(chipsBefore);
   });
 
-  it('list: one item per line, trailing blank lines dropped', () => {
+  it('list: one row per item; edit, remove, add', () => {
     const onEdit = vi.fn();
     const c = schemaAt(root, cbase)!;
-    render(<FieldList root={root} node={c} basePath={cbase} value={{ image: 'x', imageTag: '1', args: ['a'] }} tier="advanced" onEdit={onEdit} />);
-    fireEvent.change(screen.getByLabelText('deployments.web.containers.main.args'), { target: { value: 'migrate\nup\n' } });
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'args'], value: ['migrate', 'up'] }]);
+    render(<FieldList root={root} node={c} basePath={cbase} value={{ image: 'x', imageTag: '1', args: ['a', 'b'] }} tier="advanced" onEdit={onEdit} />);
+    const first = screen.getByLabelText('deployments.web.containers.main.args.0') as HTMLInputElement;
+    expect(first.value).toBe('a');
+    fireEvent.change(first, { target: { value: 'migrate' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'args', 0], value: 'migrate' }]);
+    fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main.args.1'));
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...cbase, 'args', 1] }]);   // splice keeps the YAML style
+    fireEvent.click(screen.getByLabelText('add deployments.web.containers.main.args'));
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'args'], value: ['a', 'b', ''] }]);
+    expect(screen.queryByLabelText('deployments.web.containers.main.args')).toBeNull();   // no textarea any more
+  });
+  it('list: a present non-list value keeps the raw YAML editor', () => {
+    render(<FieldList root={root} node={schemaAt(root, cbase)!} basePath={cbase} value={{ image: 'x', args: { oops: 1 } }} tier="advanced" onEdit={vi.fn()} />);
+    expect(screen.getByLabelText('deployments.web.containers.main.args').tagName).toBe('TEXTAREA');
+  });
+  it('list: removing the last item deletes the key; enum items are selects', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={{ networkPolicy: { policyTypes: ['Ingress'] } }} tier="basic" onEdit={onEdit} />);
+    const sel = screen.getByLabelText('deployments.web.networkPolicy.policyTypes.0') as HTMLSelectElement;
+    expect(sel.tagName).toBe('SELECT');
+    fireEvent.change(sel, { target: { value: 'Egress' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'networkPolicy', 'policyTypes', 0], value: 'Egress' }]);
+    fireEvent.click(screen.getByLabelText('remove deployments.web.networkPolicy.policyTypes.0'));
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'networkPolicy', 'policyTypes'] }]);
   });
 
   it('keyvalue: add, edit and remove rows', () => {
