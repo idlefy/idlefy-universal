@@ -42,6 +42,21 @@ describe('app state', () => {
     s = reducer(s, { type: 'render-done', result: { ok: true, manifests: [], durationMs: 1 }, graph: { nodes: [node('b')], edges: [], warnings: [] } });
     expect(s.selection).toBe('b');
   });
+  it('keeps group and block selections while their workload exists, drops them when it goes', () => {
+    let s = initialState('deployments: {}\n');
+    const wl = (id: string, name: string) => ({ id, key: id, kind: 'Deployment', name, namespace: 'default', family: 'workload' as const, external: false, conflict: false, hookBadge: false, warnings: [], manifest: { raw: '', kind: 'Deployment', name, namespace: 'default', templatePath: 't' } as any, provenance: { path: ['deployments', name], governingCondition: '', removeAction: [] } });
+    const graphA = { nodes: [wl('default/Deployment/a', 'a')], edges: [], warnings: [] };
+    s = reducer(s, { type: 'render-done', result: { ok: true, manifests: [], durationMs: 1 }, graph: graphA });
+    s = reducer(s, { type: 'select', id: 'group:default/Deployment/a' });
+    s = reducer(s, { type: 'render-done', result: { ok: true, manifests: [], durationMs: 1 }, graph: graphA });
+    expect(s.selection).toBe('group:default/Deployment/a');
+    s = reducer(s, { type: 'select', id: 'block:deployments.a.hpa' });
+    s = reducer(s, { type: 'render-done', result: { ok: true, manifests: [], durationMs: 1 }, graph: graphA });
+    expect(s.selection).toBe('block:deployments.a.hpa');
+    const graphB = { nodes: [wl('default/Deployment/b', 'b')], edges: [], warnings: [] };
+    s = reducer(s, { type: 'render-done', result: { ok: true, manifests: [], durationMs: 1 }, graph: graphB });
+    expect(s.selection).toBe(null);
+  });
   it('keeps the last graph when a graph build fails (dispatched as a template error)', () => {
     let s = initialState('deployments: {}\n');
     const graph = { nodes: [], edges: [], warnings: [] };

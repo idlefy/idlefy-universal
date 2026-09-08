@@ -2,6 +2,7 @@ import { ValuesDocument, type EditOp } from '../model/ValuesDocument';
 import { SUPERSEDED, type RenderResult } from '../engine/types';   // types.ts has no side effects, so this test stays bundle-free
 import type { GraphModel } from '../graph/types';
 import type { EditorMarker } from '../editor/Editor';
+import { anchorOf } from './selection';
 
 export type Tier = 'basic' | 'advanced';
 export type DetailTab = 'inspector' | 'yaml';
@@ -35,9 +36,9 @@ export function reducer(s: AppState, a: Action): AppState {
       // A superseded request (EngineClient latest-wins) carries no information; a newer result is on its way.
       if (!a.result.ok && a.result.error.message === SUPERSEDED) return s;
       const graph = a.result.ok ? a.graph : s.graph;
-      // A selected node can disappear from the rebuilt graph (renamed or removed). Dropping the
-      // dead id keeps Canvas from dimming every node around a focus that no node matches.
-      const selection = graph && s.selection && !graph.nodes.some((n) => n.id === s.selection) ? null : s.selection;
+      // A selected node can disappear from the rebuilt graph (renamed or removed). Group and block
+      // selections are anchored to their workload and survive as long as it does (spec 2026-09-08 §2.3).
+      const selection = graph && s.selection && !anchorOf(graph, s.selection) ? null : s.selection;
       return { ...s, rendering: false, render: a.result, graph, selection };
     }
     case 'select': return { ...s, selection: a.id };
