@@ -5,7 +5,7 @@ import { AutoCreated } from '../src/inspector/AutoCreated';
 
 afterEach(cleanup);
 const props = (kindKey: string, cfg: Record<string, any>, extra: Partial<Parameters<typeof AutoCreated>[0]> = {}) => ({
-  kindKey, name: 'api', base: [kindKey, 'api'], cfg, disabled: false, onEdit: vi.fn(), nodeFor: () => null, onSelect: vi.fn(), ...extra,
+  kindKey, name: 'api', base: [kindKey, 'api'], cfg, disabled: false, onEdit: vi.fn(), nodeFor: () => null, hasSchema: (id: string) => id !== 'service', onSelect: vi.fn(), ...extra,
 });
 
 describe('AutoCreated', () => {
@@ -30,35 +30,38 @@ describe('AutoCreated', () => {
     const p = props('deployments', { autoCreateRbac: true, rbac: { rules: [{}] } }, { nodeFor: (id) => (id === 'rbac' ? 'default/Role/api' : null) });
     render(<AutoCreated {...p} />);
     expect(screen.getByText('1 rule')).toBeTruthy();
-    expect(screen.getAllByText('needs Service').length).toBeGreaterThan(0); // Ingress, HTTPRoute and ServiceMonitor are off
+    expect(screen.getAllByText('needs Service').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByLabelText('open Role + RoleBinding'));
     expect(p.onSelect).toHaveBeenCalledWith('default/Role/api');
-    expect(screen.queryByLabelText('open Ingress')).toBeNull();
   });
   it('shows no warning line when nothing blocks the switch', () => {
     render(<AutoCreated {...props('deployments', { autoCreateService: true, containers: { main: { image: 'x', ports: { http: { containerPort: 80 } } } } })} />);
     expect(document.querySelectorAll('.sub.why').length).toBe(0);
   });
-  it('renders the block inline when the switch is on but the graph has no node for it', () => {
-    const p = props('deployments', { hpa: { minReplicas: 1, maxReplicas: 3 } }, { renderBlock: (id) => <div data-testid={`block-${id}`} /> });
+  it('a block with a schema node but no rendered node opens as a block selection', () => {
+    const p = props('deployments', { hpa: { minReplicas: 1, maxReplicas: 3 } });
     render(<AutoCreated {...p} />);
-    expect(screen.getByTestId('block-hpa')).toBeTruthy();       // on, no node → inline
-    expect(screen.queryByTestId('block-ingress')).toBeNull();   // off → nothing
+    fireEvent.click(screen.getByLabelText('open HorizontalPodAutoscaler'));
+    expect(p.onSelect).toHaveBeenCalledWith('block:deployments.api.hpa');
+    fireEvent.click(screen.getByLabelText('open Ingress'));
+    expect(p.onSelect).toHaveBeenCalledWith('block:deployments.api.ingress');
+    expect(document.querySelector('.inline-block')).toBeNull();
   });
-  it('keeps a stale block reachable when its switch is off but the YAML still has it configured', () => {
-    const p = props('deployments', { autoCreateIngress: false, ingress: { hosts: [{ host: 'a.example.com' }] } },
-      { renderBlock: (id) => <div data-testid={`block-${id}`} /> });
-    render(<AutoCreated {...p} />);
-    const sw = screen.getByLabelText('toggle Ingress') as HTMLInputElement;
-    expect(sw.checked).toBe(false);
-    expect(screen.getByTestId('block-ingress')).toBeTruthy();
+  it('the Service row (no schema node) opens only when its node exists', () => {
+    const { rerender } = render(<AutoCreated {...props('deployments', { autoCreateService: true, containers: { main: { image: 'x', ports: { http: { containerPort: 80 } } } } })} />);
+    expect(screen.queryByLabelText('open Service')).toBeNull();
+    rerender(<AutoCreated {...props('deployments', { autoCreateService: true, containers: { main: { image: 'x', ports: { http: { containerPort: 80 } } } } }, { nodeFor: (id) => (id === 'service' ? 'default/Service/api' : null) })} />);
+    expect(screen.getByLabelText('open Service')).toBeTruthy();
+  });
+  it('an off switch with a configured block says so', () => {
+    render(<AutoCreated {...props('deployments', { autoCreateIngress: false, ingress: { hosts: [{ host: 'a.example.com' }] } })} />);
+    expect((screen.getByLabelText('toggle Ingress') as HTMLInputElement).checked).toBe(false);
     expect(screen.getByText('configured, not created')).toBeTruthy();
   });
-  it('renders nothing extra when the switch is off and the block is empty', () => {
-    const p = props('deployments', { autoCreateIngress: false }, { renderBlock: (id) => <div data-testid={`block-${id}`} /> });
-    render(<AutoCreated {...p} />);
-    expect(screen.queryByTestId('block-ingress')).toBeNull();
+  it('an off switch with an empty block shows the hint', () => {
+    render(<AutoCreated {...props('deployments', { autoCreateIngress: false })} />);
     expect(screen.queryByText('configured, not created')).toBeNull();
+    expect(screen.getAllByText('needs Service').length).toBeGreaterThan(0);
   });
   it('orders rows by the spec and only lists applicable ones', () => {
     render(<AutoCreated {...props('statefulSets', {})} />);

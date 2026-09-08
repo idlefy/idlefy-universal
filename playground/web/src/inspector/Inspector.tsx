@@ -34,7 +34,7 @@ export function Inspector(p: {
   const all = (isObj(rootValue) ? rootValue : {}) as Record<string, unknown>;
   const notice = p.disabled && <p className="banner-inline">Fix the YAML syntax error in the editor to edit here.</p>;
 
-  const workloadPanel = (base: ValuesPath, highlight?: SecondaryId) => {
+  const workloadPanel = (base: ValuesPath) => {
     const kindKey = String(base[0]), name = String(base[1]);
     const cfg = p.doc.valueAt(base);
     const node = schemaAt(p.root, base)!;
@@ -63,9 +63,8 @@ export function Inspector(p: {
         {sectionEl('containers')}
         <div className="sec">
           <h3>Auto-created resources</h3>
-          <AutoCreated kindKey={kindKey} name={name} base={base} cfg={isObj(cfg) ? cfg : {}} disabled={p.disabled} highlight={highlight} onEdit={edit}
-            nodeFor={(id) => nodeFor(p.nodes, base, id)} onSelect={p.onSelect}
-            renderBlock={(id) => { const bn = schemaAt(p.root, [...base, id]); return bn ? <FieldList root={p.root} node={bn} basePath={[...base, id]} value={p.doc.valueAt([...base, id])} tier={p.tier} onEdit={edit} /> : null; }} />
+          <AutoCreated kindKey={kindKey} name={name} base={base} cfg={isObj(cfg) ? cfg : {}} disabled={p.disabled} onEdit={edit}
+            nodeFor={(id) => nodeFor(p.nodes, base, id)} hasSchema={(id) => !!schemaAt(p.root, [...base, id])} onSelect={p.onSelect} />
         </div>
         {sectionEl('metadata')}
         {sectionEl('placement')}
