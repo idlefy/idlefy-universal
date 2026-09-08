@@ -2,14 +2,15 @@ import type { GraphNode } from '../graph/types';
 import type { EditOp, ValuesDocument } from '../model/ValuesDocument';
 import type { DetailTab, Tier } from '../app/state';
 import type { SchemaNode } from '../inspector/schema';
+import type { ResolvedSelection } from '../app/selection';
 import { Inspector } from '../inspector/Inspector';
 import { KindIcon } from './icons';
 
 export function DetailPanel(p: {
-  node: GraphNode | null; tab: DetailTab; tier: Tier; doc: ValuesDocument; root: SchemaNode; disabled: boolean; nodes: GraphNode[];
+  sel: ResolvedSelection | null; tab: DetailTab; tier: Tier; doc: ValuesDocument; root: SchemaNode; disabled: boolean; nodes: GraphNode[];
   onTab: (t: DetailTab) => void; onTier: (t: Tier) => void; onEdit: (ops: EditOp[]) => void; onClose: () => void; onHide: () => void; onSelect: (id: string) => void;
 }) {
-  const { node } = p;
+  const node = p.sel?.kind === 'node' ? p.sel.node : null;
   if (!node) return null;
   // A node can lack a manifest in three ways: it is external (referenced only), it is the
   // synthetic Release node, or it is created at runtime by another resource (a Certificate's Secret).
@@ -53,7 +54,7 @@ export function DetailPanel(p: {
       </div>
       <div className="body">
         {p.tab === 'inspector' ? (
-          <Inspector node={node} root={p.root} doc={p.doc} tier={p.tier} onEdit={p.onEdit} disabled={p.disabled} nodes={p.nodes} onSelect={p.onSelect} />
+          <Inspector sel={{ kind: 'node', node }} root={p.root} doc={p.doc} tier={p.tier} onEdit={p.onEdit} onTier={p.onTier} disabled={p.disabled} nodes={p.nodes} onSelect={p.onSelect} />
         ) : (
           <div className="manifest">
             <button type="button" className="btn small" onClick={() => navigator.clipboard?.writeText(text).catch(() => {})}>Copy manifest</button>

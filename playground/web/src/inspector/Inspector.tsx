@@ -2,74 +2,50 @@ import type { ReactElement } from 'react';
 import type { GraphNode } from '../graph/types';
 import type { EditOp, ValuesDocument, ValuesPath } from '../model/ValuesDocument';
 import type { Tier } from '../app/state';
+import { groupId, type ResolvedSelection } from '../app/selection';
+import { isWorkloadNode } from '../canvas/groups';
 import { schemaAt, classify, resolve, type SchemaNode } from './schema';
 import { buildFields, type Field } from './form';
 import { FieldList, FieldRow } from './fields';
-import { AutoCreated } from './AutoCreated';
-import { inspectTarget } from './target';
-import { SECONDARY, type SecondaryId } from '../graph/secondary';
-import { WORKLOAD_SECTIONS, RELEASE_TITLES, partition, KIND_LABEL } from './sections';
+import { inspectTarget, type InspectTarget } from './target';
+import { SECONDARY } from '../graph/secondary';
+import { WORKLOAD_SECTIONS, RELEASE_TITLES } from './sections';
+import { Sections } from './Sections';
+import { OwnerStrip } from './OwnerStrip';
+import { HiddenNote } from './HiddenNote';
+import { sameP } from './paths';
 
 const RELEASE_SECTIONS = ['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs'];
-// Flags the switch list owns and the config blocks behind them: reached through the list's "open ›",
-// never as plain fields (spec 2026-09-07 §5.2).
-const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));
-const ALL_BLOCKS = new Set<string>(SECONDARY.map((s) => s.id));
+// Flags the switch list owns and the config blocks behind them: reached through the group panel, never as plain fields.
+export const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));
+export const ALL_BLOCKS = new Set<string>(SECONDARY.map((s) => s.id));
 const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 
-const sameP = (a: ValuesPath | undefined, b: ValuesPath) => !!a && a.length === b.length && a.every((x, i) => x === b[i]);
-/** Graph node produced by the secondary block of `base` (first match in graph order; for rbac either Role or RoleBinding, both open the same block). */
-function nodeFor(nodes: GraphNode[], base: ValuesPath, id: SecondaryId): string | null {
-  const hit = nodes.find((n) => n.manifest && sameP(n.provenance?.owner, base) && n.provenance!.path.length === 3 && String(n.provenance!.path[2]) === id);
-  return hit?.id ?? null;
-}
+export type InspectorProps = {
+  sel: ResolvedSelection; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[];
+  onEdit: (ops: EditOp[]) => void; onSelect: (selection: string) => void; onTier: (t: Tier) => void; disabled: boolean; focusToken?: number;
+};
 
-export function Inspector(p: {
-  node: GraphNode; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[];
-  onEdit: (ops: EditOp[]) => void; onSelect: (id: string) => void; disabled: boolean;
-}): ReactElement {
-  const t = inspectTarget({ kind: 'node', node: p.node }, p.root);
+export function Inspector(p: InspectorProps): ReactElement {
+  const t: InspectTarget = inspectTarget(p.sel, p.root);
   const edit = p.disabled ? () => {} : p.onEdit;
   const rootValue = p.doc.valueAt([]);
   const all = (isObj(rootValue) ? rootValue : {}) as Record<string, unknown>;
   const notice = p.disabled && <p className="banner-inline">Fix the YAML syntax error in the editor to edit here.</p>;
 
-  const workloadPanel = (base: ValuesPath) => {
-    const kindKey = String(base[0]), name = String(base[1]);
-    const cfg = p.doc.valueAt(base);
-    const node = schemaAt(p.root, base)!;
-    const keys = Object.keys(resolve(p.root, node).properties ?? {}).filter((k) => !OWNED_FLAGS.has(k) && !ALL_BLOCKS.has(k));
-    const parts = partition(keys, WORKLOAD_SECTIONS);
-    const sectionEl = (id: string) => {
-      const part = parts.find((x) => x.section.id === id);
-      if (!part) return null;
-      const { section } = part;
-      if (section.advanced && p.tier !== 'advanced') {
-        return <div key={id} className="sec adv"><h3>{section.title} <span className="more">hidden · turn on “show all fields”</span></h3></div>;
-      }
-      const mine = new Set(part.keys);
-      // Metadata keys are all advanced-tier: on the basic tier with nothing set the section would be a heading over "No fields here."
-      if (buildFields(p.root, node, base, cfg, p.tier, { hide: (k) => !mine.has(k) }).length === 0) return null;
-      return (
-        <div key={id} className={`sec ${section.advanced ? 'adv' : ''}`}>
-          <h3>{section.title}</h3>
-          <FieldList root={p.root} node={node} basePath={base} value={cfg} tier={p.tier} onEdit={edit} hide={(k) => !mine.has(k)} order={part.keys} />
-        </div>
-      );
-    };
+  // spec 2026-09-08 §3.2: only the workload's own fields, with the group named above them
+  const workloadPanel = (base: ValuesPath, name: string) => {
+    const wl = p.nodes.find((n) => isWorkloadNode(n) && sameP(n.provenance!.path, base));
+    const members = p.nodes.filter((n) => n.provenance?.owner && sameP(n.provenance.owner, base));
+    const summary = members.length === 0 ? 'no other resources yet' : members.length === 1 ? members[0].kind : `${members[0].kind}, ${members.length - 1} more`;
     return (
-      <fieldset disabled={p.disabled}>
-        {sectionEl('workload')}
-        {sectionEl('containers')}
-        <div className="sec">
-          <h3>Auto-created resources</h3>
-          <AutoCreated kindKey={kindKey} name={name} base={base} cfg={isObj(cfg) ? cfg : {}} disabled={p.disabled} onEdit={edit}
-            nodeFor={(id) => nodeFor(p.nodes, base, id)} hasSchema={(id) => !!schemaAt(p.root, [...base, id])} onSelect={p.onSelect} />
-        </div>
-        {sectionEl('metadata')}
-        {sectionEl('placement')}
-        {sectionEl('other')}
-      </fieldset>
+      <>
+        <OwnerStrip kind="group" text={<>In group <b>{name}</b> · {summary}</>} button="Open group" ariaLabel="open group" onClick={wl ? () => p.onSelect(groupId(wl.id)) : undefined} />
+        <fieldset disabled={p.disabled}>
+          <Sections root={p.root} node={schemaAt(p.root, base)!} base={base} value={p.doc.valueAt(base)} tier={p.tier} tables={WORKLOAD_SECTIONS}
+            hide={(k) => OWNED_FLAGS.has(k) || ALL_BLOCKS.has(k)} onEdit={edit} onTier={p.onTier} />
+        </fieldset>
+      </>
     );
   };
 
@@ -86,50 +62,45 @@ export function Inspector(p: {
     };
     return <FieldRow root={p.root} field={field} tier={p.tier} onEdit={edit} bare />;
   };
+  const releasePanel = () => {
+    const hidden: string[] = [];
+    const secs = RELEASE_SECTIONS.map((k) => {
+      const node = resolve(p.root, p.root.properties[k]);
+      const widget = classify(p.root, node);
+      if (widget.kind === 'object') {
+        const count = (tier: Tier) => buildFields(p.root, node, [k], all[k], tier, { hide: (x) => OWNED_FLAGS.has(x) }).length;
+        if (count(p.tier) === 0) {
+          // nothing on this tier: name it in the footer (spec §4.6) when the advanced tier would show something
+          if (p.tier !== 'advanced' && count('advanced') > 0) hidden.push(RELEASE_TITLES[k] ?? k);
+          return null;
+        }
+      }
+      const bareBlock = widget.kind !== 'object' && all[k] !== undefined;
+      return (
+        <div key={k} className="sec">
+          <h3>
+            {RELEASE_TITLES[k] ?? k} <span className="k">{k}</span>
+            {bareBlock && <button type="button" className="clear more" aria-label={`clear ${k}`} title="Remove this block from values.yaml" onClick={() => edit([{ op: 'delete', path: [k] }])}>×</button>}
+          </h3>
+          {releaseSection(k)}
+        </div>
+      );
+    });
+    return <fieldset disabled={p.disabled}>{secs}<HiddenNote names={hidden} onShow={() => p.onTier('advanced')} /></fieldset>;
+  };
 
   let body: ReactElement;
   switch (t.kind) {
     case 'none': body = <p className="muted prov">{t.reason}</p>; break;
-    case 'release':
-      body = (
-        <fieldset disabled={p.disabled}>
-          {RELEASE_SECTIONS.map((k) => {
-            const node = resolve(p.root, p.root.properties[k]);
-            if (classify(p.root, node).kind === 'object') {
-              const count = (tier: Tier) => buildFields(p.root, node, [k], all[k], tier, { hide: (x) => OWNED_FLAGS.has(x) }).length;
-              if (count(p.tier) === 0) {
-                // nothing on this tier: a heading over "No fields here." is noise — point at the switch, or drop the section
-                if (p.tier === 'advanced' || count('advanced') === 0) return null;
-                return (
-                  <div key={k} className="sec adv">
-                    <h3><span className="title">{RELEASE_TITLES[k] ?? k}</span><span className="k">{k}</span><span className="more">hidden · turn on “show all fields”</span></h3>
-                  </div>
-                );
-              }
-            }
-            // a map/passthrough-shaped section (secretRefs) renders bare under the heading, which then carries its clear button
-            const bareBlock = classify(p.root, node).kind !== 'object' && all[k] !== undefined;
-            return (
-              <div key={k} className="sec">
-                <h3>
-                  {RELEASE_TITLES[k] ?? k} <span className="k">{k}</span>
-                  {bareBlock && <button type="button" className="clear more" aria-label={`clear ${k}`} title="Remove this block from values.yaml" onClick={() => edit([{ op: 'delete', path: [k] }])}>×</button>}
-                </h3>
-                {releaseSection(k)}
-              </div>
-            );
-          })}
-        </fieldset>
-      );
-      break;
-    case 'workload': body = workloadPanel(t.path); break;
-    case 'group': body = <p className="muted prov">group</p>; break;
-    case 'secondary': body = <p className="muted prov">secondary</p>; break;
+    case 'release': body = releasePanel(); break;
+    case 'workload': body = workloadPanel(t.path, t.name); break;
+    case 'group': body = <p className="muted prov">group</p>; break;         // Task 9
+    case 'secondary': body = <p className="muted prov">secondary</p>; break; // Task 10
     case 'entity': {
-      const owner = p.node.provenance?.owner;
+      const owner = p.sel.kind === 'node' ? p.sel.node.provenance?.owner : undefined;
       body = (
         <>
-          {owner && <p className="prov">Part of {KIND_LABEL[String(owner[0])] ?? owner[0]} {String(owner[1])} (values: <code>{t.path.join('.')}</code>).</p>}
+          {owner && <p className="prov">Part of {String(owner[0])} {String(owner[1])} (values: <code>{t.path.join('.')}</code>).</p>}
           <fieldset disabled={p.disabled}>
             <div className="sec">
               <FieldList root={p.root} node={schemaAt(p.root, t.path)!} basePath={t.path} value={p.doc.valueAt(t.path)} tier={p.tier} onEdit={edit} />
@@ -140,7 +111,7 @@ export function Inspector(p: {
       break;
     }
   }
-  const bodyKey = t.kind === 'release' ? 'release' : t.kind === 'none' ? 'none' : t.kind === 'group' ? t.owner.id : t.path.join('.');
+  const bodyKey = t.kind === 'release' ? 'release' : t.kind === 'none' ? 'none' : t.kind === 'group' ? `group:${t.owner.id}` : t.path.join('.');
   return (
     <div className="inspector" key={bodyKey}>
       {notice}

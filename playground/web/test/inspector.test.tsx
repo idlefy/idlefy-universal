@@ -17,12 +17,13 @@ const g = buildGraph(manifests, values, 'default');
 const dep = g.nodes.find((n) => n.kind === 'Deployment')!;
 const svc = g.nodes.find((n) => n.kind === 'Service')!;
 const rel = g.nodes.find((n) => n.kind === 'Release')!;
-const base = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(text), tier: 'basic' as const, nodes: g.nodes, onEdit: vi.fn(), onSelect: vi.fn(), disabled: false });
+const nodeSel = (n: any) => ({ kind: 'node' as const, node: n });
+const base = (sel: any) => ({ sel, root, doc: ValuesDocument.parse(text), tier: 'basic' as const, nodes: g.nodes, onEdit: vi.fn(), onSelect: vi.fn(), onTier: vi.fn(), disabled: false });
 
 const ffText = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'graph', '__fixtures__', 'full-features.values.yaml'), 'utf8');
 const ff = (() => { const f = loadFixture('full-features'); return buildGraph(f.manifests, f.values, 'default'); })();
 const ffNode = (kind: string, name: string) => ff.nodes.find((n) => n.kind === kind && n.name === name)!;
-const ffBase = (n: any) => ({ node: n, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, nodes: ff.nodes, onEdit: vi.fn(), onSelect: vi.fn(), disabled: false });
+const ffBase = (sel: any) => ({ sel, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, nodes: ff.nodes, onEdit: vi.fn(), onSelect: vi.fn(), onTier: vi.fn(), disabled: false });
 
 // Absent optional fields now render as an "add field" chip instead of an empty control (task 6);
 // a field is reachable either as a live control, its chip, or — for block widgets (object/map/keyvalue/
@@ -32,23 +33,19 @@ const reachable = (id: string) =>
   screen.queryByLabelText(id) ?? screen.queryByLabelText(`add field ${id}`) ?? document.querySelector(`label[for="${CSS.escape(id)}"]`);
 
 describe('Inspector', () => {
-  it('workload: shows applicable toggles with state, hides autoCreate* from the field list', () => {
-    const p = base(dep);
+  it('workload panel: no switches, owner strip names the group and opens it', () => {
+    const p = base(nodeSel(dep));
     render(<Inspector {...p} />);
-    const svcToggle = screen.getByLabelText('toggle Service') as HTMLInputElement;
-    expect(svcToggle.checked).toBe(true);
-    expect(screen.queryByLabelText('toggle ServiceMonitor')).toBeTruthy();
+    expect(screen.queryByLabelText('toggle Service')).toBeNull();
     expect(screen.queryByLabelText('deployments.hello.autoCreateService')).toBeNull();
-    fireEvent.click(svcToggle);
-    expect(p.onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['deployments', 'hello', 'autoCreateService'], value: false }]);
-    fireEvent.click(screen.getByLabelText('toggle NetworkPolicy'));
-    expect(p.onEdit).toHaveBeenLastCalledWith([
-      { op: 'set', path: ['deployments', 'hello', 'autoCreateNetworkPolicy'], value: true },
-      { op: 'set', path: ['deployments', 'hello', 'networkPolicy'], value: { policyTypes: ['Ingress'], ingress: [] } },
-    ]);
+    const strip = document.querySelector('.owner')!;
+    expect(strip.textContent).toContain('In group hello');
+    expect(strip.textContent).toContain('Service');          // the one member of the hello-world example
+    fireEvent.click(screen.getByLabelText('open group'));
+    expect(p.onSelect).toHaveBeenCalledWith(`group:${dep.id}`);
   });
   it('tier="advanced" reveals advanced chips hidden on tier="basic"', () => {
-    const p = base(dep);
+    const p = base(nodeSel(dep));
     const { rerender } = render(<Inspector {...p} tier="basic" />);
     expect(reachable('deployments.hello.priorityClassName')).toBeNull();
     rerender(<Inspector {...p} tier="advanced" />);
@@ -56,47 +53,55 @@ describe('Inspector', () => {
   });
   it.skip('auto-created Service opens the owner and names the toggle', () => {
     // rewritten in Task 10
-    render(<Inspector {...base(svc)} />);
+    render(<Inspector {...base(nodeSel(svc))} />);
     expect(screen.getByText(/configured on Deployment hello/i)).toBeTruthy();
     expect((screen.getByLabelText('toggle Service') as HTMLInputElement).checked).toBe(true);
   });
   it('hides only the autoCreate flags the toggle table owns', () => {
-    render(<Inspector {...ffBase(ffNode('Deployment', 'api'))} tier="advanced" />);
+    render(<Inspector {...ffBase(nodeSel(ffNode('Deployment', 'api')))} tier="advanced" />);
     // no toggle exists for autoCreateSoftAntiAffinity, so it has to stay reachable as a field
     expect(reachable('deployments.api.autoCreateSoftAntiAffinity')).toBeTruthy();
     expect(reachable('deployments.api.autoCreateService')).toBeNull();
   });
   // Secondary config blocks are reached through the auto-created list, never as fields (spec §5.2);
   // the list itself only offers what the chart renders for the kind (spec 2026-09-05 §2.2).
-  it('offers no secondary block as a field and only applicable switches', () => {
-    render(<Inspector {...ffBase(ffNode('StatefulSet', 'cache'))} tier="advanced" />);
+  it('offers no secondary block as a field and no switches on the workload panel', () => {
+    render(<Inspector {...ffBase(nodeSel(ffNode('StatefulSet', 'cache')))} tier="advanced" />);
     for (const k of ['ingress', 'httpRoute', 'certificate', 'hpa', 'pdb', 'networkPolicy']) expect(reachable(`statefulSets.cache.${k}`), k).toBeNull();
-    expect(screen.queryByLabelText('toggle Ingress')).toBeNull();
-    expect(screen.getByLabelText('toggle PodDisruptionBudget')).toBeTruthy();
-    expect(screen.getByLabelText('toggle NetworkPolicy')).toBeTruthy();
+    expect(screen.queryAllByRole('switch')).toEqual([]);
   });
   it('groups workload fields into named sections in spec order', () => {
-    const { container } = render(<Inspector {...ffBase(ffNode('Deployment', 'api'))} tier="advanced" />);
+    const { container } = render(<Inspector {...ffBase(nodeSel(ffNode('Deployment', 'api')))} tier="advanced" />);
     const titles = [...container.querySelectorAll('.sec > h3')].map((h) => h.firstChild!.textContent!.trim());
-    expect(titles.slice(0, 4)).toEqual(['Workload', 'Containers', 'Auto-created resources', 'Metadata']);
+    expect(titles.slice(0, 3)).toEqual(['Workload', 'Containers', 'Metadata']);
     expect(titles).toContain('Placement & security');
     expect(container.querySelector('.sec .fields .field-head label')!.textContent).toMatch(/replicas/i);
   });
+  it('basic tier collapses hidden advanced sections into one footer note', () => {
+    const p = base(nodeSel(dep));
+    const { container, rerender } = render(<Inspector {...p} tier="basic" />);
+    expect(container.querySelector('.sec.adv')).toBeNull();
+    expect(screen.getByText('Placement & security hidden')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('show hidden sections'));
+    expect(p.onTier).toHaveBeenCalledWith('advanced');
+    rerender(<Inspector {...p} tier="advanced" />);
+    expect(container.querySelector('.hidden-note')).toBeNull();
+  });
   it('release panel names its sections', () => {
-    render(<Inspector {...base(rel)} />);
+    render(<Inspector {...base(nodeSel(rel))} />);
     expect(screen.getByText('Release-wide')).toBeTruthy();
     expect(screen.getByText('Defaults for every Deployment')).toBeTruthy();
   });
   it('widget drafts do not leak into the next selected node', () => {
-    const p = ffBase(ffNode('Deployment', 'api'));
+    const p = ffBase(nodeSel(ffNode('Deployment', 'api')));
     const { rerender } = render(<Inspector {...p} />);
     fireEvent.change(screen.getByLabelText('new key deployments.api.containers'), { target: { value: 'sidecar' } });
     expect((screen.getByLabelText('new key deployments.api.containers') as HTMLInputElement).value).toBe('sidecar');
-    rerender(<Inspector {...p} node={ffNode('StatefulSet', 'cache')} />);
+    rerender(<Inspector {...p} sel={nodeSel(ffNode('StatefulSet', 'cache'))} />);
     expect((screen.getByLabelText('new key statefulSets.cache.containers') as HTMLInputElement).value).toBe('');
   });
   it('release node lists only the release-level sections', () => {
-    const { container } = render(<Inspector {...base(rel)} tier="advanced" />);
+    const { container } = render(<Inspector {...base(nodeSel(rel))} tier="advanced" />);
     const sections = [...container.querySelectorAll('.inspector > fieldset > .sec > h3 > .k')].map((s) => s.textContent);
     expect(sections).toEqual(['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs']);
     expect(screen.queryByText('deployments')).toBeNull();
@@ -104,7 +109,7 @@ describe('Inspector', () => {
   // _defaults.tpl copies only content keys from <kind>General onto instances, never the autoCreate*
   // flags (see expectations.ts), so those checkboxes would be inert here.
   it('release: hides the autoCreate* flags <kind>General cannot propagate', () => {
-    render(<Inspector {...base(rel)} tier="advanced" />);
+    render(<Inspector {...base(nodeSel(rel))} tier="advanced" />);
     screen.queryAllByRole('button', { name: /^show \d+ more fields$/ }).forEach((b) => fireEvent.click(b));
     expect(reachable('deploymentsGeneral.autoCreateService')).toBeNull();
     expect(reachable('deploymentsGeneral.autoCreateIngress')).toBeNull();
@@ -112,8 +117,15 @@ describe('Inspector', () => {
     expect(reachable('deploymentsGeneral.autoCreateSoftAntiAffinity')).toBeTruthy();
     expect(reachable('deploymentsGeneral.replicas')).toBeTruthy();
   });
+  it('release: basic tier names hidden sections in the footer instead of placeholder headings', () => {
+    const { container } = render(<Inspector {...base(nodeSel(rel))} tier="basic" />);
+    expect(container.querySelector('.sec.adv')).toBeNull();
+    const note = container.querySelector('.hidden-note');
+    expect(note).toBeTruthy();
+    expect(note!.textContent).toMatch(/Defaults for every StatefulSet/);
+  });
   it('release: a section the schema shapes as a map still gets an editor', () => {
-    const p = base(rel);
+    const p = base(nodeSel(rel));
     render(<Inspector {...p} tier="advanced" />);
     const ta = screen.getByLabelText('secretRefs') as HTMLTextAreaElement;
     expect(ta.tagName).toBe('TEXTAREA');
@@ -122,15 +134,9 @@ describe('Inspector', () => {
     expect(p.onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['secretRefs'], value: { db: [{ name: 'DB_URL', secretName: 'db', key: 'url' }] } }]);
   });
   it('disabled state blocks edits and says why', () => {
-    const p = { ...base(dep), disabled: true };
+    const p = { ...base(nodeSel(dep)), disabled: true };
     render(<Inspector {...p} />);
     expect(screen.getByText(/fix the YAML/i)).toBeTruthy();
-    expect((screen.getByLabelText('toggle Service') as HTMLInputElement).disabled).toBe(true);
-  });
-  it('"open ›" on an auto-created row selects that node', () => {
-    const p = { ...base(dep), nodes: g.nodes };
-    render(<Inspector {...p} />);
-    fireEvent.click(screen.getByLabelText('open Service'));
-    expect(p.onSelect).toHaveBeenCalledWith(svc.id);
+    expect((document.querySelector('.inspector fieldset') as HTMLFieldSetElement).disabled).toBe(true);
   });
 });

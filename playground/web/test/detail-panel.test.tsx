@@ -15,7 +15,7 @@ const { manifests, values } = loadFixture('example-01-hello-world');
 const g = buildGraph(manifests, values, 'default');
 const dep = g.nodes.find((n) => n.kind === 'Deployment')!;
 const base = () => ({
-  node: dep, root: schema as any, doc: ValuesDocument.parse(text), tier: 'basic' as const, disabled: false, nodes: g.nodes,
+  sel: { kind: 'node' as const, node: dep }, root: schema as any, doc: ValuesDocument.parse(text), tier: 'basic' as const, disabled: false, nodes: g.nodes,
   onTab: vi.fn(), onTier: vi.fn(), onEdit: vi.fn(), onClose: vi.fn(), onHide: vi.fn(), onSelect: vi.fn(),
 });
 
@@ -31,14 +31,14 @@ describe('DetailPanel', () => {
   it('Fields tab shows the inspector, Manifest tab shows the rendered object', () => {
     const p = base();
     const { rerender } = render(<DetailPanel {...p} tab="inspector" />);
-    expect(screen.getByLabelText('toggle Service')).toBeTruthy();
+    expect(screen.getByLabelText('open group')).toBeTruthy();
     expect(document.querySelector('.detail pre')).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: 'Manifest' }));
     expect(p.onTab).toHaveBeenCalledWith('yaml');
     rerender(<DetailPanel {...p} tab="yaml" />);
     expect(document.querySelector('.detail pre')!.textContent).toContain('kind: Deployment');
     expect(screen.getByText('Copy manifest')).toBeTruthy();
-    expect(screen.queryByLabelText('toggle Service')).toBeNull();
+    expect(screen.queryByLabelText('open group')).toBeNull();
   });
   it('show-all lives in the bar and drives onTier', () => {
     const p = base();
@@ -54,6 +54,6 @@ describe('DetailPanel', () => {
     fireEvent.click(screen.getByLabelText('close'));
     expect(p.onClose).toHaveBeenCalled();
     cleanup();
-    expect(render(<DetailPanel {...p} node={null} tab="inspector" />).container.innerHTML).toBe('');
+    expect(render(<DetailPanel {...p} sel={null} tab="inspector" />).container.innerHTML).toBe('');
   });
 });
