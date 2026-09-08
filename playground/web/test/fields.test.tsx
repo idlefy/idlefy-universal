@@ -48,7 +48,7 @@ describe('field widgets', () => {
 
   it('order: listed keys first in the given order, others keep schema order', () => {
     render(<FieldList root={root} node={dep} basePath={base} value={{ replicas: 1, priorityClassName: 'x', strategy: { type: 'Recreate' } }} tier="advanced" onEdit={vi.fn()} order={['replicas', 'strategy']} />);
-    const labels = [...document.querySelectorAll('.fields .field-head label')].map((l) => l.textContent!.replace('*', ''));
+    const labels = [...document.querySelectorAll('.fields .field-head label')].map((l) => (l as HTMLElement).dataset.key);
     expect(labels.slice(0, 2)).toEqual(['replicas', 'strategy']);
     expect(labels.indexOf('priorityClassName')).toBeGreaterThan(1);
   });

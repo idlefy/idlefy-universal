@@ -18,7 +18,7 @@ export function PortsTable({ field, onEdit }: FieldProps): ReactElement {
   };
   return (
     <div className="ports">
-      <span className="h">name</span><span className="h">container</span><span className="h">service</span><span className="h">protocol</span><span />
+      <span className="h">Name</span><span className="h">Container</span><span className="h">Service</span><span className="h">Protocol</span><span />
       {names.map((n) => (
         <span key={n} style={{ display: 'contents' }}>
           <code>{n}</code>

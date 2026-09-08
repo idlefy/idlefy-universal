@@ -26,14 +26,15 @@ export function AutoCreated(p: {
         // Switch off but the block is still in the YAML: keep it reachable instead of letting it vanish.
         const stale = !on && isFilledObj(p.cfg[s.id]);
         return (
-          <div key={s.id} className={`it ${s.id === p.highlight ? 'highlight' : ''}`}>
-            <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${s.label}`} checked={on} disabled={p.disabled || (!on && !!blocked)}
-              onChange={(e) => p.onEdit(e.target.checked ? s.on(p.base, p.cfg, p.name) : s.off(p.base))} />
-            <div>
-              <div className="nm"><KindIcon kind={kind} className={`fam-${familyOf(kind)}`} />{s.label}</div>
+          <div key={s.id} className={`it ${s.id === p.highlight ? 'highlight' : ''} ${on ? 'on' : ''}`}>
+            <span className={`tile sm fam-${familyOf(kind)}`}><KindIcon kind={kind} /></span>
+            <div className="txt">
+              <div className="nm">{s.label}</div>
               <div className={`sub ${blocked ? 'why' : ''}`}>{blocked ?? (on ? summaryOf(s.id, p.cfg) : hintOf(s.id))}</div>
             </div>
-            {target ? <button type="button" className="go" aria-label={`open ${s.label}`} onClick={() => p.onSelect(target)}>open ›</button> : <span />}
+            {target ? <button type="button" className="go" aria-label={`open ${s.label}`} onClick={() => p.onSelect(target)}>Open</button> : <span />}
+            <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${s.label}`} checked={on} disabled={p.disabled || (!on && !!blocked)}
+              onChange={(e) => p.onEdit(e.target.checked ? s.on(p.base, p.cfg, p.name) : s.off(p.base))} />
             {!target && (on || stale) && p.renderBlock && (
               <div className="inline-block">
                 {stale && <div className="sub">configured, not created</div>}

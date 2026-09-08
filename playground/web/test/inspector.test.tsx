@@ -79,7 +79,7 @@ describe('Inspector', () => {
     const titles = [...container.querySelectorAll('.sec > h3')].map((h) => h.firstChild!.textContent!.trim());
     expect(titles.slice(0, 4)).toEqual(['Workload', 'Containers', 'Auto-created resources', 'Metadata']);
     expect(titles).toContain('Placement & security');
-    expect(container.querySelector('.sec .fields .field-head label')!.textContent).toContain('replicas');
+    expect(container.querySelector('.sec .fields .field-head label')!.textContent).toMatch(/replicas/i);
   });
   it('release panel names its sections', () => {
     render(<Inspector {...base(rel)} />);

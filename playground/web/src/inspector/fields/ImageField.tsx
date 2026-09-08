@@ -7,7 +7,7 @@ export function ImageField({ base, image, imageTag, onEdit }: { base: ValuesPath
   const emit = (key: 'image' | 'imageTag', t: string) => onEdit([t === '' ? { op: 'delete', path: [...base, key] } : { op: 'set', path: [...base, key], value: t }]);
   return (
     <div className="field inline">
-      <div className="field-head"><label htmlFor={`${id}.image`}>image<span className="req" title="required">*</span></label></div>
+      <div className="field-head"><label htmlFor={`${id}.image`} data-key="image" title={`${id}.image`}>Image<span className="req" title="required">*</span></label></div>
       <div className="two">
         <input id={`${id}.image`} type="text" aria-label={`${id}.image`} value={image ?? ''} placeholder="repository/name" onChange={(e) => emit('image', e.target.value)} />
         <span>:</span>

@@ -23,14 +23,14 @@ export function DetailPanel(p: {
   return (
     <aside className={`detail fam-${node.family}`}>
       <div className="head">
-        <KindIcon kind={node.kind} className={`fam-${node.family}`} />
+        <span className="tile"><KindIcon kind={node.kind} className={`fam-${node.family}`} /></span>
         <div className="ttl">
           <b>{node.kind === 'Release' ? 'Release settings' : node.name}</b>
           {node.kind !== 'Release' && <span className="kind">{node.kind}</span>}
           <div className="meta" title={node.provenance?.governingCondition}>
             <span>namespace {node.namespace || '(none)'}</span>
-            {pathText && <><span>·</span><code>{pathText}</code></>}
-            {line && <><span>·</span><span>line {line}</span></>}
+            {pathText && <code>{pathText}</code>}
+            {line && <span>line {line}</span>}
           </div>
           {node.warnings.map((w) => <p key={w} className="warn">{w}</p>)}
         </div>
@@ -46,7 +46,7 @@ export function DetailPanel(p: {
         </div>
         {p.tab === 'inspector' && (
           <label className="showall">
-            <input type="checkbox" aria-label="show all fields" checked={p.tier === 'advanced'} onChange={(e) => p.onTier(e.target.checked ? 'advanced' : 'basic')} />
+            <input type="checkbox" role="switch" className="switch sm" aria-label="show all fields" checked={p.tier === 'advanced'} onChange={(e) => p.onTier(e.target.checked ? 'advanced' : 'basic')} />
             show all fields
           </label>
         )}

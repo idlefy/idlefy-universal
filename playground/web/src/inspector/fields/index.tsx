@@ -2,7 +2,7 @@ import { useState, type ReactElement } from 'react';
 import type { ValuesPath, EditOp } from '../../model/ValuesDocument';
 import type { Tier } from '../../app/state';
 import type { SchemaNode } from '../schema';
-import { buildFields, chipValue, type Field } from '../form';
+import { buildFields, chipValue, humanize, type Field } from '../form';
 import { FieldRow } from './FieldRow';
 
 export type FieldProps = { root: SchemaNode; field: Field; tier: Tier; onEdit: (ops: EditOp[]) => void };
@@ -26,7 +26,7 @@ export function AddChips({ root, fields, onEdit }: { root: SchemaNode; fields: F
         return (
           <button key={f.key} type="button" className="chip" aria-label={`add field ${id}`} title={f.description}
             onClick={() => onEdit([{ op: 'set', path: f.path, value: chipValue(root, f) }])}>
-            {f.label}
+            {humanize(f.label)}
           </button>
         );
       })}

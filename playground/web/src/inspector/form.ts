@@ -105,3 +105,25 @@ export function chipValue(root: SchemaNode, field: Field): unknown {
   if (field.widget.kind === 'boolean') return true;
   return starterValue(root, field.schema);
 }
+
+const ACRONYMS: Record<string, string> = {
+  hpa: 'HPA', pdb: 'PDB', rbac: 'RBAC', dns: 'DNS', tls: 'TLS', url: 'URL', cpu: 'CPU', ttl: 'TTL', ip: 'IP', ipc: 'IPC', pid: 'PID',
+  pvc: 'PVC', http: 'HTTP', https: 'HTTPS', grpc: 'gRPC', api: 'API', id: 'ID', uid: 'UID', gid: 'GID',
+};
+
+/** A values key as a person reads it: `serviceAccountName` → "Service account name", `hostIPC` → "Host IPC". */
+export function humanize(key: string): string {
+  const words = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .split(' ')
+    .filter(Boolean);
+  return words
+    .map((w, i) => {
+      const lw = w.toLowerCase();
+      if (ACRONYMS[lw]) return ACRONYMS[lw];
+      return i === 0 ? lw[0].toUpperCase() + lw.slice(1) : lw;
+    })
+    .join(' ');
+}

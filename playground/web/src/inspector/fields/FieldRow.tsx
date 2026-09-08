@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import type { FieldProps } from './index';
-import { firstSentence } from '../form';
+import { firstSentence, humanize } from '../form';
 import { resolve, deref, type SchemaNode } from '../schema';
 import { BooleanField } from './BooleanField';
 import { NumberField } from './NumberField';
@@ -44,14 +44,14 @@ export function FieldRow(p: FieldProps & { bare?: boolean }): ReactElement {
   return (
     <div className={`field ${block ? 'block' : 'inline'} ${p.bare ? 'bare' : ''} ${special ? `sp-${special}` : ''} tier-${field.tier} ${field.present ? 'present' : 'absent'}`}>
       {!p.bare && <div className="field-head">
-        <label htmlFor={id} title={field.description}>{field.label}{field.required && <span className="req" title="required">*</span>}</label>
+        <label htmlFor={id} data-key={field.key} title={field.description ? `${id} — ${field.description}` : id}>{humanize(field.label)}{field.required && <span className="req" title="required">*</span>}</label>
         {field.present && block && (
           <button type="button" className="clear" aria-label={`clear ${id}`} title="Remove this block from values.yaml" onClick={() => p.onEdit([{ op: 'delete', path: field.path }])}>×</button>
         )}
       </div>}
       {/* block fields read label → what it is → the control; inline rows keep the hint under the control */}
       {block && field.description && <p className="field-desc">{firstSentence(field.description)}</p>}
-      {control}
+      {block ? <div className="field-body">{control}</div> : control}
       {!block && field.description && <p className="field-desc">{firstSentence(field.description)}</p>}
     </div>
   );
