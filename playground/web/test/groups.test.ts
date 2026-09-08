@@ -16,9 +16,18 @@ describe('groupsOf', () => {
     // standalone entities never join a group
     expect(groups.flatMap((x) => x.members).some((m) => m.kind === 'PersistentVolumeClaim' || m.kind === 'ConfigMap')).toBe(false);
   });
-  it('a workload without owned resources gets no group', () => {
-    const { manifests, values } = loadFixture('minimal');
+  it('a workload without owned resources still gets a group of its own', () => {
+    // stateful-storage's deployments.files mounts a PVC and creates nothing (no Service, no migrations)
+    const { manifests, values } = loadFixture('stateful-storage');
+    const files = groupsOf(buildGraph(manifests, values, 'default')).find((x) => x.owner.name === 'files')!;
+    expect(files.members).toEqual([]);
+    expect(files.id).toBe('group:default/Deployment/files');
+  });
+  it('never frames a standalone entity', () => {
+    const { manifests, values } = loadFixture('full-features');
     const g = buildGraph(manifests, values, 'default');
-    expect(groupsOf(g).filter((x) => x.members.length === 0)).toEqual([]);
+    const owners = groupsOf(g).map((x) => x.owner.kind);
+    expect(owners.every((k) => ['Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob'].includes(k))).toBe(true);
+    expect(owners.length).toBe(g.nodes.filter((n) => n.provenance && !n.provenance.owner && n.provenance.path.length === 2 && ['deployments', 'statefulSets', 'daemonSets', 'jobs', 'cronJobs'].includes(String(n.provenance.path[0]))).length);
   });
 });
