@@ -4,7 +4,7 @@ import type { GraphModel, GraphNode } from '../graph/types';
 import { groupsOf } from './groups';
 
 export type ResourceNodeData = { node: GraphNode; dimmed: boolean };
-export type GroupNodeData = { label: string };
+export type GroupNodeData = { label: string; kind: string; name: string; ownerId: string };
 /** Discriminated union: `n.type` narrows `n.data`, so the canvas never has to widen either side. */
 export type AppNode = Node<ResourceNodeData, 'resource'> | Node<GroupNodeData, 'group'>;
 const elk = new ELK();
@@ -62,7 +62,7 @@ export async function layoutGraph(model: GraphModel): Promise<{ nodes: AppNode[]
       position: { x: p.x, y: p.y },
       width: p.width,
       height: p.height,
-      data: { label: `${g.owner.kind} ${g.owner.name}` },
+      data: { label: `${g.owner.kind} ${g.owner.name}`, kind: g.owner.kind, name: g.owner.name, ownerId: g.owner.id },
       selectable: false,
       draggable: false,
     };

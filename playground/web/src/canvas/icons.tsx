@@ -41,3 +41,12 @@ export function KindIcon({ kind, className, title }: { kind: string; className?:
   const html = (title ? `<title>${title.replace(/[<&]/g, '')}</title>` : '') + iconFor(kind);
   return <svg className={className ? `kicon ${className}` : 'kicon'} viewBox={ICON_VIEWBOX} aria-hidden={title ? undefined : true} dangerouslySetInnerHTML={{ __html: html }} />;
 }
+
+/** Dashed frame glyph for groups (no upstream icon exists). */
+export function GroupGlyph({ className }: { className?: string }): ReactElement {
+  return (
+    <svg className={className ? `kicon ${className}` : 'kicon'} viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="3 2">
+      <rect x="3" y="4" width="18" height="16" rx="3" />
+    </svg>
+  );
+}

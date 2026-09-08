@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import chartMeta from "../chart-bundle/chart-meta.json";
 import examples from "../chart-bundle/examples.json";
 import schema from "../chart-bundle/schema.json";
@@ -43,6 +43,8 @@ export function App() {
   const error = state.render && !state.render.ok ? state.render.error : null;
   const warnings = state.graph?.warnings ?? [];
   const { panes, setOpen, setWidth, reset } = usePanes();
+  // The token names the group the pill was pressed on, so a later plain selection of a group never inherits the focus request.
+  const [addToken, setAddToken] = useState<{ id: string; n: number } | null>(null);
   // A node click always shows the inspector, even after the user collapsed it for the previous node.
   useEffect(() => { if (state.selection) setOpen("inspector", true); }, [state.selection, setOpen]);
   const dragStart = useRef<{ editor: number; inspector: number }>({ editor: 0, inspector: 0 });
@@ -102,11 +104,12 @@ export function App() {
           <SplitHandle label="Resize values.yaml"
             onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
         )}
-        <section className="pane pane-canvas">
+        <section className="pane pane-canvas" data-add-token={addToken?.n ?? 0}>
           {error && <div className={`banner ${error.kind}`}><pre>{error.message}</pre></div>}
           {!error && warnings.length > 0 && <div className="banner warn">{warnings.map((w) => <div key={w}>{w}</div>)}</div>}
           <Canvas model={state.graph} stale={!!error || state.doc.errors.length > 0} selection={state.selection}
-            onSelect={(id) => { dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }} />
+            onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }}
+            onAddResource={(id) => { dispatch({ type: "select", id }); setOpen("inspector", true); setAddToken((t) => ({ id, n: (t?.n ?? 0) + 1 })); }} />
         </section>
         {selected && panes.inspector.open && (
           <>

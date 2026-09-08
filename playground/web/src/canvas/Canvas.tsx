@@ -14,6 +14,8 @@ import type { GraphModel } from "../graph/types";
 import { layoutGraph, type AppNode } from "./layout";
 import { ResourceNode } from "./ResourceNode";
 import { GroupNode } from "./GroupNode";
+import { CanvasActions } from "./actions";
+import { isGroupId, isBlockId } from "../app/selection";
 
 const nodeTypes = { resource: ResourceNode, group: GroupNode };
 const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -35,11 +37,13 @@ export function Canvas({
   stale,
   selection,
   onSelect,
+  onAddResource,
 }: {
   model: GraphModel | null;
   stale: boolean;
   selection: string | null;
   onSelect: (id: string | null) => void;
+  onAddResource: (groupId: string) => void;
 }) {
   const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[] }>({
     nodes: [],
@@ -69,34 +73,24 @@ export function Canvas({
     };
   }, [model]);
 
-  const focus = selection;
+  // spec 2026-09-08 §2.3: node selections dim non-neighbours; group and block selections dim nothing.
+  const focus = selection && !isGroupId(selection) && !isBlockId(selection) ? selection : null;
   const { nodes, edges } = useMemo(() => {
-    if (!focus) return laid;
-    const near = new Set<string>([focus]);
-    for (const e of laid.edges) {
+    const near = new Set<string>(focus ? [focus] : []);
+    if (focus) for (const e of laid.edges) {
       if (e.source === focus) near.add(e.target);
       if (e.target === focus) near.add(e.source);
     }
     return {
-      // group containers are decoration: they never dim and never carry a selection.
       nodes: laid.nodes.map((n) =>
         n.type === "resource"
-          ? {
-              ...n,
-              data: { ...n.data, dimmed: !near.has(n.id) },
-              selected: n.id === selection,
-            }
-          : n,
+          ? { ...n, data: { ...n.data, dimmed: focus ? !near.has(n.id) : false }, selected: n.id === selection }
+          : { ...n, selected: n.id === selection },
       ),
-      edges: laid.edges.map((e) => ({
-        ...e,
-        style: {
-          ...e.style,
-          opacity: e.source === focus || e.target === focus ? 1 : 0.15,
-        },
-      })),
+      edges: laid.edges.map((e) => ({ ...e, style: { ...e.style, opacity: !focus || e.source === focus || e.target === focus ? 1 : 0.15 } })),
     };
-  }, [laid, selection]);
+  }, [laid, selection, focus]);
+  const actions = useMemo(() => ({ select: onSelect, addResource: onAddResource }), [onSelect, onAddResource]);
 
   if (!model)
     return (
@@ -106,6 +100,7 @@ export function Canvas({
     );
   return (
     <div className={`canvas ${stale ? "stale" : ""}`}>
+      <CanvasActions.Provider value={actions}>
       <ReactFlowProvider>
         <ReactFlow
           nodes={nodes}
@@ -116,11 +111,9 @@ export function Canvas({
           colorMode="system"
           minZoom={0.2}
           maxZoom={1.25}
-          // React Flow fires these for `selectable: false` nodes too, and a group id matches no
-          // GraphModel node (it would close the detail panel and dim everything).
-          onNodeClick={(_, n) => {
-            if (n.type !== "group") onSelect(n.id);
-          }}
+          // React Flow fires these for `selectable: false` nodes too; a click anywhere inside a group
+          // (its empty interior included) selects the group (spec 2026-09-08 §2.3).
+          onNodeClick={(_, n) => onSelect(n.id)}
           onPaneClick={() => onSelect(null)}
           nodesConnectable={false}
           proOptions={{ hideAttribution: true }}
@@ -131,6 +124,7 @@ export function Canvas({
           <FitOnLayout token={laid} />
         </ReactFlow>
       </ReactFlowProvider>
+      </CanvasActions.Provider>
       {layoutError && (
         <div className="canvas-error">Layout failed: {layoutError}</div>
       )}
