@@ -8,6 +8,7 @@ import { Canvas } from "../canvas/Canvas";
 import { DetailPanel } from "../canvas/DetailPanel";
 import type { SchemaNode } from "../inspector/schema";
 import { initialState, markersFrom, reducer } from "./state";
+import { resolveSelection, titleOf } from "./selection";
 import { useRenderPipeline } from "./useRenderPipeline";
 import { usePanes, SplitHandle, Rail } from "./Panes";
 
@@ -25,11 +26,11 @@ export function App() {
     [],
   );
   const markers = useMemo(() => markersFrom(state), [state.doc, state.render]); // markersFrom reads only these two
-  const selected =
-    state.graph?.nodes.find((n) => n.id === state.selection) ?? null;
+  const sel = useMemo(() => resolveSelection(state.graph, state.selection), [state.graph, state.selection]);
+  const selPath = sel?.kind === "node" ? sel.node.provenance?.path : sel?.kind === "group" ? sel.group.owner.provenance?.path : sel?.path;
   // state.doc is a new object on every keystroke; memoise on the line numbers so the editor effect
   // (which scrolls) only re-runs when the block actually moves.
-  const range = selected?.provenance ? state.doc.rangeOf(selected.provenance.path) : null;
+  const range = selPath ? state.doc.rangeOf(selPath) : null;
   const hStart = range?.start ?? null, hEnd = range?.end ?? null;
   const highlight = useMemo(() => (hStart === null || hEnd === null ? null : { start: hStart, end: hEnd }), [hStart, hEnd]);
   // A document with syntax errors reads as empty (`toJS()` gives `{}`), which would make every
@@ -77,7 +78,7 @@ export function App() {
         <div className="pane-buttons" role="group" aria-label="panes">
           <button type="button" className={panes.editor.open ? "on" : ""} aria-pressed={panes.editor.open} onClick={() => setOpen("editor", !panes.editor.open)}>YAML</button>
           <button type="button" className="on" aria-pressed="true" disabled>Graph</button>
-          <button type="button" className={selected && panes.inspector.open ? "on" : ""} aria-pressed={!!selected && panes.inspector.open} disabled={!selected}
+          <button type="button" className={sel && panes.inspector.open ? "on" : ""} aria-pressed={!!sel && panes.inspector.open} disabled={!sel}
             onClick={() => setOpen("inspector", !panes.inspector.open)}>Inspector</button>
         </div>
         <span className="status">
@@ -104,31 +105,32 @@ export function App() {
           <SplitHandle label="Resize values.yaml"
             onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
         )}
-        <section className="pane pane-canvas" data-add-token={addToken?.n ?? 0}>
+        <section className="pane pane-canvas">
           {error && <div className={`banner ${error.kind}`}><pre>{error.message}</pre></div>}
           {!error && warnings.length > 0 && <div className="banner warn">{warnings.map((w) => <div key={w}>{w}</div>)}</div>}
           <Canvas model={state.graph} stale={!!error || state.doc.errors.length > 0} selection={state.selection}
             onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }}
             onAddResource={(id) => { dispatch({ type: "select", id }); setOpen("inspector", true); setAddToken((t) => ({ id, n: (t?.n ?? 0) + 1 })); }} />
         </section>
-        {selected && panes.inspector.open && (
+        {sel && panes.inspector.open && (
           <>
             <SplitHandle label="Resize the inspector"
               onDrag={(dx) => setWidth("inspector", dragStart.current.inspector - dx)} onReset={() => reset("inspector")} />
             <section className="pane pane-inspector" style={{ width: panes.inspector.width }}>
               <DetailPanel
-                sel={selected ? { kind: 'node', node: selected } : null} nodes={state.graph?.nodes ?? []} tab={state.ui.tab} tier={state.ui.tier} doc={inspectorDoc} root={schema as SchemaNode}
-                disabled={state.doc.errors.length > 0}
+                sel={sel} nodes={state.graph?.nodes ?? []} tab={state.ui.tab} tier={state.ui.tier} doc={inspectorDoc} root={schema as SchemaNode}
+                disabled={state.doc.errors.length > 0} focusToken={addToken && addToken.id === state.selection ? addToken.n : 0}
                 onTab={(tab) => dispatch({ type: "tab", tab })} onTier={(tier) => dispatch({ type: "tier", tier })}
-                onEdit={(ops) => dispatch({ type: "edit", ops })} onSelect={(id) => dispatch({ type: "select", id })}
+                onEdit={(ops) => dispatch({ type: "edit", ops })}
+                onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); setOpen("inspector", true); }}
                 onClose={() => dispatch({ type: "select", id: null })}
                 onHide={() => setOpen("inspector", false)}
               />
             </section>
           </>
         )}
-        {selected && !panes.inspector.open && (
-          <Rail side="right" name="the inspector" label={`${selected.name} · ${selected.kind}`} onOpen={() => setOpen("inspector", true)} />
+        {sel && !panes.inspector.open && (
+          <Rail side="right" name="the inspector" label={`${titleOf(sel).name} · ${titleOf(sel).kind}`} onOpen={() => setOpen("inspector", true)} />
         )}
       </div>
     </div>

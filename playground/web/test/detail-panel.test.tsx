@@ -8,6 +8,7 @@ import { buildGraph } from '../src/graph/build';
 import { loadFixture } from './fixtures';
 import { ValuesDocument } from '../src/model/ValuesDocument';
 import { DetailPanel } from '../src/canvas/DetailPanel';
+import { resolveSelection, groupId, blockId } from '../src/app/selection';
 
 afterEach(cleanup);
 const text = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'graph', '__fixtures__', 'example-01-hello-world.values.yaml'), 'utf8');
@@ -15,7 +16,7 @@ const { manifests, values } = loadFixture('example-01-hello-world');
 const g = buildGraph(manifests, values, 'default');
 const dep = g.nodes.find((n) => n.kind === 'Deployment')!;
 const base = () => ({
-  sel: { kind: 'node' as const, node: dep }, root: schema as any, doc: ValuesDocument.parse(text), tier: 'basic' as const, disabled: false, nodes: g.nodes,
+  sel: { kind: 'node' as const, node: dep }, root: schema as any, doc: ValuesDocument.parse(text), tier: 'basic' as const, disabled: false, nodes: g.nodes, focusToken: 0,
   onTab: vi.fn(), onTier: vi.fn(), onEdit: vi.fn(), onClose: vi.fn(), onHide: vi.fn(), onSelect: vi.fn(),
 });
 
@@ -55,5 +56,33 @@ describe('DetailPanel', () => {
     expect(p.onClose).toHaveBeenCalled();
     cleanup();
     expect(render(<DetailPanel {...p} sel={null} tab="inspector" />).container.innerHTML).toBe('');
+  });
+  it('group selection: group header, Resources/Manifests tabs, no show-all, concatenated manifests', () => {
+    const p = { ...base(), sel: resolveSelection(g, groupId(dep.id)) };
+    const { container, rerender } = render(<DetailPanel {...p} tab="inspector" />);
+    expect(container.querySelector('.head b')!.textContent).toBe('hello');
+    expect(container.querySelector('.head .kind')!.textContent).toBe('Deployment group');
+    expect(container.querySelector('.head .meta')!.textContent).toContain('2 resources');
+    expect(screen.getByRole('tab', { name: 'Resources' })).toBeTruthy();
+    expect(screen.queryByLabelText('show all fields')).toBeNull();
+    expect(screen.getByLabelText('toggle Service')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Manifests' }));
+    expect(p.onTab).toHaveBeenCalledWith('yaml');
+    rerender(<DetailPanel {...p} tab="yaml" />);
+    const pre = document.querySelector('.detail pre')!.textContent!;
+    expect(pre).toContain('kind: Deployment');
+    expect(pre).toContain('kind: Service');
+    expect(pre).toContain('\n---\n');
+    expect(screen.getByText('Copy manifests')).toBeTruthy();
+  });
+  it('block selection: kind header, Fields tab only, inspector even when the tab state says yaml', () => {
+    const p = { ...base(), sel: resolveSelection(g, blockId(['deployments', 'hello', 'ingress'])) };
+    const { container } = render(<DetailPanel {...p} tab="yaml" />);
+    expect(container.querySelector('.head b')!.textContent).toBe('hello');
+    expect(container.querySelector('.head .kind')!.textContent).toBe('Ingress');
+    expect(screen.queryByRole('tab', { name: 'Manifest' })).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Fields' })).toBeTruthy();
+    expect(screen.getByLabelText('toggle Ingress')).toBeTruthy();
+    expect(screen.getByLabelText('show all fields')).toBeTruthy();
   });
 });

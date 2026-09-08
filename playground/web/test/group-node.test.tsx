@@ -29,4 +29,10 @@ describe('GroupNode', () => {
     render(<GroupNode {...props(false)} />);
     for (const b of screen.getAllByRole('button')) expect(b.className).toMatch(/\bnodrag\b/);
   });
+  it('the add-resource pill does not bubble its click to a parent handler', () => {
+    const spy = vi.fn();
+    render(<div onClick={spy}><GroupNode {...props(false)} /></div>);
+    fireEvent.click(screen.getByLabelText('Add resource to Deployment hello'));
+    expect(spy).not.toHaveBeenCalled();
+  });
 });

@@ -221,3 +221,4 @@ code { font-family: var(--mono); font-size: 12px; }
 .hidden-note { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 22px 16px 0; padding: 10px 12px; border-radius: 9px; background: var(--panel-2); color: var(--muted); font-size: 12px; }
 .link { border: 0; background: none; color: var(--accent); font-weight: 500; font-size: 12px; }
 .enabled { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 16px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.tabs { display: flex; gap: 18px; } .tabs button { height: 36px; border: 0; background: none; color: var(--muted); font-weight: 500; } .tabs button[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px var(--accent); }
