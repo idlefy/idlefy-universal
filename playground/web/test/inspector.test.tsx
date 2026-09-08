@@ -6,6 +6,7 @@ import { buildGraph } from '../src/graph/build';
 import { loadFixture } from './fixtures';
 import { ValuesDocument } from '../src/model/ValuesDocument';
 import { Inspector } from '../src/inspector/Inspector';
+import { resolveSelection, groupId } from '../src/app/selection';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -140,6 +141,42 @@ describe('Inspector', () => {
     fireEvent.change(ta, { target: { value: 'db:\n  - name: DB_URL\n    secretName: db\n    key: url\n' } });
     fireEvent.blur(ta);
     expect(p.onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['secretRefs'], value: { db: [{ name: 'DB_URL', secretName: 'db', key: 'url' }] } }]);
+  });
+  it('group panel: workload row, switches with state, opens nodes', () => {
+    const p = base(resolveSelection(g, groupId(dep.id))!);
+    render(<Inspector {...p} />);
+    const row = document.querySelector('.list .it')!;
+    expect(row.textContent).toContain('Deployment');
+    expect(row.textContent).toContain('1 replica · nginx:1.27-alpine');
+    fireEvent.click(screen.getByLabelText('open Deployment'));
+    expect(p.onSelect).toHaveBeenCalledWith(dep.id);
+    const svcToggle = screen.getByLabelText('toggle Service') as HTMLInputElement;
+    expect(svcToggle.checked).toBe(true);
+    fireEvent.click(svcToggle);
+    expect(p.onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['deployments', 'hello', 'autoCreateService'], value: false }]);
+    fireEvent.click(screen.getByLabelText('toggle NetworkPolicy'));
+    expect(p.onEdit).toHaveBeenLastCalledWith([
+      { op: 'set', path: ['deployments', 'hello', 'autoCreateNetworkPolicy'], value: true },
+      { op: 'set', path: ['deployments', 'hello', 'networkPolicy'], value: { policyTypes: ['Ingress'], ingress: [] } },
+    ]);
+    fireEvent.click(screen.getByLabelText('open Service'));
+    expect(p.onSelect).toHaveBeenCalledWith(svc.id);
+    fireEvent.click(screen.getByLabelText('open Ingress'));
+    expect(p.onSelect).toHaveBeenCalledWith('block:deployments.hello.ingress');
+    expect(document.querySelector('.inline-block')).toBeNull();
+    expect(screen.queryByLabelText('deployments.hello.replicas')).toBeNull();   // no workload fields here
+  });
+  it('group panel: disabled state disables the switches', () => {
+    render(<Inspector {...base(resolveSelection(g, groupId(dep.id))!)} disabled />);
+    expect((screen.getByLabelText('toggle Service') as HTMLInputElement).disabled).toBe(true);
+  });
+  it('group panel: a focus token from "+ Add resource" focuses the first switch; none by default', () => {
+    const p = base(resolveSelection(g, groupId(dep.id))!);
+    const { unmount } = render(<Inspector {...p} />);
+    expect(document.activeElement).toBe(document.body);
+    unmount();
+    render(<Inspector {...p} focusToken={1} />);
+    expect(document.activeElement).toBe(screen.getByLabelText('toggle Service'));
   });
   it('disabled state blocks edits and says why', () => {
     const p = { ...base(nodeSel(dep)), disabled: true };
