@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { YamlField } from './YamlField';
+import { isScalar } from './KeyValueField';
 
 /** One row per item (spec 2026-09-08 §5.1). Add appends an item and focuses it; removing the last item deletes the key. */
 export function ListField(props: FieldProps): ReactElement {
@@ -21,8 +22,9 @@ export function ListField(props: FieldProps): ReactElement {
   // deleting one index splices the sequence in place (flow style survives); deleting the last item removes the key
   const remove = (i: number) => onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
   const setOne = (i: number, v: string) => onEdit([{ op: 'set', path: [...field.path, i], value: v }]);
-  // a present value that is not a list (hand-written map/scalar) keeps the raw editor instead of being overwritten
-  if (field.present && !Array.isArray(field.value)) return <YamlField {...props} />;
+  // a present value that isn't a list, or a list holding a non-scalar item (hand-written map/object),
+  // keeps the raw editor instead of being overwritten or coerced through String()
+  if (field.present && (!Array.isArray(field.value) || !field.value.every(isScalar))) return <YamlField {...props} />;
   return (
     <div className="slist" ref={box}>
       {items.map((v, i) => (

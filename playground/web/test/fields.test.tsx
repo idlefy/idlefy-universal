@@ -92,6 +92,10 @@ describe('field widgets', () => {
     render(<FieldList root={root} node={schemaAt(root, cbase)!} basePath={cbase} value={{ image: 'x', args: { oops: 1 } }} tier="advanced" onEdit={vi.fn()} />);
     expect(screen.getByLabelText('deployments.web.containers.main.args').tagName).toBe('TEXTAREA');
   });
+  it('list: a present list with a non-scalar item keeps the raw YAML editor', () => {
+    render(<FieldList root={root} node={schemaAt(root, cbase)!} basePath={cbase} value={{ image: 'x', args: [{ oops: 1 }] }} tier="advanced" onEdit={vi.fn()} />);
+    expect(screen.getByLabelText('deployments.web.containers.main.args').tagName).toBe('TEXTAREA');
+  });
   it('list: removing the last item deletes the key; enum items are selects', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ networkPolicy: { policyTypes: ['Ingress'] } }} tier="basic" onEdit={onEdit} />);

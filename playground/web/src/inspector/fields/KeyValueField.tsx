@@ -4,7 +4,7 @@ import type { SchemaNode } from '../schema';
 import { YamlField } from './YamlField';
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
-const isScalar = (v: unknown): boolean => v === null || typeof v !== 'object';
+export const isScalar = (v: unknown): boolean => v === null || typeof v !== 'object';
 
 /**
  * True when this node's own `examples` show a non-string scalar, i.e. the map really holds numbers
