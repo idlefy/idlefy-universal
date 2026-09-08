@@ -9,7 +9,7 @@ import { buildFields, type Field } from './form';
 import { FieldList, FieldRow } from './fields';
 import { inspectTarget, type InspectTarget } from './target';
 import { SECONDARY } from '../graph/secondary';
-import { WORKLOAD_SECTIONS, RELEASE_TITLES } from './sections';
+import { WORKLOAD_SECTIONS, RELEASE_TITLES, KIND_LABEL } from './sections';
 import { Sections } from './Sections';
 import { OwnerStrip } from './OwnerStrip';
 import { HiddenNote } from './HiddenNote';
@@ -100,7 +100,7 @@ export function Inspector(p: InspectorProps): ReactElement {
       const owner = p.sel.kind === 'node' ? p.sel.node.provenance?.owner : undefined;
       body = (
         <>
-          {owner && <p className="prov">Part of {String(owner[0])} {String(owner[1])} (values: <code>{t.path.join('.')}</code>).</p>}
+          {owner && <p className="prov">Part of {KIND_LABEL[String(owner[0])] ?? owner[0]} {String(owner[1])} (values: <code>{t.path.join('.')}</code>).</p>}
           <fieldset disabled={p.disabled}>
             <div className="sec">
               <FieldList root={p.root} node={schemaAt(p.root, t.path)!} basePath={t.path} value={p.doc.valueAt(t.path)} tier={p.tier} onEdit={edit} />

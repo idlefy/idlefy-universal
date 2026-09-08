@@ -92,6 +92,14 @@ describe('Inspector', () => {
     expect(screen.getByText('Release-wide')).toBeTruthy();
     expect(screen.getByText('Defaults for every Deployment')).toBeTruthy();
   });
+  // An owned entity's prov line names the owner by its kind label, not the raw values-map key
+  // (regression: 'Part of deployments api' instead of 'Part of Deployment api').
+  it('entity panel names the owner by kind label', () => {
+    const cm = ffNode('ConfigMap', 'app-config');
+    const owned = { ...cm, provenance: { ...cm.provenance!, owner: ['deployments', 'api'] } };
+    render(<Inspector {...ffBase(nodeSel(owned))} />);
+    expect(screen.getByText(/Part of Deployment api/)).toBeTruthy();
+  });
   it('widget drafts do not leak into the next selected node', () => {
     const p = ffBase(nodeSel(ffNode('Deployment', 'api')));
     const { rerender } = render(<Inspector {...p} />);
