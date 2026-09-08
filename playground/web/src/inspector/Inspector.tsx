@@ -6,7 +6,7 @@ import { schemaAt, classify, resolve, type SchemaNode } from './schema';
 import { buildFields, type Field } from './form';
 import { FieldList, FieldRow } from './fields';
 import { AutoCreated } from './AutoCreated';
-import { inspectTarget, secondaryById } from './target';
+import { inspectTarget } from './target';
 import { SECONDARY, type SecondaryId } from '../graph/secondary';
 import { WORKLOAD_SECTIONS, RELEASE_TITLES, partition } from './sections';
 
@@ -29,7 +29,7 @@ export function Inspector(p: {
   node: GraphNode; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[];
   onEdit: (ops: EditOp[]) => void; onSelect: (id: string) => void; disabled: boolean;
 }): ReactElement {
-  const t = inspectTarget(p.node, p.root);
+  const t = inspectTarget({ kind: 'node', node: p.node }, p.root);
   const edit = p.disabled ? () => {} : p.onEdit;
   const rootValue = p.doc.valueAt([]);
   const all = (isObj(rootValue) ? rootValue : {}) as Record<string, unknown>;
@@ -125,16 +125,8 @@ export function Inspector(p: {
       );
       break;
     case 'workload': body = workloadPanel(t.path); break;
-    case 'owner-only': {
-      const owner = t.owner;
-      body = (
-        <>
-          <p className="prov">Configured on {KIND_LABEL[String(owner[0])] ?? owner[0]} {String(owner[1])} — see <b>{secondaryById(t.secondary).label}</b> below.</p>
-          {workloadPanel(owner, t.secondary)}
-        </>
-      );
-      break;
-    }
+    case 'group': body = <p className="muted prov">group</p>; break;
+    case 'secondary': body = <p className="muted prov">secondary</p>; break;
     case 'entity': {
       const owner = p.node.provenance?.owner;
       body = (
@@ -150,7 +142,7 @@ export function Inspector(p: {
       break;
     }
   }
-  const bodyKey = t.kind === 'release' ? 'release' : t.kind === 'none' ? 'none' : t.kind === 'owner-only' ? t.owner.join('.') : t.path.join('.');
+  const bodyKey = t.kind === 'release' ? 'release' : t.kind === 'none' ? 'none' : t.kind === 'group' ? t.owner.id : t.path.join('.');
   return (
     <div className="inspector" key={bodyKey}>
       {notice}
