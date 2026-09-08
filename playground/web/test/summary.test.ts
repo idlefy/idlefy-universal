@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ORDER, kindOfSecondary, hintOf, summaryOf } from '../src/inspector/summary';
+import { ORDER, kindOfSecondary, hintOf, summaryOf, workloadSummary } from '../src/inspector/summary';
 import { SECONDARY } from '../src/graph/secondary';
 
 describe('secondary summaries', () => {
@@ -24,5 +24,12 @@ describe('secondary summaries', () => {
     expect(summaryOf('serviceAccount', {})).toBe('own ServiceAccount for the pods');
     expect(hintOf('ingress')).toBe('needs Service');
     expect(hintOf('hpa')).toBe('scale on CPU or memory');
+  });
+  it('one-line workload summaries', () => {
+    expect(workloadSummary('deployments', { replicas: 3, containers: { main: { image: 'nginx', imageTag: '1.27' } } })).toBe('3 replicas · nginx:1.27');
+    expect(workloadSummary('statefulSets', { containers: { main: { image: 'redis' } } })).toBe('1 replica · redis');
+    expect(workloadSummary('daemonSets', { containers: { main: { image: 'fluentd' } } })).toBe('fluentd');
+    expect(workloadSummary('cronJobs', { schedule: '*/5 * * * *' })).toBe('*/5 * * * *');
+    expect(workloadSummary('jobs', {})).toBe('no image');
   });
 });

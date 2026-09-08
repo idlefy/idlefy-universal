@@ -48,3 +48,12 @@ export function summaryOf(id: SecondaryId, cfg: Record<string, any>): string {
     case 'migrations': return cfg.migrations?.command ? `runs ${[].concat(cfg.migrations.command).join(' ')}` : 'pre-upgrade hook, same image';
   }
 }
+
+/** Group-panel Workload row (spec 2026-09-08 §3.1). Ruling: DaemonSets have no replicas, so they show the image only. */
+export function workloadSummary(kindKey: string, cfg: Record<string, any>): string {
+  const first = Object.values(cfg.containers ?? {})[0] as any;
+  const image = first?.image ? `${first.image}${first.imageTag ? `:${first.imageTag}` : ''}` : 'no image';
+  if (kindKey === 'cronJobs') return typeof cfg.schedule === 'string' ? cfg.schedule : 'no schedule';
+  if (kindKey === 'jobs' || kindKey === 'daemonSets') return image;
+  return `${plural(typeof cfg.replicas === 'number' ? cfg.replicas : 1, 'replica')} · ${image}`;
+}

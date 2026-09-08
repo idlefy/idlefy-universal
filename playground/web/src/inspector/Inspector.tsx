@@ -8,10 +8,9 @@ import { FieldList, FieldRow } from './fields';
 import { AutoCreated } from './AutoCreated';
 import { inspectTarget } from './target';
 import { SECONDARY, type SecondaryId } from '../graph/secondary';
-import { WORKLOAD_SECTIONS, RELEASE_TITLES, partition } from './sections';
+import { WORKLOAD_SECTIONS, RELEASE_TITLES, partition, KIND_LABEL } from './sections';
 
 const RELEASE_SECTIONS = ['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs'];
-const KIND_LABEL: Record<string, string> = { deployments: 'Deployment', statefulSets: 'StatefulSet', daemonSets: 'DaemonSet', jobs: 'Job', cronJobs: 'CronJob' };
 // Flags the switch list owns and the config blocks behind them: reached through the list's "open ›",
 // never as plain fields (spec 2026-09-07 §5.2).
 const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));

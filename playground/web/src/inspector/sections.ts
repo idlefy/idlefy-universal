@@ -1,3 +1,5 @@
+import type { SecondaryId } from '../graph/secondary';
+
 export type Section = { id: string; title: string; keys: readonly string[]; advanced?: boolean };
 
 // spec 2026-09-07 §5.2. Keys are listed for every workload kind; a kind that lacks a key simply does not show it.
@@ -34,3 +36,36 @@ export const RELEASE_TITLES: Record<string, string> = {
   generic: 'Release-wide', deploymentsGeneral: 'Defaults for every Deployment', statefulSetsGeneral: 'Defaults for every StatefulSet',
   daemonSetsGeneral: 'Defaults for every DaemonSet', secretRefs: 'Secrets referenced by name',
 };
+
+// spec 2026-09-08 §3.3: per-block section tables; blocks without a table render as one section titled by their label.
+export const SECONDARY_SECTIONS: Partial<Record<SecondaryId, readonly Section[]>> = {
+  ingress: [
+    { id: 'routing', title: 'Routing', keys: ['ingressClassName', 'hosts'] },
+    { id: 'tls', title: 'TLS', keys: ['tls'] },
+    { id: 'metadata', title: 'Metadata', keys: ['annotations', 'labels'] },
+  ],
+  hpa: [
+    { id: 'scaling', title: 'Scaling', keys: ['minReplicas', 'maxReplicas'] },
+    { id: 'behaviour', title: 'Behaviour', advanced: true, keys: ['metrics', 'behavior'] },
+  ],
+  pdb: [
+    { id: 'availability', title: 'Availability', keys: ['minAvailable', 'maxUnavailable'] },
+    { id: 'metadata', title: 'Metadata', keys: ['annotations', 'labels'] },
+  ],
+  networkPolicy: [
+    { id: 'policy', title: 'Policy', keys: ['policyTypes', 'ingress', 'egress'] },
+    { id: 'metadata', title: 'Metadata', keys: ['annotations', 'labels'] },
+  ],
+  serviceMonitor: [
+    { id: 'scraping', title: 'Scraping', keys: ['port', 'path', 'interval', 'scrapeTimeout', 'endpoints'] },
+    { id: 'relabeling', title: 'Relabeling', advanced: true, keys: ['relabelings', 'metricRelabelings', 'namespaceSelector'] },
+    { id: 'metadata', title: 'Metadata', keys: ['labels'] },
+  ],
+};
+
+// spec 2026-09-08 §3.3.1: the Service has no values block; its settings are these owner keys.
+export const SERVICE_OWNER_KEYS: Record<string, readonly string[]> = {
+  deployments: ['serviceType'], statefulSets: ['serviceType', 'serviceName', 'serviceHeadless'], daemonSets: [], jobs: [], cronJobs: [],
+};
+
+export const KIND_LABEL: Record<string, string> = { deployments: 'Deployment', statefulSets: 'StatefulSet', daemonSets: 'DaemonSet', jobs: 'Job', cronJobs: 'CronJob' };
