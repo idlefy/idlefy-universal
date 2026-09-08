@@ -21,11 +21,13 @@ The editor folds YAML blocks by indentation (chevrons in the gutter), shows inde
 
 Click a node. The panel header shows the object's icon, name, kind, namespace and the values.yaml line it comes from. **Fields** edits the object; **Manifest** shows the rendered YAML.
 
-Workload panels are grouped: **Workload** (replicas and rollout settings), **Containers** (one card per container with `image:tag`, resources as a cpu/memory grid, ports as a table), **Auto-created resources** (a switch per resource the chart can create for this workload, with a one-line summary and an *open ›* link to its node), **Metadata**, and, with **show all fields** on, **Placement & security**. A field only gets a control once it exists in values.yaml; everything else is an *Add* chip that inserts the schema's starter value. Clearing a control removes the key.
+Every workload sits in a **group** on the canvas: a dashed frame with a header (`Deployment hello`) and a **+ Add resource** pill. Click the header or the frame to open the **group panel**: a **Workload** row that opens the workload itself, and **Created alongside it**, a switch per resource the chart can create for this workload (Service, Ingress, HPA, …) with a one-line summary and an **Open** button. The **Manifests** tab shows every manifest in the group.
+
+A **workload panel** shows only the workload: **Workload** (replicas and rollout settings), **Containers** (one card per container with `image:tag`, resources as a cpu/memory grid, ports as a table), **Metadata**, and, with **Show all fields** on, **Placement & security**. Sections hidden on the basic tier are named in a footer with a **Show all fields** link. Each auto-created resource opens its own panel: who it was created for, an **enabled** switch, and only its own settings (an Ingress shows routing, TLS and metadata; a Service shows the owner's service keys and the container ports). A configured block whose resource is not rendered (switch off, or blocked) still opens from the group panel.
+
+A field only gets a control once it exists in values.yaml; everything else is an *Add* chip that inserts the schema's starter value. Clearing a control removes the key.
 
 Icons are the official Kubernetes resource icons (© The Kubernetes Authors, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), from [kubernetes/community](https://github.com/kubernetes/community/tree/master/icons)), recolored per resource family.
-
-Workloads and the resources they auto-create are drawn inside a dashed container on the canvas.
 
 IntOrString fields (for example `pdb.minAvailable`) accept either a percentage (`50%`) or a whole
 number. Kubernetes label and annotation maps always store their values as strings, even when they

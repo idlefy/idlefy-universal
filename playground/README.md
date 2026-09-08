@@ -15,9 +15,10 @@ resource dependency graph. User-facing documentation lives at `docs/playground-g
 - `web/src/inspector/schema.ts` — `$ref`/`allOf` resolution, `schemaAt(path)`, widget classification.
 - `web/src/inspector/form.ts` — `buildFields(schema, value, tier)`: basic tier = `x-ui-tier: basic`, required, or present in the document.
 - `web/src/inspector/fields/*` — one widget per kind (boolean, number, string, list, keyvalue, object, map, yaml).
-- `web/src/inspector/target.ts`, `Toggles.tsx`, `Inspector.tsx` — where a graph node opens, secondary-resource toggles, the panel.
+- `web/src/app/selection.ts` — selection strings (`<nodeId>`, `group:<workloadNodeId>`, `block:<kindKey>.<name>.<block>`) and `resolveSelection`.
+- `web/src/inspector/target.ts`, `Inspector.tsx`, `GroupPanel.tsx`, `SecondaryPanel.tsx` — which panel a selection opens: group (switch list), workload (own fields only), secondary (one auto-created resource), release, entity.
 - `web/src/graph/secondary.ts` — the one table of auto-created resources (kinds, on/off ops); `expectations.ts` reads it too.
-- `web/src/canvas/groups.ts` — a workload and the resources it owns are drawn inside one container.
+- `web/src/canvas/groups.ts`, `GroupNode.tsx` — one selectable group per workload with a header and `+ Add resource`.
 
 Field tiers come from the `x-ui-tier` vendor keyword in `values.schema.json`; see `docs/reference/agent-metadata.md`.
 
@@ -25,9 +26,9 @@ Field tiers come from the `x-ui-tier` vendor keyword in `values.schema.json`; se
 
 - `web/src/app/Panes.tsx`, `web/src/app/panes.ts` — the three-pane layout (`SplitHandle`, `Rail`, `usePanes`): resizable, collapsible editor and inspector panes around the canvas, sizes persisted to `localStorage`.
 - `web/src/canvas/icons/` — official Kubernetes resource icons; regenerate with `node web/scripts/fetch-k8s-icons.mjs`, attribution in `web/src/canvas/icons/NOTICE`.
-- `web/src/inspector/sections.ts` — groups inspector fields into Workload, Containers, Auto-created resources, Metadata and (advanced) Placement & security sections.
+- `web/src/inspector/sections.ts`, `Sections.tsx` — section tables for workloads (`WORKLOAD_SECTIONS`) and secondary blocks (`SECONDARY_SECTIONS`); hidden advanced sections collapse into `HiddenNote`.
 - `web/src/inspector/fields/*` — compound widgets (`ContainersField`, `ImageField`, `ResourcesField`, `PortsTable`, …) alongside the primitive ones.
-- `web/src/inspector/AutoCreated.tsx`, `web/src/inspector/summary.ts` — the auto-created-resources switch list, its one-line summaries and `open ›` links.
+- `web/src/inspector/AutoCreated.tsx`, `web/src/inspector/summary.ts` — the auto-created-resources switch list (group panel), one-line summaries, `Open` links to nodes or nodeless blocks.
 
 ## monaco-yaml coverage
 

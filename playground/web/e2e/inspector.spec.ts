@@ -23,11 +23,17 @@ test('inspector edits values, toggles resources, and undo goes through Monaco', 
   await replicas.fill('3');
   await expect(page.locator('.editor')).toContainText('replicas: 3');
 
-  // toggle off the Service → node disappears, flag written
+  // the switches live on the group panel (spec 2026-09-08 §3.1)
+  await page.getByLabel('Open group Deployment hello').click();
+  await expect(page.locator('.rgroup.selected')).toHaveCount(1);
+  await expect(page.locator('.detail [role="tab"][aria-selected="true"]')).toHaveText('Resources');
   // (exact: true — "toggle Service" is otherwise a substring of "toggle ServiceMonitor"/"toggle ServiceAccount")
   await page.getByLabel('toggle Service', { exact: true }).uncheck();
   await expect(page.locator('.rnode')).toHaveCount(2, { timeout: 15_000 });
   await expect(page.locator('.editor')).toContainText('autoCreateService: false');
+  // the group survives the rebuild; its workload row opens the Deployment panel
+  await page.getByLabel('open Deployment').click();
+  await expect(page.locator('.detail .head .kind')).toHaveText('Deployment');
 
   // advanced tier reveals a passthrough YAML box
   await page.getByLabel('show all fields').check();
@@ -45,6 +51,7 @@ test('inspector is disabled while the YAML is broken', async ({ page }) => {
   await expect(page.locator('.rnode')).toHaveCount(3, { timeout: 30_000 });
   await openYaml(page);
   await page.locator('.rnode', { hasText: 'Deployment' }).click();
+  await page.getByLabel('Open group Deployment hello').click();
   await page.locator('.editor').click();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.type('\nbroken: [');
