@@ -1,10 +1,9 @@
 import { useEffect, useRef, type ReactElement } from 'react';
 import type { SchemaNode } from '../inspector/schema';
 import { Launcher } from './Launcher';
+import { DISABLED_NOTICE } from '../inspector/Inspector';
 
 export type LauncherRequest = { key?: string };   // key → open directly in step 2 for that entity (empty-state card)
-
-export const YAML_BROKEN = 'Fix the YAML syntax error in the editor to edit here.';
 
 /** The canvas's top-left Add trigger and the launcher it owns (spec §3). */
 export function AddButton(p: {
@@ -22,8 +21,8 @@ export function AddButton(p: {
   });
   return (
     <div className="add-wrap" ref={wrap}>
-      <button ref={btn} type="button" className="add-btn" disabled={p.disabled} title={p.disabled ? YAML_BROKEN : undefined}
-        aria-haspopup="dialog" aria-expanded={!!p.open} onClick={p.onOpen}>
+      <button ref={btn} type="button" className="add-btn" disabled={p.disabled} title={p.disabled ? DISABLED_NOTICE : undefined}
+        aria-haspopup="dialog" aria-expanded={!!p.open} onClick={() => (p.open ? close() : p.onOpen())}>
         <span className="plus" aria-hidden="true">＋</span> Add <kbd>A</kbd>
       </button>
       {p.open && <Launcher root={p.root} values={p.values} initialKey={p.open.key} onAdd={(k, n) => { p.onAdd(k, n); close(); }} onClose={close} />}

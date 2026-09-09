@@ -25,6 +25,15 @@ describe('AddButton', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(btn);
   });
+  it('toggles closed on a second click, refocusing the button', () => {
+    render(<Host onAdd={vi.fn()} />);
+    const btn = screen.getByRole('button', { name: /Add/ });
+    fireEvent.click(btn);
+    expect(screen.getByRole('dialog', { name: 'Add a resource' })).toBeTruthy();
+    fireEvent.click(btn);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(btn);
+  });
   it('closes on a pointer down outside, not on one inside', () => {
     render(<Host onAdd={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /Add/ }));
