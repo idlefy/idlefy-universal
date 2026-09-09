@@ -173,14 +173,13 @@ describe('Inspector', () => {
     expect(note).toBeTruthy();
     expect(note!.textContent).toMatch(/Defaults for every StatefulSet/);
   });
-  it('release: a section the schema shapes as a map still gets an editor', () => {
+  it('release: secretRefs renders as cards of variable rows, never a textarea', () => {
     const p = base(nodeSel(rel));
-    render(<Inspector {...p} tier="advanced" />);
-    const ta = screen.getByLabelText('secretRefs') as HTMLTextAreaElement;
-    expect(ta.tagName).toBe('TEXTAREA');
-    fireEvent.change(ta, { target: { value: 'db:\n  - name: DB_URL\n    secretName: db\n    key: url\n' } });
-    fireEvent.blur(ta);
-    expect(p.onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['secretRefs'], value: { db: [{ name: 'DB_URL', secretName: 'db', key: 'url' }] } }]);
+    const doc = ValuesDocument.parse(text + 'secretRefs:\n  db:\n    - name: DB_URL\n      secretKeyRef: {name: db, key: url}\n');
+    render(<Inspector {...p} doc={doc} tier="advanced" />);
+    expect(screen.queryByLabelText('secretRefs')).toBeNull();
+    fireEvent.change(screen.getByLabelText('secretRefs.db.0.name'), { target: { value: 'DATABASE_URL' } });
+    expect(p.onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['secretRefs', 'db', 0, 'name'], value: 'DATABASE_URL' }]);
   });
   it('group panel: workload row, switches with state, opens nodes', () => {
     const p = base(resolveSelection(g, groupId(dep.id))!);

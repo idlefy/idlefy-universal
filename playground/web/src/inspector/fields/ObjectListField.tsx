@@ -67,14 +67,21 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   const hideLeaves = (k: string) => k === shape.identifying || shape.leaves.some((l) => l[0] === k);
   // "more"/expand is itself the basic-tier escape hatch for advanced settings, so its body always renders at
   // advanced tier — a basic-tier section must not hide e.g. secretKeyRef.optional once the row is expanded.
-  const body = (i: number, v: unknown, hide?: (k: string) => boolean) => (
-    <div className="field-body">
-      <FieldList root={root} node={item} basePath={[...field.path, i]} value={v} tier="advanced" onEdit={onEdit} hide={hide} />
-      {hide === hideLeaves && mixedKeys.map((k) => (
-        <FieldList key={k} root={root} node={leafSchema([k])} basePath={[...field.path, i, k]} value={leafAt(v, [k])} tier="advanced" onEdit={onEdit} hide={(sk) => promotedSubKeys(k).includes(sk)} />
-      ))}
-    </div>
-  );
+  // When every top-level key is hidden (the SecretRefEntry case: `name` is identifying, `secretKeyRef` is a
+  // mixed key — both hidden by hideLeaves), the top-level FieldList would have nothing to show but its own
+  // "No fields here." fallback; skip it so the body holds only the nested mixed-key FieldList(s) below.
+  const itemKeys = Object.keys(resolve(root, item).properties ?? {});
+  const body = (i: number, v: unknown, hide?: (k: string) => boolean) => {
+    const anyVisible = !hide || itemKeys.some((k) => !hide(k));
+    return (
+      <div className="field-body">
+        {anyVisible && <FieldList root={root} node={item} basePath={[...field.path, i]} value={v} tier="advanced" onEdit={onEdit} hide={hide} />}
+        {hide === hideLeaves && mixedKeys.map((k) => (
+          <FieldList key={k} root={root} node={leafSchema([k])} basePath={[...field.path, i, k]} value={leafAt(v, [k])} tier="advanced" onEdit={onEdit} hide={(sk) => promotedSubKeys(k).includes(sk)} />
+        ))}
+      </div>
+    );
+  };
   return (
     <div className="olist">
       {items.map((v, i) => shape.pair ? (

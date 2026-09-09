@@ -63,6 +63,7 @@ describe('ObjectListField', () => {
     expect(screen.getAllByLabelText('x.refs.0.secretKeyRef.name')).toHaveLength(1);
     expect(screen.queryByLabelText('clear x.refs.0.secretKeyRef')).toBeNull();
     expect(screen.getByLabelText('add field x.refs.0.secretKeyRef.optional')).toBeTruthy();
+    expect(screen.queryByText('No fields here.')).toBeNull();
   });
   it('a present non-list value keeps the raw YAML editor', () => {
     render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: { NOT: 'a list' } }} tier="basic" onEdit={vi.fn()} />);
