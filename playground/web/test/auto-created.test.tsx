@@ -45,7 +45,6 @@ describe('AutoCreated', () => {
     expect(p.onSelect).toHaveBeenCalledWith('block:deployments.api.hpa');
     fireEvent.click(screen.getByLabelText('open Ingress'));
     expect(p.onSelect).toHaveBeenCalledWith('block:deployments.api.ingress');
-    expect(document.querySelector('.inline-block')).toBeNull();
   });
   it('the Service row (no schema node) opens only when its node exists', () => {
     const { rerender } = render(<AutoCreated {...props('deployments', { autoCreateService: true, containers: { main: { image: 'x', ports: { http: { containerPort: 80 } } } } })} />);

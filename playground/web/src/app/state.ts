@@ -9,29 +9,28 @@ export type DetailTab = 'inspector' | 'yaml';
 
 export type AppState = {
   text: string; doc: ValuesDocument; releaseName: string; namespace: string;
-  render: RenderResult | null; graph: GraphModel | null; selection: string | null; exampleId: string | null; rendering: boolean;
+  render: RenderResult | null; graph: GraphModel | null; selection: string | null;
   engineError: string | null;                   // helm.wasm failed to load → full-page message
   ui: { tier: Tier; tab: DetailTab };
 };
 export type Action =
-  | { type: 'text'; text: string } | { type: 'example'; id: string; text: string }
+  | { type: 'text'; text: string } | { type: 'example'; text: string }
   | { type: 'release'; v: string } | { type: 'ns'; v: string }
-  | { type: 'render-start' } | { type: 'render-done'; result: RenderResult; graph: GraphModel | null }
+  | { type: 'render-done'; result: RenderResult; graph: GraphModel | null }
   | { type: 'select'; id: string | null }
   | { type: 'engine-failed'; message: string }
   | { type: 'edit'; ops: EditOp[] } | { type: 'tier'; tier: Tier } | { type: 'tab'; tab: DetailTab };
 
 export function initialState(text: string): AppState {
-  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, exampleId: null, rendering: false, engineError: null, ui: { tier: 'basic', tab: 'inspector' } };
+  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, engineError: null, ui: { tier: 'basic', tab: 'inspector' } };
 }
 
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
     case 'text': return a.text === s.text ? s : { ...s, text: a.text, doc: ValuesDocument.parse(a.text) };
-    case 'example': return { ...s, text: a.text, doc: ValuesDocument.parse(a.text), exampleId: a.id, selection: null };
+    case 'example': return { ...s, text: a.text, doc: ValuesDocument.parse(a.text), selection: null };
     case 'release': return { ...s, releaseName: a.v };
     case 'ns': return { ...s, namespace: a.v };
-    case 'render-start': return { ...s, rendering: true };
     case 'render-done': {
       // A superseded request (EngineClient latest-wins) carries no information; a newer result is on its way.
       if (!a.result.ok && a.result.error.message === SUPERSEDED) return s;
@@ -39,10 +38,10 @@ export function reducer(s: AppState, a: Action): AppState {
       // A selected node can disappear from the rebuilt graph (renamed or removed). Group and block
       // selections are anchored to their workload and survive as long as it does (spec 2026-09-08 §2.3).
       const selection = graph && s.selection && !anchorOf(graph, s.selection) ? null : s.selection;
-      return { ...s, rendering: false, render: a.result, graph, selection };
+      return { ...s, render: a.result, graph, selection };
     }
     case 'select': return { ...s, selection: a.id };
-    case 'engine-failed': return { ...s, rendering: false, engineError: a.message };
+    case 'engine-failed': return { ...s, engineError: a.message };
     case 'edit': {
       // Spec §6: the inspector is disabled while the YAML is invalid; §5: text is canonical, so the
       // edited document is serialised and re-parsed rather than kept.

@@ -24,7 +24,6 @@ describe('app state', () => {
   });
   it('ignores superseded render results', () => {
     let s = initialState('deployments: {}\n');
-    s = reducer(s, { type: 'render-start' });
     const before = s;
     s = reducer(s, { type: 'render-done', result: { ok: false, error: { kind: 'template', message: SUPERSEDED } }, graph: null });
     expect(s).toBe(before);
@@ -64,13 +63,10 @@ describe('app state', () => {
     s = reducer(s, { type: 'render-done', result: { ok: false, error: { kind: 'template', message: 'graph: boom' } }, graph: null });
     expect(s.graph).toBe(graph);
     expect(markersFrom(s)[0].message).toBe('graph: boom');
-    expect(s.rendering).toBe(false);
   });
-  it('engine-failed records the message and stops rendering', () => {
-    let s = reducer(initialState('deployments: {}\n'), { type: 'render-start' });
-    s = reducer(s, { type: 'engine-failed', message: 'Failed to fetch' });
+  it('engine-failed records the message', () => {
+    const s = reducer(initialState('deployments: {}\n'), { type: 'engine-failed', message: 'Failed to fetch' });
     expect(s.engineError).toBe('Failed to fetch');
-    expect(s.rendering).toBe(false);
   });
   it('unescapes JSON pointer segments and numbers array indices', () => {
     expect(pointerToPath('/a~1b/c~0d/0')).toEqual(['a/b', 'c~d', 0]);

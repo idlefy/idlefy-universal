@@ -1,13 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { kindOfSecondary, hintOf, summaryOf, workloadSummary } from '../src/inspector/summary';
+import { kindOfSecondary, summaryOf, workloadSummary } from '../src/inspector/summary';
 import { SECONDARY, type SecondaryId } from '../src/graph/secondary';
 
-const ALL_IDS: readonly SecondaryId[] = ['service', 'ingress', 'httpRoute', 'certificate', 'hpa', 'pdb', 'serviceMonitor', 'networkPolicy', 'serviceAccount', 'rbac', 'migrations'];
+// satisfies Record<SecondaryId, true>: a new SecondaryId with no entry here fails to compile,
+// so this list cannot silently drift from the SECONDARY table's id union.
+const ALL_IDS = {
+  service: true, ingress: true, httpRoute: true, certificate: true, hpa: true, pdb: true,
+  serviceMonitor: true, networkPolicy: true, serviceAccount: true, rbac: true, migrations: true,
+} satisfies Record<SecondaryId, true>;
 
 describe('secondary summaries', () => {
   it('SECONDARY lists every SecondaryId exactly once', () => {
-    expect(new Set(SECONDARY.map((s) => s.id))).toEqual(new Set(ALL_IDS));
-    expect(SECONDARY.length).toBe(ALL_IDS.length);
+    expect(new Set(SECONDARY.map((s) => s.id))).toEqual(new Set(Object.keys(ALL_IDS)));
+    expect(SECONDARY.length).toBe(Object.keys(ALL_IDS).length);
   });
   it('maps ids to node kinds', () => {
     expect(kindOfSecondary('rbac')).toBe('Role');
@@ -25,8 +30,6 @@ describe('secondary summaries', () => {
     expect(summaryOf('certificate', { certificate: { clusterIssuer: 'letsencrypt' } })).toBe('ClusterIssuer letsencrypt');
     expect(summaryOf('pdb', { pdb: { minAvailable: 1 } })).toBe('minAvailable 1');
     expect(summaryOf('serviceAccount', {})).toBe('own ServiceAccount for the pods');
-    expect(hintOf('ingress')).toBe('needs Service');
-    expect(hintOf('hpa')).toBe('scale on CPU or memory');
   });
   it('one-line workload summaries', () => {
     expect(workloadSummary('deployments', { replicas: 3, containers: { main: { image: 'nginx', imageTag: '1.27' } } })).toBe('3 replicas · nginx:1.27');

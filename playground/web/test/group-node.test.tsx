@@ -5,7 +5,7 @@ import { GroupNode } from '../src/canvas/GroupNode';
 import { CanvasActions } from '../src/canvas/actions';
 
 afterEach(cleanup);
-const data = { label: 'Deployment hello', kind: 'Deployment', name: 'hello', ownerId: 'default/Deployment/hello' };
+const data = { kind: 'Deployment', name: 'hello' };
 const props = (selected: boolean) => ({ id: 'group:default/Deployment/hello', data, selected, type: 'group' } as any);
 
 describe('GroupNode', () => {

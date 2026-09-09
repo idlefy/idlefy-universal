@@ -2,7 +2,6 @@ import { secondaryById, type SecondaryId } from '../graph/secondary';
 import { isObj } from '../model/guards';
 
 export const kindOfSecondary = (id: SecondaryId): string => secondaryById(id).kind;
-export const hintOf = (id: SecondaryId): string => secondaryById(id).hint;
 
 export const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 

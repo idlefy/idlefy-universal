@@ -27,7 +27,6 @@ describe('ValuesDocument', () => {
     const d = ValuesDocument.parse(src);
     d.deleteIn(['deployments', 'api', 'replicas']);
     expect(d.toString()).not.toContain('replicas');
-    expect(d.hasIn(['deployments', 'api', 'replicas'])).toBe(false);
   });
   it('setIn creates intermediate maps', () => {
     const d = ValuesDocument.parse('deployments: {}\n');
@@ -85,7 +84,6 @@ describe('ValuesDocument', () => {
   it('deleteIn on an empty document is a no-op', () => {
     const d = ValuesDocument.parse('');
     expect(() => d.deleteIn(['a'])).not.toThrow();
-    expect(d.hasIn(['a'])).toBe(false);
   });
   it('deleteIn with a missing intermediate is a no-op', () => {
     const d = ValuesDocument.parse('x: 1\n');

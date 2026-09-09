@@ -18,7 +18,6 @@ import crd from './icons/crd.svg?raw';
 import pod from './icons/pod.svg?raw';
 import helm from './icons/helm.svg?raw';
 import { ICON_VIEWBOX } from './icons/viewbox';
-export { ICON_VIEWBOX };
 
 const inner = (raw: string) => raw.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
 const BY_KIND: Record<string, string> = {
@@ -27,7 +26,6 @@ const BY_KIND: Record<string, string> = {
   ServiceAccount: sa, Role: role, RoleBinding: rb, NetworkPolicy: netpol, HorizontalPodAutoscaler: hpa,
   PodDisruptionBudget: pod, Release: helm,
   // Gateway API, cert-manager and Prometheus operator have no icon in the official set (spec §4).
-  HTTPRoute: crd, Gateway: crd, Certificate: crd, Issuer: crd, ClusterIssuer: crd, ServiceMonitor: crd,
 };
 const cache = new Map<string, string>();
 export function iconFor(kind: string): string {

@@ -19,11 +19,11 @@ import { isObj, samePath } from '../model/guards';
 
 const RELEASE_SECTIONS = Object.keys(RELEASE_TITLES);
 // Flags the switch list owns and the config blocks behind them: reached through the group panel, never as plain fields.
-export const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));
+const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));
 
-export type InspectorProps = {
+type InspectorProps = {
   sel: ResolvedSelection; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[];
-  onEdit: (ops: EditOp[]) => void; onSelect: (selection: string) => void; onTier: (t: Tier) => void; disabled: boolean; focusToken?: number;
+  onEdit: (ops: EditOp[]) => void; onSelect: (selection: string) => void; onTier: (t: Tier) => void; disabled: boolean; focusToken: number;
 };
 
 export function Inspector(p: InspectorProps): ReactElement {
@@ -94,7 +94,7 @@ export function Inspector(p: InspectorProps): ReactElement {
     case 'none': body = <p className="muted prov">{t.reason}</p>; break;
     case 'release': body = releasePanel(); break;
     case 'workload': body = workloadPanel(t.path, t.name); break;
-    case 'group': body = <GroupPanel owner={t.owner} members={t.members} root={p.root} doc={p.doc} disabled={p.disabled} onEdit={edit} onSelect={p.onSelect} focusToken={p.focusToken ?? 0} />; break;
+    case 'group': body = <GroupPanel owner={t.owner} members={t.members} root={p.root} doc={p.doc} disabled={p.disabled} onEdit={edit} onSelect={p.onSelect} focusToken={p.focusToken} />; break;
     case 'secondary': body = <SecondaryPanel target={t} root={p.root} doc={p.doc} tier={p.tier} nodes={p.nodes} disabled={p.disabled} onEdit={edit} onSelect={p.onSelect} onTier={p.onTier} />; break;
     case 'entity': {
       const owner = p.sel.kind === 'node' ? p.sel.node.provenance?.owner : undefined;

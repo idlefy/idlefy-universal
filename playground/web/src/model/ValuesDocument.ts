@@ -33,9 +33,6 @@ export class ValuesDocument {
     const js = this.doc.toJS();
     return js && typeof js === 'object' ? js : {};
   }
-  hasIn(path: ValuesPath): boolean { return this.doc.hasIn(path); }
-  getIn(path: ValuesPath): unknown { return this.doc.getIn(path); }
-
   setIn(path: ValuesPath, value: unknown): void {
     if (path.length === 0) return;
 

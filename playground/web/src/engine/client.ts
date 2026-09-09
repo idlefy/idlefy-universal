@@ -3,7 +3,6 @@ import schema from '../chart-bundle/schema.json';
 import { splitManifests } from './split';
 import { SUPERSEDED, type EngineRawResult, type Manifest, type RenderResult } from './types';
 
-export { SUPERSEDED };
 const filesJSON = JSON.stringify({ ...(chartFiles as Record<string, string>), 'values.schema.json': JSON.stringify(schema) });
 
 export class EngineClient {

@@ -11,7 +11,7 @@ export { FieldRow };
 /** More chips than this collapse behind a "+N more" chip, so a section with many optional keys stays a row, not a wall. */
 const CHIP_CAP = 8;
 
-export function AddChips({ root, fields, onEdit }: { root: SchemaNode; fields: Field[]; onEdit: (ops: EditOp[]) => void }): ReactElement | null {
+function AddChips({ root, fields, onEdit }: { root: SchemaNode; fields: Field[]; onEdit: (ops: EditOp[]) => void }): ReactElement | null {
   const [expanded, setExpanded] = useState(false);
   if (fields.length === 0) return null;
   // collapsing 9 chips behind "+1 more" would be silly: only collapse when it hides at least three
@@ -39,14 +39,14 @@ export function AddChips({ root, fields, onEdit }: { root: SchemaNode; fields: F
 
 export function FieldList(p: {
   root: SchemaNode; node: SchemaNode; basePath: ValuesPath; value: unknown; tier: Tier;
-  onEdit: (ops: EditOp[]) => void; hide?: (key: string) => boolean; chips?: boolean; order?: readonly string[];
+  onEdit: (ops: EditOp[]) => void; hide?: (key: string) => boolean; order?: readonly string[];
 }): ReactElement {
   const fields = buildFields(p.root, p.node, p.basePath, p.value, p.tier, { hide: p.hide });
   // Spec §5.2 lists keys "in this order"; buildFields walks the schema alphabetically. Stable sort: unlisted keys keep schema order after the listed ones.
   const rank = new Map((p.order ?? []).map((k, i) => [k, i]));
   const byOrder = (a: Field, b: Field) => (rank.get(a.key) ?? 1e9) - (rank.get(b.key) ?? 1e9);
   const rows = fields.filter((f) => f.present || f.required).sort(byOrder);
-  const chips = (p.chips === false ? [] : fields.filter((f) => !f.present && !f.required)).sort(byOrder);
+  const chips = fields.filter((f) => !f.present && !f.required).sort(byOrder);
   if (rows.length === 0 && chips.length === 0) return <p className="muted">No fields here.</p>;
   return (
     <>

@@ -52,20 +52,18 @@ const isIntOrString = (n: SchemaNode): boolean => {
   return false;
 };
 
-/** Dereferences and folds `allOf` members that carry properties/required into the node. if/then members are kept aside under `x-conditionals`. */
+/** Dereferences and folds `allOf` members that carry properties/required into the node. */
 export function resolve(root: SchemaNode, node: SchemaNode): SchemaNode {
   const d = deref(root, node) ?? node;
   if (!Array.isArray(d.allOf)) return d;
   const out: SchemaNode = { ...d, properties: { ...(d.properties ?? {}) }, required: [...(d.required ?? [])] };
   delete out.allOf;
-  const conditionals: SchemaNode[] = [];
   for (const raw of d.allOf) {
     const m = deref(root, raw) ?? raw;
-    if (m.if || m.then) { conditionals.push(m); continue; }
+    if (m.if || m.then) continue;
     Object.assign(out.properties, m.properties ?? {});
     for (const r of m.required ?? []) if (!out.required.includes(r)) out.required.push(r);
   }
-  if (conditionals.length) out['x-conditionals'] = conditionals;
   if (out.required.length === 0) delete out.required;
   return out;
 }

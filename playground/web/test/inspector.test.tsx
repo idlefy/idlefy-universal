@@ -19,12 +19,12 @@ const dep = g.nodes.find((n) => n.kind === 'Deployment')!;
 const svc = g.nodes.find((n) => n.kind === 'Service')!;
 const rel = g.nodes.find((n) => n.kind === 'Release')!;
 const nodeSel = (n: any) => ({ kind: 'node' as const, node: n });
-const base = (sel: any) => ({ sel, root, doc: ValuesDocument.parse(text), tier: 'basic' as const, nodes: g.nodes, onEdit: vi.fn(), onSelect: vi.fn(), onTier: vi.fn(), disabled: false });
+const base = (sel: any) => ({ sel, root, doc: ValuesDocument.parse(text), tier: 'basic' as const, nodes: g.nodes, onEdit: vi.fn(), onSelect: vi.fn(), onTier: vi.fn(), disabled: false, focusToken: 0 });
 
 const ffText = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'graph', '__fixtures__', 'full-features.values.yaml'), 'utf8');
 const ff = (() => { const f = loadFixture('full-features'); return buildGraph(f.manifests, f.values, 'default'); })();
 const ffNode = (kind: string, name: string) => ff.nodes.find((n) => n.kind === kind && n.name === name)!;
-const ffBase = (sel: any) => ({ sel, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, nodes: ff.nodes, onEdit: vi.fn(), onSelect: vi.fn(), onTier: vi.fn(), disabled: false });
+const ffBase = (sel: any) => ({ sel, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, nodes: ff.nodes, onEdit: vi.fn(), onSelect: vi.fn(), onTier: vi.fn(), disabled: false, focusToken: 0 });
 
 // Absent optional fields now render as an "add field" chip instead of an empty control (task 6);
 // a field is reachable either as a live control, its chip, or — for block widgets (object/map/keyvalue/
@@ -121,7 +121,6 @@ describe('Inspector', () => {
   it('basic tier collapses hidden advanced sections into one footer note', () => {
     const p = base(nodeSel(dep));
     const { container, rerender } = render(<Inspector {...p} tier="basic" />);
-    expect(container.querySelector('.sec.adv')).toBeNull();
     // Metadata has nothing to show at basic tier here (no labels/annotations set) but does at advanced,
     // so it joins Placement & security in the footer note (spec §4.6)
     expect(screen.getByText('Metadata, Placement & security hidden')).toBeTruthy();
@@ -170,7 +169,6 @@ describe('Inspector', () => {
   });
   it('release: basic tier names hidden sections in the footer instead of placeholder headings', () => {
     const { container } = render(<Inspector {...base(nodeSel(rel))} tier="basic" />);
-    expect(container.querySelector('.sec.adv')).toBeNull();
     const note = container.querySelector('.hidden-note');
     expect(note).toBeTruthy();
     expect(note!.textContent).toMatch(/Defaults for every StatefulSet/);
@@ -204,7 +202,6 @@ describe('Inspector', () => {
     expect(p.onSelect).toHaveBeenCalledWith(svc.id);
     fireEvent.click(screen.getByLabelText('open Ingress'));
     expect(p.onSelect).toHaveBeenCalledWith('block:deployments.hello.ingress');
-    expect(document.querySelector('.inline-block')).toBeNull();
     expect(screen.queryByLabelText('deployments.hello.replicas')).toBeNull();   // no workload fields here
   });
   it('group panel: disabled state disables the switches', () => {
@@ -213,7 +210,7 @@ describe('Inspector', () => {
   });
   it('group panel: a focus token from "+ Add resource" focuses the first switch; none by default', () => {
     const p = base(resolveSelection(g, groupId(dep.id))!);
-    const { unmount } = render(<Inspector {...p} />);
+    const { unmount } = render(<Inspector {...p} focusToken={0} />);
     expect(document.activeElement).toBe(document.body);
     unmount();
     render(<Inspector {...p} focusToken={1} />);

@@ -25,7 +25,7 @@ describe('layoutGraph', () => {
     const { nodes } = await layoutGraph(model);
     const group = nodes.find((n) => n.id === 'group:default/Deployment/web')!;
     expect(group.type).toBe('group');
-    expect(group.data).toEqual({ label: 'Deployment web', kind: 'Deployment', name: 'web', ownerId: 'default/Deployment/web' });
+    expect(group.data).toEqual({ kind: 'Deployment', name: 'web' });
     const child = nodes.find((n) => n.id === 'default/Service/web')!;
     expect(child.parentId).toBe(group.id);
     expect(child.extent).toBe('parent');

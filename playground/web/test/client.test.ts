@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { EngineClient, SUPERSEDED } from '../src/engine/client';
+import { EngineClient } from '../src/engine/client';
+import { SUPERSEDED } from '../src/engine/types';
 
 type Listener = (ev: { data: unknown }) => void;
 

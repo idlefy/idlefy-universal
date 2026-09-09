@@ -95,7 +95,7 @@ export function App() {
             onRelease={(v) => dispatch({ type: "release", v })} onNs={(v) => dispatch({ type: "ns", v })}
             onPickExample={(id) => {
               const ex = (examples as { id: string; values: string }[]).find((e) => e.id === id);
-              if (ex) dispatch({ type: "example", id, text: ex.values });
+              if (ex) dispatch({ type: "example", text: ex.values });
             }}
             valuesText={state.text} chartVersion={chartMeta.version} onHide={() => setOpen("editor", false)}
           />
@@ -116,7 +116,7 @@ export function App() {
           <>
             <SplitHandle label="Resize the inspector"
               onDrag={(dx) => setWidth("inspector", dragStart.current.inspector - dx)} onReset={() => reset("inspector")} />
-            <section className="pane pane-inspector" style={{ width: panes.inspector.width }}>
+            <section className="pane" style={{ width: panes.inspector.width }}>
               <DetailPanel
                 sel={sel} nodes={state.graph?.nodes ?? []} tab={state.ui.tab} tier={state.ui.tier} doc={inspectorDoc} root={schema as SchemaNode}
                 disabled={state.doc.errors.length > 0} focusToken={addToken && addToken.id === state.selection ? addToken.n : 0}

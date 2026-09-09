@@ -46,7 +46,7 @@ export function FieldRow(p: FieldProps & { bare?: boolean }): ReactElement {
   })();
   const block = special !== null || field.widget.kind === 'map' || field.widget.kind === 'object' || field.widget.kind === 'keyvalue' || field.widget.kind === 'yaml' || field.widget.kind === 'list' || field.widget.kind === 'objectList' || field.widget.kind === 'mapOfLists';
   return (
-    <div className={`field ${block ? 'block' : 'inline'} ${p.bare ? 'bare' : ''} ${special ? `sp-${special}` : ''} tier-${field.tier} ${field.present ? 'present' : 'absent'}`}>
+    <div className={`field ${block ? 'block' : ''} ${p.bare ? 'bare' : ''} ${special ? `sp-${special}` : ''}`}>
       {!p.bare && <div className="field-head">
         <label htmlFor={id} data-key={field.key} title={field.description ? `${id} — ${field.description}` : id}>{humanize(field.label)}{field.required && <span className="req" title="required">*</span>}</label>
         {field.present && block && (
