@@ -114,5 +114,6 @@ describe('ObjectListField', () => {
     fireEvent.click(screen.getByLabelText('add x.items'));
     const ops = onEdit.mock.calls.at(-1)![0];
     expect(ops[0].path).toEqual(['x', 'items', 0]);
+    expect(ops[0].value).toEqual({ name: '' });
   });
 });

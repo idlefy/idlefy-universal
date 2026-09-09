@@ -47,10 +47,11 @@ export class ValuesDocument {
     const root: any = this.doc.contents;
     if (!isMap(root)) return; // sequence or scalar root: no-op (never throws)
 
-    // Walk intermediate segments, creating maps as needed. If an intermediate
+    // Walk intermediate segments, creating a map, or a sequence when the next
+    // segment is a numeric index, as needed. If an intermediate
     // segment holds a scalar (not a collection) rather than being missing, we
     // treat the caller's intent as "make this a nested structure" and replace
-    // the scalar with a fresh map rather than throwing — the same behavior a
+    // the scalar with a fresh collection rather than throwing — the same behavior a
     // deep-set utility like lodash's `set` has for a superseded scalar.
     let node: any = root;
     for (let i = 0; i < path.length - 1; i++) {
