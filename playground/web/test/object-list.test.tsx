@@ -55,6 +55,15 @@ describe('ObjectListField', () => {
     fireEvent.click(screen.getByLabelText('more x.refs.0'));
     expect(screen.getByLabelText('add field x.refs.0.secretKeyRef.optional')).toBeTruthy();
   });
+  it('secretRefs-shaped pair: the expander body shows only the extra sub-key, not the leaves the row already edits', () => {
+    const onEdit = vi.fn();
+    const node = { type: 'object', properties: { refs: { type: 'array', items: root.$defs.SecretRefEntry } } };
+    render(<FieldList root={root} node={node} basePath={['x']} value={{ refs: [{ name: 'API_KEY', secretKeyRef: { name: 's', key: 'k' } }] }} tier="basic" onEdit={onEdit} />);
+    fireEvent.click(screen.getByLabelText('more x.refs.0'));
+    expect(screen.getAllByLabelText('x.refs.0.secretKeyRef.name')).toHaveLength(1);
+    expect(screen.queryByLabelText('clear x.refs.0.secretKeyRef')).toBeNull();
+    expect(screen.getByLabelText('add field x.refs.0.secretKeyRef.optional')).toBeTruthy();
+  });
   it('a present non-list value keeps the raw YAML editor', () => {
     render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: { NOT: 'a list' } }} tier="basic" onEdit={vi.fn()} />);
     expect(screen.getByLabelText('deployments.web.containers.main.env').tagName).toBe('TEXTAREA');

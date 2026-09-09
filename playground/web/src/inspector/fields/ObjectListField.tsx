@@ -57,12 +57,23 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
     );
     return <input key={aria} type="text" className={cls} aria-label={aria} placeholder={leaf[leaf.length - 1]} value={text} onChange={(e) => setLeaf(i, leaf, e.target.value)} />;
   };
-  // the expander body hides what the row already shows; a nested object that is also an extra (secretKeyRef with `optional`) stays visible whole
-  const hideLeaves = (k: string) => k === shape.identifying || (shape.leaves.some((l) => l[0] === k) && !shape.extras.includes(k));
+  // sub-keys of `k` already promoted into a pair leaf (secretKeyRef.name/.key) — the row already edits these directly
+  const promotedSubKeys = (k: string) => shape.leaves.filter((l) => l[0] === k).map((l) => l[1]);
+  // a "mixed" key is both promoted into pair leaves and flagged extra (secretKeyRef: `.name`/`.key` are leaves,
+  // `.optional` is the leftover extra) — spec §5.2: the body is for "those extra properties" only, so the row's
+  // own leaves (mixed or not) never repeat in the body; a mixed key instead gets its own nested FieldList below,
+  // scoped to just its unpromoted sub-keys, so its promoted leaves aren't shown (or clearable) a second time.
+  const mixedKeys = shape.extras.filter((k) => promotedSubKeys(k).length > 0);
+  const hideLeaves = (k: string) => k === shape.identifying || shape.leaves.some((l) => l[0] === k);
   // "more"/expand is itself the basic-tier escape hatch for advanced settings, so its body always renders at
   // advanced tier — a basic-tier section must not hide e.g. secretKeyRef.optional once the row is expanded.
   const body = (i: number, v: unknown, hide?: (k: string) => boolean) => (
-    <div className="field-body"><FieldList root={root} node={item} basePath={[...field.path, i]} value={v} tier="advanced" onEdit={onEdit} hide={hide} /></div>
+    <div className="field-body">
+      <FieldList root={root} node={item} basePath={[...field.path, i]} value={v} tier="advanced" onEdit={onEdit} hide={hide} />
+      {hide === hideLeaves && mixedKeys.map((k) => (
+        <FieldList key={k} root={root} node={leafSchema([k])} basePath={[...field.path, i, k]} value={leafAt(v, [k])} tier="advanced" onEdit={onEdit} hide={(sk) => promotedSubKeys(k).includes(sk)} />
+      ))}
+    </div>
   );
   return (
     <div className="olist">
