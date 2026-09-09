@@ -45,7 +45,7 @@ export function KeyValueField(props: FieldProps): ReactElement {
           <button type="button" className="clear icon" aria-label={`remove ${id}.${k}`} onClick={() => onEdit([{ op: 'delete', path: [...field.path, k] }])}>×</button>
         </div>
       ))}
-      <AddKeyRow id={id} existing={entries.map(([k]) => k)} valid={() => true} invalidText="" hideError
+      <AddKeyRow id={id} existing={entries.map(([k]) => k)} valid={() => true} invalidText=""
         onAdd={(k) => onEdit([{ op: 'set', path: [...field.path, k], value: '' }])} />
     </div>
   );
