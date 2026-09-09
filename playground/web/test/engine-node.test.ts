@@ -6,6 +6,7 @@ import { toRenderResult } from '../src/engine/client';
 import chartFiles from '../src/chart-bundle/chart.json';
 import schema from '../src/chart-bundle/schema.json';
 import { ENTITIES, defaultName } from '../src/graph/entities';
+import { secondariesFor } from '../src/graph/secondary';
 import { addEntityOps } from '../src/palette/add';
 import { ValuesDocument } from '../src/model/ValuesDocument';
 import { buildGraph } from '../src/graph/build';
@@ -40,6 +41,18 @@ describe('helm.wasm via wasm_exec in node', () => {
     const r = toRenderResult(raw, 0);
     expect(r.ok).toBe(false);
     if (!r.ok) { expect(r.error.kind).toBe('schema'); expect(r.error.path).toBe('/deployments/app'); }
+  });
+  it('every group-panel toggle on a minimal Deployment still renders', () => {
+    const base = ['deployments', 'web'];
+    const start = ValuesDocument.parse('deployments:\n  web:\n    containers:\n      main:\n        image: nginx\n        imageTag: "1.27"\n        ports:\n          http:\n            containerPort: 80\n');
+    for (const s of secondariesFor('deployments')) {
+      const cfg = start.toJS().deployments.web;
+      const doc = start.apply(s.on(base, cfg, 'web'));
+      const raw = JSON.parse((globalThis as any).helmRender(files, doc.toString(), 'demo', 'default'));
+      const r = toRenderResult(raw, 0);
+      expect(r.ok, `${s.id}: ${r.ok ? '' : r.error.message}`).toBe(true);
+      if (r.ok && s.kind) expect(r.manifests.map((m) => m.obj.kind), s.id).toContain(s.kind);
+    }
   });
   it('renders every palette starter body from an empty document', () => {
     for (const e of ENTITIES) {

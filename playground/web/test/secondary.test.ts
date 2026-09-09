@@ -34,12 +34,19 @@ describe('secondary resources', () => {
       { op: 'set', path: [...base, 'autoCreateNetworkPolicy'], value: true },
     ]);
     expect(byId('rbac').on(base, {}, 'web')).toEqual([
+      { op: 'set', path: [...base, 'autoCreateServiceAccount'], value: true },
       { op: 'set', path: [...base, 'autoCreateRbac'], value: true },
       { op: 'set', path: [...base, 'rbac'], value: { rules: [{ apiGroups: [''], resources: ['configmaps'], verbs: ['get', 'list'] }] } },
     ]);
+    expect(byId('rbac').on(base, { serviceAccountName: 'sa', rbac: { rules: [] } }, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreateRbac'], value: true }]);
     expect(byId('ingress').on(base, {}, 'web')).toEqual([
       { op: 'set', path: [...base, 'autoCreateIngress'], value: true },
       { op: 'set', path: [...base, 'ingress'], value: { hosts: [{ host: 'web.example.com', paths: [{ path: '/', pathType: 'Prefix' }] }] } },
+    ]);
+    // _autocreate-httproute.tpl fails without hostnames or generic.ingressesGeneral.domain, same as ingress.
+    expect(byId('httpRoute').on(base, {}, 'web')).toEqual([
+      { op: 'set', path: [...base, 'autoCreateHttpRoute'], value: true },
+      { op: 'set', path: [...base, 'httpRoute'], value: { parentRefs: [{ name: 'gateway' }], hostnames: [{ host: 'web.example.com' }] } },
     ]);
     expect(byId('certificate').on(base, {}, 'web')).toEqual([
       { op: 'set', path: [...base, 'autoCreateIngress'], value: true },
@@ -49,7 +56,8 @@ describe('secondary resources', () => {
     ]);
     expect(byId('hpa').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'hpa'], value: { minReplicas: 1, maxReplicas: 3 } }]);
     expect(byId('migrations').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'migrations', 'enabled'], value: true }]);
-    expect(byId('pdb').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreatePdb'], value: true }]);
+    expect(byId('pdb').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreatePdb'], value: true }, { op: 'set', path: [...base, 'pdb'], value: { maxUnavailable: 1 } }]);
+    expect(byId('pdb').on(base, { pdb: { minAvailable: 1 } }, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreatePdb'], value: true }]);
     expect(byId('service').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreateService'], value: true }]);
   });
   it('service.blocked() explains a missing container port', () => {

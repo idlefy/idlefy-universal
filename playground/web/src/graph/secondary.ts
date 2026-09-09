@@ -45,7 +45,8 @@ export const SECONDARY: readonly Secondary[] = [
   { id: 'ingress', label: 'Ingress', kind: 'Ingress', hint: 'needs Service', kinds: DEPLOY_ONLY, isOn: (c) => !!c.autoCreateIngress,
     on: ingressOn, off: (b) => [setFalse([...b, 'autoCreateIngress']), setFalse([...b, 'autoCreateCertificate'])] },
   { id: 'httpRoute', label: 'HTTPRoute', kind: 'HTTPRoute', hint: 'needs Service', kinds: DEPLOY_ONLY, isOn: (c) => !!c.autoCreateHttpRoute,
-    on: (b, c) => [set([...b, 'autoCreateHttpRoute'], true), ...(isFilledObj(c.httpRoute) ? [] : [set([...b, 'httpRoute'], { parentRefs: [{ name: 'gateway' }] })])],
+    // _autocreate-httproute.tpl fails without hostnames or generic.ingressesGeneral.domain, like the ingress seed above.
+    on: (b, c, n) => [set([...b, 'autoCreateHttpRoute'], true), ...(isFilledObj(c.httpRoute) ? [] : [set([...b, 'httpRoute'], { parentRefs: [{ name: 'gateway' }], hostnames: [{ host: `${n}.example.com` }] })])],
     off: (b) => [setFalse([...b, 'autoCreateHttpRoute'])] },
   { id: 'certificate', label: 'Certificate', kind: 'Certificate', hint: 'needs Ingress with TLS hosts', kinds: DEPLOY_ONLY, isOn: (c) => !!c.autoCreateCertificate && !!c.autoCreateIngress && !!c.ingress,
     on: (b, c, n) => [...(c.autoCreateIngress === true && isFilledObj(c.ingress) ? [] : ingressOn(b, c, n)), set([...b, 'autoCreateCertificate'], true), ...(isFilledObj(c.certificate) ? [] : [set([...b, 'certificate'], { clusterIssuer: 'letsencrypt' })])],
@@ -53,7 +54,8 @@ export const SECONDARY: readonly Secondary[] = [
   { id: 'hpa', label: 'HorizontalPodAutoscaler', kind: 'HorizontalPodAutoscaler', hint: 'scale on CPU or memory', kinds: DEPLOY_ONLY, isOn: (c) => isObj(c.hpa),
     on: (b) => [set([...b, 'hpa'], { minReplicas: 1, maxReplicas: 3 })], off: (b) => [del([...b, 'hpa'])] },
   { id: 'pdb', label: 'PodDisruptionBudget', kind: 'PodDisruptionBudget', hint: 'keep pods up during node drains', kinds: PDB_KINDS, isOn: (c) => !!c.autoCreatePdb || isFilledObj(c.pdb),
-    on: (b) => [set([...b, 'autoCreatePdb'], true)], off: (b) => [setFalse([...b, 'autoCreatePdb']), del([...b, 'pdb'])] },
+    // _autocreate-pdb.tpl reads pdb.labels unconditionally, so an empty block fails the render; seed the template's default.
+    on: (b, c) => [set([...b, 'autoCreatePdb'], true), ...(isFilledObj(c.pdb) ? [] : [set([...b, 'pdb'], { maxUnavailable: 1 })])], off: (b) => [setFalse([...b, 'autoCreatePdb']), del([...b, 'pdb'])] },
   { id: 'serviceMonitor', label: 'ServiceMonitor', kind: 'ServiceMonitor', hint: 'needs Service', kinds: SM_KINDS, isOn: (c) => !!c.autoCreateServiceMonitor,
     on: (b) => [set([...b, 'autoCreateServiceMonitor'], true)], off: (b) => [setFalse([...b, 'autoCreateServiceMonitor'])] },
   { id: 'networkPolicy', label: 'NetworkPolicy', kind: 'NetworkPolicy', hint: 'restrict pod traffic', kinds: WORKLOAD_KEYS, isOn: (c) => !!c.autoCreateNetworkPolicy,
@@ -62,7 +64,9 @@ export const SECONDARY: readonly Secondary[] = [
   { id: 'serviceAccount', label: 'ServiceAccount', kind: 'ServiceAccount', hint: 'own identity for the pods', kinds: SA_KINDS, isOn: (c) => !!c.autoCreateServiceAccount || isFilledObj(c.serviceAccount),
     on: (b) => [set([...b, 'autoCreateServiceAccount'], true)], off: (b) => [setFalse([...b, 'autoCreateServiceAccount']), del([...b, 'serviceAccount'])] },
   { id: 'rbac', label: 'Role + RoleBinding', kind: 'Role', hint: 'namespace permissions for the pods', kinds: WORKLOAD_KEYS, isOn: (c) => !!c.autoCreateRbac,
-    on: (b, c) => [set([...b, 'autoCreateRbac'], true), ...(isFilledObj(c.rbac) ? [] : [set([...b, 'rbac'], { rules: [{ apiGroups: [''], resources: ['configmaps'], verbs: ['get', 'list'] }] })])],
+    // _validation.tpl (RB-*) fails autoCreateRbac without a ServiceAccount; chain the SA on unless one is already configured.
+    on: (b, c) => [...(c.autoCreateServiceAccount === true || c.serviceAccountName || isFilledObj(c.serviceAccount) ? [] : [set([...b, 'autoCreateServiceAccount'], true)]),
+      set([...b, 'autoCreateRbac'], true), ...(isFilledObj(c.rbac) ? [] : [set([...b, 'rbac'], { rules: [{ apiGroups: [''], resources: ['configmaps'], verbs: ['get', 'list'] }] })])],
     off: (b) => [setFalse([...b, 'autoCreateRbac']), del([...b, 'rbac'])] },
   { id: 'migrations', label: 'Migrations Job', kind: 'Job', hint: 'pre-upgrade hook, same image', kinds: DEPLOY_ONLY, isOn: (c) => c.migrations?.enabled === true,   // job.yaml tests `eq true`
     on: (b) => [set([...b, 'migrations', 'enabled'], true)], off: (b) => [setFalse([...b, 'migrations', 'enabled'])] },
