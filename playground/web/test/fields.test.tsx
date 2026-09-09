@@ -85,7 +85,7 @@ describe('field widgets', () => {
     fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main.args.1'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...cbase, 'args', 1] }]);   // splice keeps the YAML style
     fireEvent.click(screen.getByLabelText('add deployments.web.containers.main.args'));
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'args'], value: ['a', 'b', ''] }]);
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'args', 2], value: '' }]);   // append by index, not whole-array rewrite
     expect(screen.queryByLabelText('deployments.web.containers.main.args')).toBeNull();   // no textarea any more
   });
   it('list: a present non-list value keeps the raw YAML editor', () => {
@@ -107,6 +107,14 @@ describe('field widgets', () => {
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'networkPolicy', 'policyTypes', 0], value: 'Egress' }]);
     fireEvent.click(screen.getByLabelText('remove deployments.web.networkPolicy.policyTypes.0'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'networkPolicy', 'policyTypes'] }]);
+  });
+  it('list: a required-but-absent list still renders (no items) and adding the first one creates the array', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={{ networkPolicy: {} }} tier="basic" onEdit={onEdit} />);
+    expect(screen.queryByLabelText('deployments.web.networkPolicy.policyTypes.0')).toBeNull();
+    fireEvent.click(screen.getByLabelText('add deployments.web.networkPolicy.policyTypes'));
+    // nothing to index into yet: the first item sets the whole array rather than an out-of-range index
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'networkPolicy', 'policyTypes'], value: ['Ingress'] }]);
   });
 
   it('keyvalue: add, edit and remove rows', () => {

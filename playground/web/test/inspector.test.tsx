@@ -122,7 +122,9 @@ describe('Inspector', () => {
     const p = base(nodeSel(dep));
     const { container, rerender } = render(<Inspector {...p} tier="basic" />);
     expect(container.querySelector('.sec.adv')).toBeNull();
-    expect(screen.getByText('Placement & security hidden')).toBeTruthy();
+    // Metadata has nothing to show at basic tier here (no labels/annotations set) but does at advanced,
+    // so it joins Placement & security in the footer note (spec §4.6)
+    expect(screen.getByText('Metadata, Placement & security hidden')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('show hidden sections'));
     expect(p.onTier).toHaveBeenCalledWith('advanced');
     rerender(<Inspector {...p} tier="advanced" />);

@@ -6,7 +6,7 @@ import type { ResolvedSelection } from '../app/selection';
 import type { SchemaNode } from '../inspector/schema';
 import type { SecondaryId } from '../graph/secondary';
 import { Inspector } from '../inspector/Inspector';
-import { kindOfSecondary } from '../inspector/summary';
+import { kindOfSecondary, plural } from '../inspector/summary';
 import { familyOf } from '../graph/labels';
 import { KindIcon, GroupGlyph } from './icons';
 
@@ -52,7 +52,7 @@ export function DetailPanel(p: {
             <span>namespace {head.ns || '(none)'}</span>
             {pathText && <code>{pathText}</code>}
             {line && <span>line {line}</span>}
-            {head.count !== undefined && <span>{head.count} resources</span>}
+            {head.count !== undefined && <span>{plural(head.count, 'resource')}</span>}
           </div>
           {head.warnings.map((w) => <p key={w} className="warn">{w}</p>)}
         </div>

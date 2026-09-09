@@ -20,10 +20,18 @@ export function Sections(p: {
   const parts = partition(keys, p.tables).map((x) => (x.section === OTHER_SECTION && p.other ? { ...x, section: p.other } : x));
   const hidden: string[] = [];
   const rendered = parts.map(({ section, keys: mine }) => {
+    // a section flagged advanced is gated behind the tier switch as a whole, even when one of its
+    // fields happens to carry x-ui-tier basic (deployments.nodeSelector inside Placement & security)
     if (section.advanced && p.tier !== 'advanced') { hidden.push(section.title); return null; }
     const set = new Set(mine);
     const hide = (k: string) => !set.has(k);
-    if (buildFields(p.root, p.node, p.base, p.value, p.tier, { hide }).length === 0) return null;
+    const count = (tier: Tier) => buildFields(p.root, p.node, p.base, p.value, tier, { hide }).length;
+    if (count(p.tier) === 0) {
+      // nothing on this tier: name it in the footer (spec §4.6) when the advanced tier would show something
+      // (release panel's rule, mirrored here for a non-advanced-flagged section like workload Metadata)
+      if (p.tier !== 'advanced' && count('advanced') > 0) hidden.push(section.title);
+      return null;
+    }
     return (
       <div key={section.id} className="sec">
         <h3>{section.title}</h3>

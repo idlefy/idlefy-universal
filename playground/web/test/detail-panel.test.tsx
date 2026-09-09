@@ -15,6 +15,11 @@ const text = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'graph', '__fi
 const { manifests, values } = loadFixture('example-01-hello-world');
 const g = buildGraph(manifests, values, 'default');
 const dep = g.nodes.find((n) => n.kind === 'Deployment')!;
+
+const ssText = fs.readFileSync(path.resolve(__dirname, '..', 'src', 'graph', '__fixtures__', 'stateful-storage.values.yaml'), 'utf8');
+const ss = loadFixture('stateful-storage');
+const ssGraph = buildGraph(ss.manifests, ss.values, 'default');
+const filesDep = ssGraph.nodes.find((n) => n.kind === 'Deployment' && n.name === 'files')!;
 const base = () => ({
   sel: { kind: 'node' as const, node: dep }, root: schema as any, doc: ValuesDocument.parse(text), tier: 'basic' as const, disabled: false, nodes: g.nodes, focusToken: 0,
   onTab: vi.fn(), onTier: vi.fn(), onEdit: vi.fn(), onClose: vi.fn(), onHide: vi.fn(), onSelect: vi.fn(),
@@ -74,6 +79,12 @@ describe('DetailPanel', () => {
     expect(pre).toContain('kind: Service');
     expect(pre).toContain('\n---\n');
     expect(screen.getByText('Copy manifests')).toBeTruthy();
+  });
+  it('group selection with no other members uses the singular "1 resource"', () => {
+    const p = { ...base(), sel: resolveSelection(ssGraph, groupId(filesDep.id)), doc: ValuesDocument.parse(ssText), nodes: ssGraph.nodes };
+    const { container } = render(<DetailPanel {...p} tab="inspector" />);
+    expect(container.querySelector('.head .meta')!.textContent).toContain('1 resource');
+    expect(container.querySelector('.head .meta')!.textContent).not.toContain('1 resources');
   });
   it('block selection: kind header, Fields tab only, inspector even when the tab state says yaml', () => {
     const p = { ...base(), sel: resolveSelection(g, blockId(['deployments', 'hello', 'ingress'])) };

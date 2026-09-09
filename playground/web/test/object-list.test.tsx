@@ -32,8 +32,8 @@ describe('ObjectListField', () => {
     expect(add.textContent).toBe('Variable');
     fireEvent.click(add);
     const ops = onEdit.mock.calls.at(-1)![0];
-    expect(ops[0].path).toEqual([...cbase, 'env']);
-    expect(ops[0].value).toHaveLength(3);
+    expect(ops[0].path).toEqual([...cbase, 'env', 2]);   // append by index, not whole-array rewrite
+    expect(ops[0].value).toBeTruthy();
     expect(screen.queryByRole('textbox', { name: 'deployments.web.containers.main.env' })).toBeNull();   // no textarea
   });
   it('env: the expander reveals valueFrom; a row with valueFrom starts expanded', () => {
@@ -105,5 +105,16 @@ describe('ObjectListField', () => {
     rerender(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: value.env.slice(1) }} tier="basic" onEdit={onEdit} />);
     expect(screen.getByLabelText('add field deployments.web.containers.main.env.1.valueFrom')).toBeTruthy();   // C, now index 1, still open
     expect(screen.queryByLabelText('add field deployments.web.containers.main.env.0.valueFrom')).toBeNull();     // B stays closed
+  });
+  it('a required-but-absent list still renders (no rows) and adding the first item creates the array', () => {
+    const onEdit = vi.fn();
+    const node = { type: 'object', required: ['items'], properties: { items: { type: 'array', items: { type: 'object', required: ['name'], properties: { name: { type: 'string' } } } } } };
+    render(<FieldList root={root} node={node} basePath={['x']} value={{}} tier="basic" onEdit={onEdit} />);
+    expect(screen.queryByLabelText('x.items.0.name')).toBeNull();
+    fireEvent.click(screen.getByLabelText('add x.items'));
+    // nothing to index into yet: the first item sets the whole array rather than an out-of-range index
+    const ops = onEdit.mock.calls.at(-1)![0];
+    expect(ops[0].path).toEqual(['x', 'items']);
+    expect(ops[0].value).toHaveLength(1);
   });
 });

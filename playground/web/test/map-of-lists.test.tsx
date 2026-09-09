@@ -25,7 +25,7 @@ describe('MapOfListsField', () => {
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: ['secretRefs', 'db'] }]);
     expect(screen.queryByLabelText('secretRefs')).toBeNull();   // no textarea
   });
-  it('+ Group reveals the key input and adds an empty list under a valid new key', () => {
+  it('+ Group reveals the key input and adds a one-item schema-valid list under a valid new key', () => {
     const onEdit = vi.fn();
     render(<FieldRow root={root} field={field(value)} tier="basic" onEdit={onEdit} bare />);
     expect(screen.queryByLabelText('new key secretRefs')).toBeNull();
@@ -35,6 +35,12 @@ describe('MapOfListsField', () => {
     expect((screen.getByLabelText('add secretRefs') as HTMLButtonElement).disabled).toBe(true);   // duplicate
     fireEvent.change(box, { target: { value: 'cache' } });
     fireEvent.click(screen.getByLabelText('add secretRefs'));
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['secretRefs', 'cache'], value: [] }]);
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    const [op] = onEdit.mock.calls[0][0];
+    expect(op.op).toBe('set');
+    expect(op.path).toEqual(['secretRefs', 'cache']);
+    expect(op.value).toHaveLength(1);
+    expect(typeof op.value[0].name).toBe('string');
+    expect(op.value[0].name.length).toBeGreaterThan(0);
   });
 });

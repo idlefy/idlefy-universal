@@ -30,7 +30,13 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   // pair rows start expanded when the value already carries an extra property; block rows always start collapsed
   const isOpen = (i: number, v: unknown) => open[i] ?? (isObj(v) && shape.extras.some((k) => hasExtraData(k, v)));
   const blockOpen = (i: number) => open[i] ?? false;
-  const append = () => onEdit([{ op: 'set', path: field.path, value: [...items, starterValue(root, item)] }]);
+  // appending sets the next index rather than rewriting the whole array (flow style and untouched item types
+  // survive); when the array itself does not exist yet (a required list that has never been set), setIn has
+  // no sequence to index into, so the first item still has to create the array outright
+  const append = () => {
+    const v = starterValue(root, item);
+    onEdit([{ op: 'set', path: items.length === 0 ? field.path : [...field.path, items.length], value: items.length === 0 ? [v] : v }]);
+  };
   // deleting one index splices the sequence in place; the expansion map shifts down so it keeps following the same items
   const remove = (i: number) => {
     onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);

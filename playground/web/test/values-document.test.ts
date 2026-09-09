@@ -136,4 +136,23 @@ describe('ValuesDocument', () => {
     expect(d.rangeOf(['nope'])).toBeNull();
     expect(d.rangeOf([])).toBeNull();
   });
+  it('deleteIn on a sequence index splices the item and keeps flow style', () => {
+    const d = ValuesDocument.parse('args: [a, b, c]\n');
+    const e = d.apply([{ op: 'delete', path: ['args', 1] }]);
+    expect(e.toJS()).toEqual({ args: ['a', 'c'] });
+    expect(e.toString()).toBe('args: [a, c]\n');
+  });
+  it('setIn on the next sequence index appends and keeps flow style', () => {
+    const d = ValuesDocument.parse('args: [x, y]\n');
+    const e = d.apply([{ op: 'set', path: ['args', 2], value: 'z' }]);
+    expect(e.toJS()).toEqual({ args: ['x', 'y', 'z'] });
+    expect(e.toString()).toBe('args: [x, y, z]\n');
+  });
+  it('setIn on a leaf inside a block sequence of maps preserves a comment on the sequence', () => {
+    const d = ValuesDocument.parse('env: # vars\n  - name: A\n    value: "1"\n  - name: B\n    value: "2"\n');
+    const e = d.apply([{ op: 'set', path: ['env', 0, 'value'], value: 'v' }]);
+    expect(e.toJS()).toEqual({ env: [{ name: 'A', value: 'v' }, { name: 'B', value: '2' }] });
+    expect(e.toString()).toContain('# vars');
+    expect(e.toString()).toContain('value: "v"');
+  });
 });

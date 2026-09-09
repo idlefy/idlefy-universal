@@ -1,7 +1,7 @@
 import { useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { resolve, type SchemaNode } from '../schema';
-import { itemLabelOf } from '../form';
+import { itemLabelOf, starterValue } from '../form';
 import { plural } from '../summary';
 import { ObjectListField } from './ObjectListField';
 import { YamlField } from './YamlField';
@@ -36,7 +36,7 @@ export function MapOfListsField({ root, field, tier, onEdit }: FieldProps): Reac
         <div className="kv-row add">
           <input type="text" aria-label={`new key ${id}`} placeholder="group name" value={newKey} className={keyBad ? 'invalid' : ''} onChange={(e) => setNewKey(e.target.value)} />
           <button type="button" aria-label={`add ${id}`} disabled={k === '' || keyBad}
-            onClick={() => { onEdit([{ op: 'set', path: [...field.path, k], value: [] }]); setNewKey(''); setAdding(false); }}>add</button>
+            onClick={() => { onEdit([{ op: 'set', path: [...field.path, k], value: [starterValue(root, resolve(root, listNode).items)] }]); setNewKey(''); setAdding(false); }}>add</button>
           {keyBad && <span className="field-err">{entries.some(([e]) => e === k) ? 'already exists' : `must match ${keyPattern}`}</span>}
         </div>
       ) : (
