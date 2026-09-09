@@ -35,7 +35,7 @@ export function GroupPanel(p: {
           <div className="it on">
             <span className={`tile sm fam-${owner.family}`}><KindIcon kind={owner.kind} /></span>
             <div className="txt"><div className="nm">{owner.kind}</div><div className="sub">{workloadSummary(kindKey, cfg)}</div></div>
-            <button type="button" className="go" aria-label={`open ${owner.kind}`} onClick={() => p.onSelect(owner.id)}>Open</button>
+            <button type="button" className="link" aria-label={`open ${owner.kind}`} onClick={() => p.onSelect(owner.id)}>Open</button>
             <span />
           </div>
         </div>

@@ -42,12 +42,12 @@ export function KeyValueField(props: FieldProps): ReactElement {
           <code title={k}>{k}</code>
           <input type="text" aria-label={`${id}.${k}`} value={v === null || v === undefined ? '' : String(v)}
             onChange={(e) => onEdit([{ op: 'set', path: [...field.path, k], value: scalarFromText(e.target.value, coerce) }])} />
-          <button type="button" aria-label={`remove ${id}.${k}`} onClick={() => onEdit([{ op: 'delete', path: [...field.path, k] }])}>×</button>
+          <button type="button" className="clear icon" aria-label={`remove ${id}.${k}`} onClick={() => onEdit([{ op: 'delete', path: [...field.path, k] }])}>×</button>
         </div>
       ))}
       <div className="kv-row add">
         <input type="text" aria-label={`new key ${id}`} placeholder="new key" value={newKey} onChange={(e) => setNewKey(e.target.value)} />
-        <button type="button" aria-label={`add ${id}`} disabled={!newKey.trim() || entries.some(([k]) => k === newKey.trim())}
+        <button type="button" className="btn" aria-label={`add ${id}`} disabled={!newKey.trim() || entries.some(([k]) => k === newKey.trim())}
           onClick={() => { onEdit([{ op: 'set', path: [...field.path, newKey.trim()], value: '' }]); setNewKey(''); }}>add</button>
       </div>
     </div>

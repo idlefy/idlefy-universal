@@ -32,7 +32,7 @@ export function AutoCreated(p: {
               <div className="nm">{s.label}</div>
               <div className={`sub ${blocked ? 'why' : ''}`}>{sub}</div>
             </div>
-            {target ? <button type="button" className="go" aria-label={`open ${s.label}`} onClick={() => p.onSelect(target)}>Open</button> : <span />}
+            {target ? <button type="button" className="link" aria-label={`open ${s.label}`} onClick={() => p.onSelect(target)}>Open</button> : <span />}
             <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${s.label}`} checked={on} disabled={p.disabled || (!on && !!blocked)}
               onChange={(e) => p.onEdit(e.target.checked ? s.on(p.base, p.cfg, p.name) : s.off(p.base))} />
           </div>

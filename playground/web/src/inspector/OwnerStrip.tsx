@@ -9,7 +9,7 @@ export function OwnerStrip(p: { kind: string; text: ReactNode; button: string; a
     <div className="owner">
       <span className={`tile sm fam-${fam}`}>{p.kind === 'group' ? <GroupGlyph /> : <KindIcon kind={p.kind} />}</span>
       <span className="txt">{p.text}</span>
-      {p.onClick && <button type="button" className="go" aria-label={p.ariaLabel} onClick={p.onClick}>{p.button}</button>}
+      {p.onClick && <button type="button" className="link" aria-label={p.ariaLabel} onClick={p.onClick}>{p.button}</button>}
     </div>
   );
 }
