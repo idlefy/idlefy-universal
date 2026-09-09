@@ -1,3 +1,4 @@
+import { isObj } from '../../model/guards';
 import { useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { FieldList } from './index';
@@ -9,7 +10,7 @@ export function MapSection({ root, field, tier, onEdit }: FieldProps): ReactElem
   const r = resolve(root, field.schema);
   const item = r.additionalProperties as SchemaNode;
   const keyPattern = (field.widget as { keyPattern?: string }).keyPattern;
-  const entries = field.value && typeof field.value === 'object' && !Array.isArray(field.value) ? Object.keys(field.value as object) : [];
+  const entries = isObj(field.value) ? Object.keys(field.value) : [];
   const [newKey, setNewKey] = useState('');
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const k = newKey.trim();

@@ -1,3 +1,4 @@
+import { isObj } from '../../model/guards';
 import { useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { resolve, type SchemaNode } from '../schema';
@@ -12,7 +13,7 @@ export function MapOfListsField({ root, field, tier, onEdit }: FieldProps): Reac
   const r = resolve(root, field.schema);
   const listNode = r.additionalProperties as SchemaNode;
   const keyPattern = typeof r.propertyNames?.pattern === 'string' ? r.propertyNames.pattern : undefined;
-  const entries = field.value && typeof field.value === 'object' && !Array.isArray(field.value) ? Object.entries(field.value as Record<string, unknown>) : [];
+  const entries = isObj(field.value) ? Object.entries(field.value) : [];
   const [adding, setAdding] = useState(false);
   const [newKey, setNewKey] = useState('');
   const k = newKey.trim();

@@ -27,7 +27,7 @@ function scalarFromText(t: string, coerce: boolean): unknown {
 export function KeyValueField(props: FieldProps): ReactElement {
   const { field, onEdit } = props;
   const id = field.path.join('.');
-  const entries = field.value && typeof field.value === 'object' && !Array.isArray(field.value) ? Object.entries(field.value as Record<string, unknown>) : [];
+  const entries = isObj(field.value) ? Object.entries(field.value) : [];
   const [newKey, setNewKey] = useState('');
   const coerce = coercesScalars(field.schema);
   // Defensive: a hand-written values.yaml can nest an object/array under a node the schema calls
