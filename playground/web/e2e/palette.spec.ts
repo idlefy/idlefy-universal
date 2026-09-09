@@ -41,8 +41,10 @@ test('add from the empty state with the keyboard, then remove', async ({ page })
   await expect(page.locator('.rnode', { hasText: 'Deployment' })).toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator('.detail .head b')).toHaveText('backend-api');
   await expect(page.locator('.detail [role="tab"][aria-selected="true"]')).toHaveText('Fields');
-  await expect(page.locator('.editor')).toContainText('deployments:');
-  await expect(page.locator('.editor')).toContainText('backend-api:');
+  // Block style, not flow: a `{}` root would have produced `deployments: {backend-api: …}` on one line.
+  await expect
+    .poll(async () => (await page.locator('.view-lines').innerText()), { timeout: 15_000 })
+    .toMatch(/deployments:\n\s+backend-api:/);
   // the deployment fixup adds a port, so autoCreateService renders a Service too
   await expect(page.locator('.rnode', { hasText: 'Service' })).toHaveCount(1);
 
