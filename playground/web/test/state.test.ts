@@ -97,4 +97,40 @@ describe('app state', () => {
     s = reducer(s, { type: 'tab', tab: 'yaml' });
     expect(s.ui).toEqual({ tier: 'advanced', tab: 'yaml' });
   });
+  describe('focusPath', () => {
+    const ok = { ok: true as const, manifests: [], durationMs: 1 };
+    const node = (id: string, path: (string | number)[]) => ({ id, key: id, kind: 'Deployment', name: id, namespace: 'default', family: 'workload' as const, external: false, conflict: false, hookBadge: false, warnings: [], provenance: { path, governingCondition: '', removeAction: [] } });
+    const armed = () => reducer(reducer(initialState('deployments: {}\n'), { type: 'tab', tab: 'yaml' }), { type: 'focus-path', path: ['deployments', 'web'] });
+    it('starts null and is set by focus-path', () => {
+      expect(initialState('').focusPath).toBe(null);
+      expect(armed().focusPath).toEqual(['deployments', 'web']);
+    });
+    it('a matching render-done selects the node, opens the Fields tab and clears the focus', () => {
+      const s = reducer(armed(), { type: 'render-done', result: ok, graph: { nodes: [node('default/Service/web', ['deployments', 'web', 'service']), node('default/Deployment/web', ['deployments', 'web'])], edges: [], warnings: [] } });
+      expect(s.selection).toBe('default/Deployment/web');
+      expect(s.ui.tab).toBe('inspector');
+      expect(s.focusPath).toBe(null);
+    });
+    it('a non-matching render-done also clears it (one-shot) and leaves the selection alone', () => {
+      const s = reducer(armed(), { type: 'render-done', result: ok, graph: { nodes: [node('default/Deployment/other', ['deployments', 'other'])], edges: [], warnings: [] } });
+      expect(s.selection).toBe(null);
+      expect(s.focusPath).toBe(null);
+    });
+    it('a failed render-done clears it; a superseded one is ignored', () => {
+      expect(reducer(armed(), { type: 'render-done', result: { ok: false, error: { kind: 'template', message: 'boom' } }, graph: null }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'render-done', result: { ok: false, error: { kind: 'template', message: SUPERSEDED } }, graph: null }).focusPath).toEqual(['deployments', 'web']);
+    });
+    it('release and ns still work (guard against a dropped switch case)', () => {
+      expect(reducer(initialState(''), { type: 'release', v: 'x' }).releaseName).toBe('x');
+      expect(reducer(initialState(''), { type: 'ns', v: 'kube' }).namespace).toBe('kube');
+    });
+    it('select, text, example and engine-failed clear it; edit keeps it', () => {
+      expect(reducer(armed(), { type: 'select', id: 'x' }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'select', id: null }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'text', text: 'jobs: {}\n' }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'example', text: 'jobs: {}\n' }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'engine-failed', message: 'x' }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'web'], value: { replicas: 1 } }] }).focusPath).toEqual(['deployments', 'web']);
+    });
+  });
 });

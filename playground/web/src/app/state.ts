@@ -1,8 +1,9 @@
-import { ValuesDocument, type EditOp } from '../model/ValuesDocument';
+import { ValuesDocument, type EditOp, type ValuesPath } from '../model/ValuesDocument';
 import { SUPERSEDED, type RenderResult } from '../engine/types';
 import type { GraphModel } from '../graph/types';
 import type { EditorMarker } from '../editor/Editor';
 import { anchorOf } from './selection';
+import { samePath } from '../model/guards';
 
 export type Tier = 'basic' | 'advanced';
 export type DetailTab = 'inspector' | 'yaml';
@@ -11,6 +12,7 @@ export type AppState = {
   text: string; doc: ValuesDocument; releaseName: string; namespace: string;
   render: RenderResult | null; graph: GraphModel | null; selection: string | null;
   engineError: string | null;                   // helm.wasm failed to load → full-page message
+  focusPath: ValuesPath | null;                 // one-shot: the next render-done selects the node at this values path (palette add)
   ui: { tier: Tier; tab: DetailTab };
 };
 export type Action =
@@ -18,17 +20,18 @@ export type Action =
   | { type: 'release'; v: string } | { type: 'ns'; v: string }
   | { type: 'render-done'; result: RenderResult; graph: GraphModel | null }
   | { type: 'select'; id: string | null }
+  | { type: 'focus-path'; path: ValuesPath }
   | { type: 'engine-failed'; message: string }
   | { type: 'edit'; ops: EditOp[] } | { type: 'tier'; tier: Tier } | { type: 'tab'; tab: DetailTab };
 
 export function initialState(text: string): AppState {
-  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, engineError: null, ui: { tier: 'basic', tab: 'inspector' } };
+  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, engineError: null, focusPath: null, ui: { tier: 'basic', tab: 'inspector' } };
 }
 
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
-    case 'text': return a.text === s.text ? s : { ...s, text: a.text, doc: ValuesDocument.parse(a.text) };
-    case 'example': return { ...s, text: a.text, doc: ValuesDocument.parse(a.text), selection: null };
+    case 'text': return a.text === s.text ? s : { ...s, text: a.text, doc: ValuesDocument.parse(a.text), focusPath: null };
+    case 'example': return { ...s, text: a.text, doc: ValuesDocument.parse(a.text), selection: null, focusPath: null };
     case 'release': return { ...s, releaseName: a.v };
     case 'ns': return { ...s, namespace: a.v };
     case 'render-done': {
@@ -37,11 +40,19 @@ export function reducer(s: AppState, a: Action): AppState {
       const graph = a.result.ok ? a.graph : s.graph;
       // A selected node can disappear from the rebuilt graph (renamed or removed). Group and block
       // selections are anchored to their workload and survive as long as it does.
-      const selection = graph && s.selection && !anchorOf(graph, s.selection) ? null : s.selection;
-      return { ...s, render: a.result, graph, selection };
+      let selection = graph && s.selection && !anchorOf(graph, s.selection) ? null : s.selection;
+      let ui = s.ui;
+      // The palette's focus request is consumed by the first render after it, matched or not: a
+      // failed render or a body that produced no node must not leave it armed for a later render.
+      if (s.focusPath && a.result.ok && graph) {
+        const hit = graph.nodes.find((n) => samePath(n.provenance?.path, s.focusPath!));
+        if (hit) { selection = hit.id; ui = ui.tab === 'inspector' ? ui : { ...ui, tab: 'inspector' }; }
+      }
+      return { ...s, render: a.result, graph, selection, ui, focusPath: null };
     }
-    case 'select': return { ...s, selection: a.id };
-    case 'engine-failed': return { ...s, engineError: a.message };
+    case 'select': return { ...s, selection: a.id, focusPath: null };
+    case 'focus-path': return { ...s, focusPath: a.path };
+    case 'engine-failed': return { ...s, engineError: a.message, focusPath: null };
     case 'edit': {
       // The inspector is disabled while the YAML is invalid. Text is canonical, so the
       // edited document is serialised and re-parsed rather than kept.
