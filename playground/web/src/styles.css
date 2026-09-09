@@ -186,7 +186,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .field.block.bare > .field-desc { padding: 0 0 8px; margin: 0; }
 .clear { border: 0; background: none; color: var(--muted); font-size: 12px; padding: 4px 6px; border-radius: 6px; }
 .clear:hover { color: var(--err); background: color-mix(in srgb, var(--err) 8%, transparent); }
-.clear.icon { width: 26px; height: 26px; padding: 0; }
+.clear.icon { width: 26px; height: 26px; padding: 0; font-size: inherit; } /* the × keeps the panel size, as the old attribute rule did */
 
 /* add chips */
 .add { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 10px 2px 0; color: var(--muted); font-size: 12px; }
