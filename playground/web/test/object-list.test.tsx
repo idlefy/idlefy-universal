@@ -99,11 +99,19 @@ describe('ObjectListField', () => {
   it('pair leaves: an integer leaf rejects a decimal (no edit, invalid class) and accepts a whole number', () => {
     const onEdit = vi.fn();
     const node = { type: 'object', properties: { items: { type: 'array', items: { type: 'object', required: ['name'], properties: { name: { type: 'string' }, port: { type: 'integer' } } } } } };
-    render(<FieldList root={root} node={node} basePath={['x']} value={{ items: [{ name: 'n', port: 1 }] }} tier="basic" onEdit={onEdit} />);
+    const { rerender } = render(<FieldList root={root} node={node} basePath={['x']} value={{ items: [{ name: 'n', port: 1 }] }} tier="basic" onEdit={onEdit} />);
     const port = screen.getByLabelText('x.items.0.port') as HTMLInputElement;
     fireEvent.change(port, { target: { value: '8.5' } });
     expect(onEdit).not.toHaveBeenCalled();
     expect(port.className).toContain('invalid');
+    // a parent re-render with a fresh but equal value (every render's toJS() is a new object) keeps the draft
+    rerender(<FieldList root={root} node={node} basePath={['x']} value={{ items: [{ name: 'n', port: 1 }] }} tier="basic" onEdit={onEdit} />);
+    expect(port.value).toBe('8.5');
+    expect(port.className).toContain('invalid');
+    // a real change of the committed value drops it
+    rerender(<FieldList root={root} node={node} basePath={['x']} value={{ items: [{ name: 'n', port: 2 }] }} tier="basic" onEdit={onEdit} />);
+    expect(port.value).toBe('2');
+    expect(port.className).not.toContain('invalid');
     fireEvent.change(port, { target: { value: '85' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['x', 'items', 0, 'port'], value: 85 }]);
     expect(port.className).not.toContain('invalid');

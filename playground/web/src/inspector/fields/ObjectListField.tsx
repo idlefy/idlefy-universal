@@ -21,8 +21,11 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   // the list can also change out from under a pending draft (e.g. an edit made directly in the YAML
   // pane) — mirror NumberField's resync-on-`field.value` rule: any not-yet-committed text is stale once
-  // the committed value moves, so drop it. Kept above the early return below: hooks must run unconditionally.
-  useEffect(() => { setDrafts({}); }, [field.value]);
+  // the committed value moves, so drop it. Keyed on the value's content, not its identity: `field.value` is a fresh
+  // `toJS()` object on every parent render, so an identity dep would erase a draft mid-keystroke. Kept above the
+  // early return below: hooks must run unconditionally.
+  const valueKey = JSON.stringify(field.value ?? null);
+  useEffect(() => { setDrafts({}); }, [valueKey]);
   // a present value that is not a list (hand-written map/scalar) keeps the raw editor instead of being overwritten
   if (field.present && !Array.isArray(field.value)) return <YamlField {...props} />;
   // an extras key that also promoted leaves (secretKeyRef: `.name`/`.key` are leaves, `.optional` is the extra) only
