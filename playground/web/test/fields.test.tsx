@@ -181,12 +181,12 @@ describe('field widgets', () => {
 
   it('yaml: valid YAML emits set on blur, invalid shows an error and emits nothing', () => {
     const onEdit = vi.fn();
-    render(<FieldList root={root} node={dep} basePath={base} value={{ tolerations: [{ key: 'a' }] }} tier="advanced" onEdit={onEdit} />);
-    const ta = screen.getByLabelText('deployments.web.tolerations') as HTMLTextAreaElement;
-    expect(ta.value).toBe('- key: a\n');
-    fireEvent.change(ta, { target: { value: '- key: b\n  operator: Exists\n' } });
+    render(<FieldList root={root} node={dep} basePath={base} value={{ affinity: { nodeAffinity: { x: 1 } } }} tier="advanced" onEdit={onEdit} />);
+    const ta = screen.getByLabelText('deployments.web.affinity') as HTMLTextAreaElement;
+    expect(ta.value).toBe('nodeAffinity:\n  x: 1\n');
+    fireEvent.change(ta, { target: { value: 'podAntiAffinity: {}\n' } });
     fireEvent.blur(ta);
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'tolerations'], value: [{ key: 'b', operator: 'Exists' }] }]);
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'affinity'], value: { podAntiAffinity: {} } }]);
     onEdit.mockClear();
     fireEvent.change(ta, { target: { value: '- [\n' } });
     fireEvent.blur(ta);

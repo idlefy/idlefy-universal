@@ -13,6 +13,7 @@ import { ObjectSection } from './ObjectSection';
 import { ContainersField } from './ContainersField';
 import { ResourcesField } from './ResourcesField';
 import { PortsTable } from './PortsTable';
+import { ObjectListField } from './ObjectListField';
 
 /** `bare`: the caller already shows the label (a section heading) — render only description + control, no frame. */
 export function FieldRow(p: FieldProps & { bare?: boolean }): ReactElement {
@@ -38,7 +39,8 @@ export function FieldRow(p: FieldProps & { bare?: boolean }): ReactElement {
       case 'map': return <MapSection {...p} />;
       case 'object': return <ObjectSection {...p} />;
       case 'yaml': return <YamlField {...p} />;
-      case 'objectList': case 'mapOfLists': return <YamlField {...p} />;
+      case 'objectList': return <ObjectListField {...p} />;
+      case 'mapOfLists': return <YamlField {...p} />;
     }
   })();
   const block = special !== null || field.widget.kind === 'map' || field.widget.kind === 'object' || field.widget.kind === 'keyvalue' || field.widget.kind === 'yaml' || field.widget.kind === 'list' || field.widget.kind === 'objectList' || field.widget.kind === 'mapOfLists';
