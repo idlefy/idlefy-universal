@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { FieldList } from './index';
 import { resolve, classify, type SchemaNode } from '../schema';
@@ -19,6 +19,10 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   // per-leaf (row, path) text the user is still typing that does not yet parse to a value; kept only
   // while invalid, so the input shows what was typed and carries the `invalid` class until it is fixed
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  // the list can also change out from under a pending draft (e.g. an edit made directly in the YAML
+  // pane) — mirror NumberField's resync-on-`field.value` rule: any not-yet-committed text is stale once
+  // the committed value moves, so drop it. Kept above the early return below: hooks must run unconditionally.
+  useEffect(() => { setDrafts({}); }, [field.value]);
   // a present value that is not a list (hand-written map/scalar) keeps the raw editor instead of being overwritten
   if (field.present && !Array.isArray(field.value)) return <YamlField {...props} />;
   // an extras key that also promoted leaves (secretKeyRef: `.name`/`.key` are leaves, `.optional` is the extra) only
@@ -46,20 +50,22 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
     setDrafts({});
   };
   // resolving every leaf's (and every extra top-level key's) schema is a walk down `item`'s properties;
-  // that set is fixed by the item shape (not by how many rows exist), so it is computed once per shape
+  // that set is fixed by the item shape (not by how many rows exist), so it is computed once per render
   // rather than once per row per render — `leafSchema([k])` for a mixed extra key (`secretKeyRef`) needs
-  // the same map as the promoted leaves (`secretKeyRef.name`) it shares a prefix with.
-  const leafSchemas = useMemo(() => {
+  // the same map as the promoted leaves (`secretKeyRef.name`) it shares a prefix with. Plain const, not
+  // `useMemo`: `shape` is a fresh object every render (itemShape() is not itself memoized), so a memo
+  // keyed on it would never hit, and — since this sits after the early `return <YamlField/>` above —
+  // a hook here would change hook count across renders whenever `field.value` crosses array/non-array.
+  const leafSchemas = new Map<string, SchemaNode>();
+  {
     const keys: string[][] = [...shape.leaves, ...shape.extras.map((k) => [k])];
     if (shape.identifying) keys.push([shape.identifying]);
-    const m = new Map<string, SchemaNode>();
     for (const leaf of keys) {
       let n: SchemaNode = item;
       for (const k of leaf) n = resolve(root, n).properties[k];
-      m.set(leaf.join('.'), resolve(root, n));
+      leafSchemas.set(leaf.join('.'), resolve(root, n));
     }
-    return m;
-  }, [shape]);
+  }
   const leafSchema = (leaf: string[]): SchemaNode => leafSchemas.get(leaf.join('.'))!;
   const clearDraft = (key: string) => setDrafts((d) => { if (!(key in d)) return d; const next = { ...d }; delete next[key]; return next; });
   const setLeaf = (i: number, leaf: string[], text: string) => {

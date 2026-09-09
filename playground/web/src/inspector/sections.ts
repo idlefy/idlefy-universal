@@ -3,10 +3,15 @@ import type { Tier } from '../app/state';
 
 export type Section = { id: string; title: string; keys: readonly string[]; advanced?: boolean };
 
-/** True when `count(tier)` finds nothing to show. Nothing on this tier: the caller names it in the
- *  footer (spec §4.6) instead, when the advanced tier would show something (`!hiddenOnBasic(count, 'advanced')`). */
-export function hiddenOnBasic(count: (t: Tier) => number, tier: Tier): boolean {
-  return count(tier) === 0;
+/**
+ * `null` when `count(tier)` finds something to show — the caller renders normally. Otherwise the
+ * section/row has nothing on this tier: the return value is the title to name it by in the footer
+ * (spec §4.6), when the advanced tier would show something, or `''` when it would not (hidden with
+ * nothing to say about it). Either way a non-null result means the caller must not render.
+ */
+export function hiddenTitle(count: (t: Tier) => number, tier: Tier, title: string): string | null {
+  if (count(tier) > 0) return null;
+  return tier !== 'advanced' && count('advanced') > 0 ? title : '';
 }
 
 // spec 2026-09-07 §5.2. Keys are listed for every workload kind; a kind that lacks a key simply does not show it.

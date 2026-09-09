@@ -6,7 +6,7 @@ import { buildFields, makeField } from './form';
 import { FieldList, FieldRow } from './fields';
 import type { InspectTarget } from './target';
 import { OWNED_FLAGS } from '../graph/secondary';
-import { RELEASE_TITLES, hiddenOnBasic } from './sections';
+import { RELEASE_TITLES, hiddenTitle } from './sections';
 import { HiddenNote } from './HiddenNote';
 import { isObj } from '../model/guards';
 
@@ -36,10 +36,8 @@ export function ReleasePanel(p: {
     const widget = classify(p.root, node);
     if (widget.kind === 'object') {
       const count = (tier: Tier) => buildFields(p.root, node, [k], all[k], tier, { hide }).length;
-      if (hiddenOnBasic(count, p.tier)) {
-        if (p.tier !== 'advanced' && !hiddenOnBasic(count, 'advanced')) hidden.push(RELEASE_TITLES[k]);
-        return null;
-      }
+      const name = hiddenTitle(count, p.tier, RELEASE_TITLES[k]);
+      if (name !== null) { if (name) hidden.push(name); return null; }
     }
     const bareBlock = widget.kind !== 'object' && all[k] !== undefined;
     return (

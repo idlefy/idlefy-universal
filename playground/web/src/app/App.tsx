@@ -130,8 +130,8 @@ export function App() {
             </section>
           </>
         )}
-        {sel && !panes.inspector.open && (
-          <Rail side="right" name="the inspector" label={`${railTitle!.name} · ${railTitle!.kind}`} onOpen={() => setOpen("inspector", true)} />
+        {sel && !panes.inspector.open && railTitle && (
+          <Rail side="right" name="the inspector" label={`${railTitle.name} · ${railTitle.kind}`} onOpen={() => setOpen("inspector", true)} />
         )}
       </div>
     </div>

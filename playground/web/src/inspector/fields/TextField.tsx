@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import type { FieldProps } from './index';
+import { parseScalarText } from '../form';
 
 export function TextField({ field, onEdit }: FieldProps): ReactElement {
   const id = field.path.join('.');
@@ -8,9 +9,9 @@ export function TextField({ field, onEdit }: FieldProps): ReactElement {
   const emit = (t: string) => {
     if (t === '') { onEdit([{ op: 'delete', path: field.path }]); return; }
     // IntOrString fields (pdb.minAvailable, targetPort, maxSurge) reject a numeric-looking *string*
-    // in the Kubernetes API, so digits are committed as a number and everything else as a string.
-    const value = w.intOrString && /^-?\d+$/.test(t) ? Number(t) : t;
-    onEdit([{ op: 'set', path: field.path, value }]);
+    // in the Kubernetes API, so digits are committed as a number and everything else as a string —
+    // parseScalarText's `string`+`intOrString` branch never returns undefined, so this always emits.
+    onEdit([{ op: 'set', path: field.path, value: parseScalarText(t, field.widget) }]);
   };
   if (w.enum) {
     return (

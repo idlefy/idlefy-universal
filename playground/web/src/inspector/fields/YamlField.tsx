@@ -31,7 +31,7 @@ export function YamlField({ field, onEdit }: FieldProps): ReactElement {
   return (
     <>
       <textarea id={id} aria-label={id} className={`yaml ${err ? 'invalid' : ''}`} rows={Math.min(16, Math.max(3, text.split('\n').length))} spellCheck={false}
-        value={text} onChange={(e) => setText(e.target.value)} onBlur={commit} />
+        value={text} onChange={(e) => setText(e.target.value)} onFocus={() => setExpanded(true)} onBlur={commit} />
       {err && <span className="field-err">{err}</span>}
       {/* keep this wording: the test matches the error span with /^YAML: / and this help text must not start with "YAML: " */}
       <span className="hint">raw YAML · applied when the box loses focus</span>

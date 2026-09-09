@@ -214,6 +214,20 @@ describe('field widgets', () => {
     expect(screen.getByLabelText('x.raw').tagName).toBe('TEXTAREA');
   });
 
+  it('yaml: an empty-starting field stays in edit mode after typing and committing a value', () => {
+    const onEdit = vi.fn();
+    const node = { type: 'object', properties: { raw: { $ref: '#/$defs/k8s.io.api.core.v1.Affinity' } }, required: ['raw'] };
+    const { rerender } = render(<FieldList root={root} node={node} basePath={['x']} value={{}} tier="basic" onEdit={onEdit} />);
+    const ta = screen.getByLabelText('x.raw') as HTMLTextAreaElement;
+    fireEvent.focus(ta);
+    fireEvent.change(ta, { target: { value: 'nodeAffinity: {}\n' } });
+    fireEvent.blur(ta);
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: ['x', 'raw'], value: { nodeAffinity: {} } }]);
+    // simulate the committed value round-tripping back through props (as the real document would)
+    rerender(<FieldList root={root} node={node} basePath={['x']} value={{ raw: { nodeAffinity: {} } }} tier="basic" onEdit={onEdit} />);
+    expect(screen.getByLabelText('x.raw').tagName).toBe('TEXTAREA');
+  });
+
   it('map: lists entries, adds a starter entry, rejects duplicate keys', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ containers: { main: { image: 'x', imageTag: '1' } } }} tier="basic" onEdit={onEdit} />);
