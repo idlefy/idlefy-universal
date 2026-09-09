@@ -16,27 +16,36 @@ const manifestOf = (node: GraphNode): string =>
     : node.kind === 'Release' ? '# release-level settings'
       : `# ${node.kind}/${node.name} is created at runtime by another resource in this release.`);
 
+export type Head = {
+  fam: string; icon: ReactElement; name: string; kind: string | null; ns: string;
+  path: ValuesPath | null; count?: number; manifest: string | null; tabs: readonly string[];
+};
+
+/** Header facts per selection shape (spec 2026-09-08 §3.1, §3.5). */
+export function headOf(sel: ResolvedSelection): Head {
+  if (sel.kind === 'group') {
+    const { owner, members } = sel.group;
+    return { fam: 'workload', icon: <GroupGlyph className="fam-workload" />, name: owner.name, kind: `${owner.kind} group`, ns: owner.namespace, path: owner.provenance?.path ?? null,
+      count: members.length + 1, manifest: [owner, ...members].map(manifestOf).join('\n---\n'), tabs: ['Resources', 'Manifests'] };
+  }
+  if (sel.kind === 'block') {
+    const kind = kindOfSecondary(String(sel.path[2]) as SecondaryId);
+    return { fam: familyOf(kind), icon: <KindIcon kind={kind} className={`fam-${familyOf(kind)}`} />, name: sel.owner.name, kind, ns: sel.owner.namespace, path: sel.path, manifest: null, tabs: ['Fields'] };
+  }
+  const n = sel.node;
+  return { fam: n.family, icon: <KindIcon kind={n.kind} className={`fam-${n.family}`} />, name: n.kind === 'Release' ? 'Release settings' : n.name, kind: n.kind === 'Release' ? null : n.kind, ns: n.namespace,
+    path: n.provenance?.path ?? null, manifest: manifestOf(n), tabs: ['Fields', 'Manifest'] };
+}
+
 export function DetailPanel(p: {
   sel: ResolvedSelection | null; tab: DetailTab; tier: Tier; doc: ValuesDocument; root: SchemaNode; disabled: boolean; nodes: GraphNode[]; focusToken: number;
   onTab: (t: DetailTab) => void; onTier: (t: Tier) => void; onEdit: (ops: EditOp[]) => void; onClose: () => void; onHide: () => void; onSelect: (id: string) => void;
 }): ReactElement | null {
   const { sel } = p;
   if (!sel) return null;
-  // header facts per selection shape (spec 2026-09-08 §3.1, §3.5)
-  const head = ((): { fam: string; icon: ReactElement; name: string; kind: string | null; ns: string; path: ValuesPath | null; warnings: string[]; count?: number; manifest: string | null; showAll: boolean; tabs: readonly string[] } => {
-    if (sel.kind === 'group') {
-      const { owner, members } = sel.group;
-      return { fam: 'workload', icon: <GroupGlyph className="fam-workload" />, name: owner.name, kind: `${owner.kind} group`, ns: owner.namespace, path: owner.provenance?.path ?? null, warnings: [],
-        count: members.length + 1, manifest: [owner, ...members].map(manifestOf).join('\n---\n'), showAll: false, tabs: ['Resources', 'Manifests'] };
-    }
-    if (sel.kind === 'block') {
-      const kind = kindOfSecondary(String(sel.path[2]) as SecondaryId);
-      return { fam: familyOf(kind), icon: <KindIcon kind={kind} className={`fam-${familyOf(kind)}`} />, name: sel.owner.name, kind, ns: sel.owner.namespace, path: sel.path, warnings: [], manifest: null, showAll: true, tabs: ['Fields'] };
-    }
-    const n = sel.node;
-    return { fam: n.family, icon: <KindIcon kind={n.kind} className={`fam-${n.family}`} />, name: n.kind === 'Release' ? 'Release settings' : n.name, kind: n.kind === 'Release' ? null : n.kind, ns: n.namespace,
-      path: n.provenance?.path ?? null, warnings: n.warnings, manifest: manifestOf(n), showAll: true, tabs: ['Fields', 'Manifest'] };
-  })();
+  const head = headOf(sel);
+  const showAll = sel.kind !== 'group';
+  const warnings = sel.kind === 'node' ? sel.node.warnings : [];
   const line = head.path ? p.doc.lineOf(head.path) : null;
   const pathText = head.path ? (head.path.length ? head.path.join('.') : '(root)') : null;
   const tab: DetailTab = head.manifest === null ? 'inspector' : p.tab;
@@ -54,7 +63,7 @@ export function DetailPanel(p: {
             {line && <span>line {line}</span>}
             {head.count !== undefined && <span>{plural(head.count, 'resource')}</span>}
           </div>
-          {head.warnings.map((w) => <p key={w} className="warn">{w}</p>)}
+          {warnings.map((w) => <p key={w} className="warn">{w}</p>)}
         </div>
         <div className="acts">
           <button type="button" className="icon-btn" onClick={p.onHide} aria-label="Hide the inspector" title="Hide the inspector">›</button>
@@ -66,7 +75,7 @@ export function DetailPanel(p: {
           <button type="button" role="tab" aria-selected={tab === 'inspector'} onClick={() => p.onTab('inspector')}>{head.tabs[0]}</button>
           {head.tabs[1] && <button type="button" role="tab" aria-selected={tab === 'yaml'} onClick={() => p.onTab('yaml')}>{head.tabs[1]}</button>}
         </div>
-        {tab === 'inspector' && head.showAll && (
+        {tab === 'inspector' && showAll && (
           <label className="showall">
             <input type="checkbox" role="switch" className="switch sm" aria-label="show all fields" checked={p.tier === 'advanced'} onChange={(e) => p.onTier(e.target.checked ? 'advanced' : 'basic')} />
             Show all fields

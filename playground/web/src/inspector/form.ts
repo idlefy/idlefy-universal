@@ -8,6 +8,17 @@ export type Field = {
   widget: Widget; schema: SchemaNode; value: unknown; present: boolean; required: boolean; tier: Tier;
 };
 
+/** One `Field`, resolved and classified from `node`. The single constructor `buildFields` and every
+ *  hand-built field (a release-level bare widget, a `MapOfListsField` card) share. */
+export function makeField(root: SchemaNode, key: string, path: ValuesPath, node: SchemaNode, value: unknown, opts: { tier?: Tier; present?: boolean; required?: boolean } = {}): Field {
+  const s = resolve(root, node);
+  return {
+    key, path, label: key, description: typeof s.description === 'string' ? s.description.trim() : undefined,
+    widget: classify(root, node), schema: s, value, present: opts.present ?? value !== undefined, required: opts.required ?? false,
+    tier: opts.tier ?? (s['x-ui-tier'] === 'basic' ? 'basic' : 'advanced'),
+  };
+}
+
 export function buildFields(root: SchemaNode, node: SchemaNode, basePath: ValuesPath, value: unknown, tier: Tier, opts: { hide?: (key: string) => boolean } = {}): Field[] {
   const r = resolve(root, node);
   const props: Record<string, SchemaNode> = isObj(r.properties) ? (r.properties as any) : {};
@@ -16,16 +27,24 @@ export function buildFields(root: SchemaNode, node: SchemaNode, basePath: Values
   const out: Field[] = [];
   for (const [key, raw] of Object.entries(props)) {
     if (opts.hide?.(key)) continue;
-    const s = resolve(root, raw);
-    const fieldTier: Tier = s['x-ui-tier'] === 'basic' ? 'basic' : 'advanced';
     const present = Object.prototype.hasOwnProperty.call(v, key);
-    if (tier === 'basic' && fieldTier !== 'basic' && !required.has(key) && !present) continue;
-    out.push({
-      key, path: [...basePath, key], label: key, description: typeof s.description === 'string' ? s.description.trim() : undefined,
-      widget: classify(root, raw), schema: s, value: v[key], present, required: required.has(key), tier: fieldTier,
-    });
+    const field = makeField(root, key, [...basePath, key], raw, v[key], { present, required: required.has(key) });
+    if (tier === 'basic' && field.tier !== 'basic' && !field.required && !field.present) continue;
+    out.push(field);
   }
   return out;
+}
+
+/** One rule for "is this text a valid `widget`-typed scalar", shared by every field that parses typed
+ *  text back into a value. `undefined` means the text does not parse — the caller must not emit an edit.
+ *  `nonNegative` narrows an integer widget to digits only (no leading `-`), for PortsTable's port numbers. */
+export function parseScalarText(text: string, widget: Widget, opts: { nonNegative?: boolean } = {}): number | string | undefined {
+  if (widget.kind === 'number') {
+    const re = widget.integer ? (opts.nonNegative ? /^\d+$/ : /^-?\d+$/) : /^-?\d+(\.\d+)?$/;
+    return re.test(text) ? Number(text) : undefined;
+  }
+  if (widget.kind === 'string' && widget.intOrString && /^-?\d+$/.test(text)) return Number(text);
+  return text;
 }
 
 /** Deep-clones a schema-derived value (an `examples`/`default` entry) so callers never hold a live

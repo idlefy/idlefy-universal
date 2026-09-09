@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { YamlField } from './YamlField';
+import { parseScalarText } from '../form';
 import { isScalar } from '../../model/guards';
 
 /** One row per item (spec 2026-09-08 §5.1). Add appends an item and focuses it; removing the last item deletes the key. */
@@ -23,9 +24,9 @@ export function ListField(props: FieldProps): ReactElement {
   // deleting one index splices the sequence in place (flow style survives); deleting the last item removes the key
   const remove = (i: number) => onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
   const setOne = (i: number, v: string) => {
-    // preserve a numeric item's type when the edited text still parses as a finite number
+    // preserve a numeric item's type when the edited text still parses as a number
     const orig = Array.isArray(field.value) ? field.value[i] : undefined;
-    const value: unknown = typeof orig === 'number' && v !== '' && Number.isFinite(Number(v)) ? Number(v) : v;
+    const value: unknown = typeof orig === 'number' ? parseScalarText(v, { kind: 'number', integer: false }) ?? v : v;
     onEdit([{ op: 'set', path: [...field.path, i], value }]);
   };
   // a present value that isn't a list, or a list holding a non-scalar item (hand-written map/object),

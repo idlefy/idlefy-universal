@@ -27,6 +27,7 @@ export function App() {
   );
   const markers = useMemo(() => markersFrom(state), [state.doc, state.render]); // markersFrom reads only these two
   const sel = useMemo(() => resolveSelection(state.graph, state.selection), [state.graph, state.selection]);
+  const railTitle = sel && titleOf(sel);
   const selPath = sel?.kind === "node" ? sel.node.provenance?.path : sel?.kind === "group" ? sel.group.owner.provenance?.path : sel?.path;
   // state.doc is a new object on every keystroke; memoise on the line numbers so the editor effect
   // (which scrolls) only re-runs when the block actually moves.
@@ -130,7 +131,7 @@ export function App() {
           </>
         )}
         {sel && !panes.inspector.open && (
-          <Rail side="right" name="the inspector" label={`${titleOf(sel).name} · ${titleOf(sel).kind}`} onOpen={() => setOpen("inspector", true)} />
+          <Rail side="right" name="the inspector" label={`${railTitle!.name} · ${railTitle!.kind}`} onOpen={() => setOpen("inspector", true)} />
         )}
       </div>
     </div>

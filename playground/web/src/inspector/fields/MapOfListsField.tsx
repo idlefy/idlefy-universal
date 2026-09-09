@@ -1,8 +1,10 @@
 import { isObj } from '../../model/guards';
 import { useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
+import { AddKeyRow } from './AddKeyRow';
+import { Card } from './Card';
 import { resolve, type SchemaNode } from '../schema';
-import { itemLabelOf, starterValue } from '../form';
+import { itemLabelOf, makeField, starterValue } from '../form';
 import { plural } from '../summary';
 import { ObjectListField } from './ObjectListField';
 import { YamlField } from './YamlField';
@@ -15,31 +17,23 @@ export function MapOfListsField({ root, field, tier, onEdit }: FieldProps): Reac
   const keyPattern = typeof r.propertyNames?.pattern === 'string' ? r.propertyNames.pattern : undefined;
   const entries = isObj(field.value) ? Object.entries(field.value) : [];
   const [adding, setAdding] = useState(false);
-  const [newKey, setNewKey] = useState('');
-  const k = newKey.trim();
-  const keyBad = k !== '' && ((!!keyPattern && !new RegExp(keyPattern).test(k)) || entries.some(([e]) => e === k));
   const label = itemLabelOf(field.key);
   return (
     <div className="mol">
       {entries.map(([key, v]) => {
         const items = Array.isArray(v) ? v : [];
         // `tier` on a Field means its x-ui-tier; the list itself is always shown once its key exists
-        const sub = { key, path: [...field.path, key], label: key, widget: { kind: 'objectList' as const }, schema: listNode, value: v, present: true, required: false, tier: 'basic' as const };
+        const sub = makeField(root, key, [...field.path, key], listNode, v, { present: true, tier: 'basic' });
         return (
-          <div className="card" key={key}>
-            <h4><code>{key}</code><span className="muted">{plural(items.length, label.toLowerCase())}</span>
-              <button type="button" className="clear" aria-label={`remove ${id}.${key}`} title="Remove this group" onClick={() => onEdit([{ op: 'delete', path: [...field.path, key] }])}>×</button></h4>
+          <Card key={key} code={key} aside={<span className="muted">{plural(items.length, label.toLowerCase())}</span>}
+            removeLabel={`remove ${id}.${key}`} removeTitle="Remove this group" removeText="×" onRemove={() => onEdit([{ op: 'delete', path: [...field.path, key] }])}>
             <div className="card-body">{Array.isArray(v) ? <ObjectListField root={root} field={sub} tier={tier} onEdit={onEdit} itemLabel={label} /> : <YamlField root={root} field={sub} tier={tier} onEdit={onEdit} />}</div>
-          </div>
+          </Card>
         );
       })}
       {adding ? (
-        <div className="kv-row add">
-          <input type="text" aria-label={`new key ${id}`} placeholder="group name" value={newKey} className={keyBad ? 'invalid' : ''} onChange={(e) => setNewKey(e.target.value)} />
-          <button type="button" aria-label={`add ${id}`} disabled={k === '' || keyBad}
-            onClick={() => { onEdit([{ op: 'set', path: [...field.path, k], value: [starterValue(root, resolve(root, listNode).items)] }]); setNewKey(''); setAdding(false); }}>add</button>
-          {keyBad && <span className="field-err">{entries.some(([e]) => e === k) ? 'already exists' : `must match ${keyPattern}`}</span>}
-        </div>
+        <AddKeyRow id={id} existing={entries.map(([e]) => e)} valid={(k) => !keyPattern || new RegExp(keyPattern).test(k)} invalidText={`must match ${keyPattern}`} placeholder="group name"
+          onAdd={(k) => { onEdit([{ op: 'set', path: [...field.path, k], value: [starterValue(root, resolve(root, listNode).items)] }]); setAdding(false); }} />
       ) : (
         <div className="add"><button type="button" className="chip" aria-label={`add group ${id}`} onClick={() => setAdding(true)}>Group</button></div>
       )}

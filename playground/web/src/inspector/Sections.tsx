@@ -4,7 +4,7 @@ import type { Tier } from '../app/state';
 import { resolve, type SchemaNode } from './schema';
 import { buildFields } from './form';
 import { FieldList } from './fields';
-import { partition, OTHER_SECTION, type Section } from './sections';
+import { partition, OTHER_SECTION, hiddenOnBasic, type Section } from './sections';
 import { HiddenNote } from './HiddenNote';
 
 /**
@@ -26,10 +26,8 @@ export function Sections(p: {
     const set = new Set(mine);
     const hide = (k: string) => !set.has(k);
     const count = (tier: Tier) => buildFields(p.root, p.node, p.base, p.value, tier, { hide }).length;
-    if (count(p.tier) === 0) {
-      // nothing on this tier: name it in the footer (spec §4.6) when the advanced tier would show something
-      // (release panel's rule, mirrored here for a non-advanced-flagged section like workload Metadata)
-      if (p.tier !== 'advanced' && count('advanced') > 0) hidden.push(section.title);
+    if (hiddenOnBasic(count, p.tier)) {
+      if (p.tier !== 'advanced' && !hiddenOnBasic(count, 'advanced')) hidden.push(section.title);
       return null;
     }
     return (

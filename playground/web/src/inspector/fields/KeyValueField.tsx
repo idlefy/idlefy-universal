@@ -2,6 +2,7 @@ import { useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import type { SchemaNode } from '../schema';
 import { YamlField } from './YamlField';
+import { parseScalarText } from '../form';
 import { isObj, isScalar } from '../../model/guards';
 
 /**
@@ -18,7 +19,8 @@ export const coercesScalars = (node: SchemaNode): boolean =>
 /** The text a user typed back into the scalar it looks like, for maps that admit non-strings. */
 function scalarFromText(t: string, coerce: boolean): unknown {
   if (!coerce) return t;
-  if (/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+  const n = parseScalarText(t, { kind: 'number', integer: false });
+  if (n !== undefined) return n;
   if (t === 'true') return true;
   if (t === 'false') return false;
   return t;

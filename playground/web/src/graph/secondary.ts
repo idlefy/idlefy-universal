@@ -71,6 +71,9 @@ export const SECONDARY: readonly Secondary[] = [
 export const SEC_IDS: ReadonlySet<string> = new Set(SECONDARY.map((s) => s.id));
 export const secondaryById = (id: SecondaryId): Secondary => SECONDARY.find((s) => s.id === id)!;
 
+// Flags the switch list owns and the config blocks behind them: reached through the group panel, never as plain fields.
+export const OWNED_FLAGS: ReadonlySet<string> = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));
+
 export function secondariesFor(kindKey: string): Secondary[] {
   return SECONDARY.filter((s) => s.kinds.has(kindKey));
 }

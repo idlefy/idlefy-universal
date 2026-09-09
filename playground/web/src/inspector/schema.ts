@@ -14,6 +14,9 @@ export type Widget =
   | { kind: 'mapOfLists' }
   | { kind: 'yaml' };
 
+/** Widget kinds a `FieldRow` renders inline, next to its label, instead of as a block below it. */
+export const INLINE_KINDS: ReadonlySet<Widget['kind']> = new Set(['boolean', 'number', 'string']);
+
 const REF = '#/$defs/';
 export function deref(root: SchemaNode, node: SchemaNode | undefined, depth = 0): SchemaNode | undefined {
   if (!node || depth > 32) return node;

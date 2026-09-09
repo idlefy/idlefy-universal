@@ -6,7 +6,8 @@ import type { FieldProps } from './index';
 export function YamlField({ field, onEdit }: FieldProps): ReactElement {
   const id = field.path.join('.');
   const fromValue = field.value === undefined ? '' : stringify(field.value, { lineWidth: 0 });
-  const [editing, setEditing] = useState(fromValue === '');
+  const [expanded, setExpanded] = useState(false);
+  const editing = expanded || fromValue === '';
   const [text, setText] = useState(fromValue);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => { setText(fromValue); setErr(null); }, [fromValue]);
@@ -23,7 +24,7 @@ export function YamlField({ field, onEdit }: FieldProps): ReactElement {
     return (
       <div className="yaml-collapsed">
         <pre className="yaml-preview">{lines.slice(0, 2).join('\n')}{lines.length > 2 ? `\n… ${lines.length - 2} more lines` : ''}</pre>
-        <button type="button" className="btn small" aria-label={`edit ${id} as YAML`} onClick={() => setEditing(true)}>Edit as YAML</button>
+        <button type="button" className="btn small" aria-label={`edit ${id} as YAML`} onClick={() => setExpanded(true)}>Edit as YAML</button>
       </div>
     );
   }

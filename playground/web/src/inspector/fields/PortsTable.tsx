@@ -1,5 +1,7 @@
-import { useState, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import type { FieldProps } from './index';
+import { AddKeyRow } from './AddKeyRow';
+import { parseScalarText } from '../form';
 
 const PROTOCOLS = ['TCP', 'UDP', 'SCTP'];
 const NAME = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;   // Kubernetes port names (IANA_SVC_NAME, ≤15 chars)
@@ -9,12 +11,10 @@ export function PortsTable({ field, onEdit }: FieldProps): ReactElement {
   const id = field.path.join('.');
   const ports = (field.value && typeof field.value === 'object' ? field.value : {}) as Record<string, Record<string, unknown>>;
   const names = Object.keys(ports);
-  const [draft, setDraft] = useState('');
-  const k = draft.trim();
-  const bad = k !== '' && (!NAME.test(k) || k.length > 15 || names.includes(k));
   const num = (name: string, key: 'containerPort' | 'servicePort', t: string) => {
     if (t === '') return onEdit([{ op: 'delete', path: [...field.path, name, key] }]);
-    if (/^\d+$/.test(t)) onEdit([{ op: 'set', path: [...field.path, name, key], value: Number(t) }]);
+    const v = parseScalarText(t, { kind: 'number', integer: true }, { nonNegative: true });
+    if (v !== undefined) onEdit([{ op: 'set', path: [...field.path, name, key], value: v }]);
   };
   return (
     <div className="ports">
@@ -30,10 +30,9 @@ export function PortsTable({ field, onEdit }: FieldProps): ReactElement {
           <button type="button" className="clear" aria-label={`remove ${id}.${n}`} onClick={() => onEdit([{ op: 'delete', path: [...field.path, n] }])}>×</button>
         </span>
       ))}
-      <input className={`in ${bad ? 'invalid' : ''}`} type="text" aria-label={`new port name ${id}`} placeholder="name" value={draft} onChange={(e) => setDraft(e.target.value)} />
-      <button type="button" className="btn small" style={{ gridColumn: '2 / span 2' }} aria-label={`add port ${id}`} disabled={k === '' || bad}
-        onClick={() => { onEdit([{ op: 'set', path: [...field.path, k], value: { containerPort: 8080 } }]); setDraft(''); }}>add port</button>
-      <span style={{ gridColumn: '4 / -1' }} className="field-err">{bad ? (names.includes(k) ? 'already exists' : 'lowercase, digits, dashes, ≤15') : ''}</span>
+      <AddKeyRow grid id={id} existing={names} valid={(k) => NAME.test(k) && k.length <= 15} invalidText="lowercase, digits, dashes, ≤15" placeholder="name"
+        inputAriaLabel={`new port name ${id}`} buttonAriaLabel={`add port ${id}`} buttonText="add port" buttonClassName="btn small"
+        onAdd={(k) => onEdit([{ op: 'set', path: [...field.path, k], value: { containerPort: 8080 } }])} />
     </div>
   );
 }

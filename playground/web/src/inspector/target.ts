@@ -9,7 +9,7 @@ export type InspectTarget =
   | { kind: 'workload'; name: string; path: ValuesPath }
   // an auto-created resource: its values block (`…/ingress`) and the owning workload
   | { kind: 'secondary'; owner: ValuesPath; secondary: SecondaryId; path: ValuesPath }
-  | { kind: 'entity'; path: ValuesPath }
+  | { kind: 'entity'; path: ValuesPath; owner?: ValuesPath }
   | { kind: 'release' }
   | { kind: 'none'; reason: string };
 
@@ -31,6 +31,6 @@ export function inspectTarget(sel: ResolvedSelection, root: SchemaNode): Inspect
     const tail = String(p.path[2]);
     if (SEC_IDS.has(tail)) return { kind: 'secondary', owner: p.owner, secondary: tail as SecondaryId, path: p.path };
   }
-  if (schemaAt(root, p.path)) return { kind: 'entity', path: p.path };
+  if (schemaAt(root, p.path)) return { kind: 'entity', path: p.path, owner: p.owner };
   return { kind: 'none', reason: `No schema node for values path ${p.path.join('.')}.` };
 }

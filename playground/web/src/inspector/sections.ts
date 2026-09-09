@@ -1,6 +1,13 @@
 import type { SecondaryId } from '../graph/secondary';
+import type { Tier } from '../app/state';
 
 export type Section = { id: string; title: string; keys: readonly string[]; advanced?: boolean };
+
+/** True when `count(tier)` finds nothing to show. Nothing on this tier: the caller names it in the
+ *  footer (spec §4.6) instead, when the advanced tier would show something (`!hiddenOnBasic(count, 'advanced')`). */
+export function hiddenOnBasic(count: (t: Tier) => number, tier: Tier): boolean {
+  return count(tier) === 0;
+}
 
 // spec 2026-09-07 §5.2. Keys are listed for every workload kind; a kind that lacks a key simply does not show it.
 export const WORKLOAD_SECTIONS: readonly Section[] = [

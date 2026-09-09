@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { firstSentence, humanize } from '../form';
-import { resolve, deref, type SchemaNode } from '../schema';
+import { resolve, deref, INLINE_KINDS, type SchemaNode } from '../schema';
 import { BooleanField } from './BooleanField';
 import { NumberField } from './NumberField';
 import { TextField } from './TextField';
@@ -44,9 +44,10 @@ export function FieldRow(p: FieldProps & { bare?: boolean }): ReactElement {
       case 'mapOfLists': return <MapOfListsField {...p} />;
     }
   })();
-  const block = special !== null || field.widget.kind === 'map' || field.widget.kind === 'object' || field.widget.kind === 'keyvalue' || field.widget.kind === 'yaml' || field.widget.kind === 'list' || field.widget.kind === 'objectList' || field.widget.kind === 'mapOfLists';
+  const block = special !== null || !INLINE_KINDS.has(field.widget.kind);
+  const className = ['field', block && 'block', p.bare && 'bare', special && `sp-${special}`].filter(Boolean).join(' ');
   return (
-    <div className={`field ${block ? 'block' : ''} ${p.bare ? 'bare' : ''} ${special ? `sp-${special}` : ''}`}>
+    <div className={className}>
       {!p.bare && <div className="field-head">
         <label htmlFor={id} data-key={field.key} title={field.description ? `${id} — ${field.description}` : id}>{humanize(field.label)}{field.required && <span className="req" title="required">*</span>}</label>
         {field.present && block && (
