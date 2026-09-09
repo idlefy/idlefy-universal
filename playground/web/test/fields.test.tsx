@@ -113,8 +113,7 @@ describe('field widgets', () => {
     render(<FieldList root={root} node={dep} basePath={base} value={{ networkPolicy: {} }} tier="basic" onEdit={onEdit} />);
     expect(screen.queryByLabelText('deployments.web.networkPolicy.policyTypes.0')).toBeNull();
     fireEvent.click(screen.getByLabelText('add deployments.web.networkPolicy.policyTypes'));
-    // nothing to index into yet: the first item sets the whole array rather than an out-of-range index
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'networkPolicy', 'policyTypes'], value: ['Ingress'] }]);
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'networkPolicy', 'policyTypes', 0], value: 'Ingress' }]);
   });
 
   it('keyvalue: add, edit and remove rows', () => {

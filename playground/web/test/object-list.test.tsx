@@ -112,9 +112,7 @@ describe('ObjectListField', () => {
     render(<FieldList root={root} node={node} basePath={['x']} value={{}} tier="basic" onEdit={onEdit} />);
     expect(screen.queryByLabelText('x.items.0.name')).toBeNull();
     fireEvent.click(screen.getByLabelText('add x.items'));
-    // nothing to index into yet: the first item sets the whole array rather than an out-of-range index
     const ops = onEdit.mock.calls.at(-1)![0];
-    expect(ops[0].path).toEqual(['x', 'items']);
-    expect(ops[0].value).toHaveLength(1);
+    expect(ops[0].path).toEqual(['x', 'items', 0]);
   });
 });

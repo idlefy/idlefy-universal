@@ -33,6 +33,16 @@ describe('ValuesDocument', () => {
     d.setIn(['deployments', 'web', 'replicas'], 1);
     expect(d.toJS().deployments.web.replicas).toBe(1);
   });
+  it('setIn creates a sequence when the next path segment is a numeric index', () => {
+    const d = ValuesDocument.parse('');
+    d.setIn(['args', 0], 'x');
+    expect(d.toString()).toBe('args:\n  - x\n');
+  });
+  it('setIn creates a sequence of maps for a deep numeric-index path', () => {
+    const d = ValuesDocument.parse('');
+    d.setIn(['env', 0, 'name'], 'N');
+    expect(d.toString()).toBe('env:\n  - name: N\n');
+  });
   it('lineOf returns 1-based line of the key', () => {
     const d = ValuesDocument.parse(src);
     expect(d.lineOf(['deployments', 'api'])).toBe(3);

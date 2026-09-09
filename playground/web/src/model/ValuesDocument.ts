@@ -57,7 +57,7 @@ export class ValuesDocument {
       const seg = path[i];
       let next = node.get(seg, true);
       if (!isMap(next) && !isSeq(next)) {
-        next = this.doc.createNode({});
+        next = this.doc.createNode(typeof path[i + 1] === 'number' ? [] : {});
         node.set(seg, next);
       }
       node = next;
