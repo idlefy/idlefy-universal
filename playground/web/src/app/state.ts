@@ -30,6 +30,9 @@ export function initialState(text: string): AppState {
 
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
+    // Returning `s` untouched when the text is unchanged matters beyond avoiding a no-op update:
+    // Monaco echoes the reducer's own new text back as a `text` action, and the identity check
+    // keeps that echo from clearing `focusPath` — removing it would break Add with no failing test.
     case 'text': return a.text === s.text ? s : { ...s, text: a.text, doc: ValuesDocument.parse(a.text), focusPath: null };
     case 'example': return { ...s, text: a.text, doc: ValuesDocument.parse(a.text), selection: null, focusPath: null };
     case 'release': return { ...s, releaseName: a.v };

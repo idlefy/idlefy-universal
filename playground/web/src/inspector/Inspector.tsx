@@ -17,10 +17,12 @@ type InspectorProps = {
   onEdit: (ops: EditOp[]) => void; onSelect: (selection: string) => void; onTier: (t: Tier) => void; disabled: boolean; focusToken: number;
 };
 
+export const DISABLED_NOTICE = 'Fix the YAML syntax error in the editor to edit here.';
+
 export function Inspector(p: InspectorProps): ReactElement {
   const t: InspectTarget = inspectTarget(p.sel, p.root);
   const edit = p.disabled ? () => {} : p.onEdit;
-  const notice = p.disabled && <p className="banner-inline">Fix the YAML syntax error in the editor to edit here.</p>;
+  const notice = p.disabled && <p className="banner-inline">{DISABLED_NOTICE}</p>;
 
   let body: ReactElement;
   switch (t.kind) {

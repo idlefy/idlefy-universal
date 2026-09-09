@@ -5,7 +5,7 @@ import type { DetailTab, Tier } from '../app/state';
 import type { ResolvedSelection } from '../app/selection';
 import type { SchemaNode } from '../inspector/schema';
 import type { SecondaryId } from '../graph/secondary';
-import { Inspector } from '../inspector/Inspector';
+import { Inspector, DISABLED_NOTICE } from '../inspector/Inspector';
 import { kindOfSecondary, plural } from '../inspector/summary';
 import { familyOf } from '../graph/labels';
 import { KindIcon, GroupGlyph } from './icons';
@@ -52,7 +52,7 @@ export function DetailPanel(p: {
   const tab: DetailTab = head.manifest === null ? 'inspector' : p.tab;
   const title = sel.kind === 'node' ? sel.node.provenance?.governingCondition : undefined;
   const removal = removalOf(sel);
-  const removeTitle = p.disabled ? 'Fix the YAML syntax error in the editor to edit here.' : removal?.title;
+  const removeTitle = p.disabled ? DISABLED_NOTICE : removal?.title;
   const remove = () => { if (!removal || p.disabled) return; p.onEdit(removal.ops); p.onClose(); };
   return (
     <aside className={`detail fam-${head.fam}`}>
