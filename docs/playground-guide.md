@@ -48,7 +48,7 @@ Press **A** anywhere on the page (outside a text field), or click **＋ Add** at
 canvas, to open the launcher. Type to filter the eleven things the chart can render at the top
 level — the five workload kinds and the standalone Config, Service, Ingress, HTTPRoute, HPA and
 PVC — pick one with the arrow keys or the mouse, and name it. The name is checked as you type
-against the schema's key pattern (a DNS label for most entries) and against the names already in
+against the schema's key pattern (a DNS label for every entry today) and against the names already in
 your document; the panel previews the YAML the insert will produce. **Enter** inserts it into
 `values.yaml`, selects the new node and opens the inspector on it.
 

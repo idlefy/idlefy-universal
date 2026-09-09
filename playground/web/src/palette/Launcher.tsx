@@ -42,7 +42,7 @@ export function Launcher(p: { root: SchemaNode; values: Record<string, unknown>;
               const rows = filtered.filter((e) => e.group === id);
               if (rows.length === 0) return null;
               return (
-                <div key={id}>
+                <div key={id} role="group" aria-label={heading}>
                   <div className="lh">{heading}</div>
                   {rows.map((e) => {
                     const i = filtered.indexOf(e);

@@ -58,4 +58,8 @@ describe('AddButton', () => {
     fireEvent.click(btn);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+  it('disabled with the launcher already open: still renders no dialog', () => {
+    render(<Host onAdd={vi.fn()} disabled start={{}} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
 });

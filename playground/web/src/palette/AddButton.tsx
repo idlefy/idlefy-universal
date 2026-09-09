@@ -25,7 +25,7 @@ export function AddButton(p: {
         aria-haspopup="dialog" aria-expanded={!!p.open} onClick={() => (p.open ? close() : p.onOpen())}>
         <span className="plus" aria-hidden="true">＋</span> Add <kbd>A</kbd>
       </button>
-      {p.open && <Launcher root={p.root} values={p.values} initialKey={p.open.key} onAdd={(k, n) => { p.onAdd(k, n); close(); }} onClose={close} />}
+      {p.open && !p.disabled && <Launcher root={p.root} values={p.values} initialKey={p.open.key} onAdd={(k, n) => { p.onAdd(k, n); close(); }} onClose={close} />}
     </div>
   );
 }
