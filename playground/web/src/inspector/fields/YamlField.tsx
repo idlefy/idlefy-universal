@@ -2,9 +2,11 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { parse, stringify } from 'yaml';
 import type { FieldProps } from './index';
 
+/** Raw YAML for k8s.io.* passthrough nodes (spec 2026-09-08 §5.4): collapsed preview first, textarea on "Edit as YAML". */
 export function YamlField({ field, onEdit }: FieldProps): ReactElement {
   const id = field.path.join('.');
   const fromValue = field.value === undefined ? '' : stringify(field.value, { lineWidth: 0 });
+  const [editing, setEditing] = useState(fromValue === '');
   const [text, setText] = useState(fromValue);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => { setText(fromValue); setErr(null); }, [fromValue]);
@@ -16,6 +18,15 @@ export function YamlField({ field, onEdit }: FieldProps): ReactElement {
       if (stringify(v, { lineWidth: 0 }) !== fromValue) onEdit([{ op: 'set', path: field.path, value: v }]);
     } catch (e) { setErr(`YAML: ${(e as Error).message.split('\n')[0]}`); }
   };
+  if (!editing) {
+    const lines = fromValue.split('\n').filter(Boolean);
+    return (
+      <div className="yaml-collapsed">
+        <pre className="yaml-preview">{lines.slice(0, 2).join('\n')}{lines.length > 2 ? `\n… ${lines.length - 2} more lines` : ''}</pre>
+        <button type="button" className="btn small" aria-label={`edit ${id} as YAML`} onClick={() => setEditing(true)}>Edit as YAML</button>
+      </div>
+    );
+  }
   return (
     <>
       <textarea id={id} aria-label={id} className={`yaml ${err ? 'invalid' : ''}`} rows={Math.min(16, Math.max(3, text.split('\n').length))} spellCheck={false}

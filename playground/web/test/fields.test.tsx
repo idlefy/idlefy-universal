@@ -90,10 +90,12 @@ describe('field widgets', () => {
   });
   it('list: a present non-list value keeps the raw YAML editor', () => {
     render(<FieldList root={root} node={schemaAt(root, cbase)!} basePath={cbase} value={{ image: 'x', args: { oops: 1 } }} tier="advanced" onEdit={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText('edit deployments.web.containers.main.args as YAML'));
     expect(screen.getByLabelText('deployments.web.containers.main.args').tagName).toBe('TEXTAREA');
   });
   it('list: a present list with a non-scalar item keeps the raw YAML editor', () => {
     render(<FieldList root={root} node={schemaAt(root, cbase)!} basePath={cbase} value={{ image: 'x', args: [{ oops: 1 }] }} tier="advanced" onEdit={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText('edit deployments.web.containers.main.args as YAML'));
     expect(screen.getByLabelText('deployments.web.containers.main.args').tagName).toBe('TEXTAREA');
   });
   it('list: removing the last item deletes the key; enum items are selects', () => {
@@ -161,6 +163,7 @@ describe('field widgets', () => {
   it('keyvalue: falls back to the YAML editor when a value is not a scalar', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ labels: { team: { nested: 1 } } }} tier="advanced" onEdit={onEdit} />);
+    fireEvent.click(screen.getByLabelText('edit deployments.web.labels as YAML'));
     const el = screen.getByLabelText('deployments.web.labels');
     expect(el.tagName).toBe('TEXTAREA');
     expect((el as HTMLTextAreaElement).value).toBe('team:\n  nested: 1\n');
@@ -182,6 +185,9 @@ describe('field widgets', () => {
   it('yaml: valid YAML emits set on blur, invalid shows an error and emits nothing', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ affinity: { nodeAffinity: { x: 1 } } }} tier="advanced" onEdit={onEdit} />);
+    expect(document.querySelector('.yaml-preview')!.textContent).toContain('nodeAffinity');
+    expect(screen.queryByLabelText('deployments.web.affinity')).toBeNull();
+    fireEvent.click(screen.getByLabelText('edit deployments.web.affinity as YAML'));
     const ta = screen.getByLabelText('deployments.web.affinity') as HTMLTextAreaElement;
     expect(ta.value).toBe('nodeAffinity:\n  x: 1\n');
     fireEvent.change(ta, { target: { value: 'podAntiAffinity: {}\n' } });
@@ -193,6 +199,12 @@ describe('field widgets', () => {
     expect(onEdit).not.toHaveBeenCalled();
     // anchored to the error span: every YamlField also renders permanent help text containing "YAML"
     expect(screen.getByText(/^YAML: /)).toBeTruthy();
+  });
+
+  it('yaml: a required or empty passthrough starts in editing mode', () => {
+    const node = { type: 'object', properties: { raw: { $ref: '#/$defs/k8s.io.api.core.v1.Affinity' } }, required: ['raw'] };
+    render(<FieldList root={root} node={node} basePath={['x']} value={{}} tier="basic" onEdit={vi.fn()} />);
+    expect(screen.getByLabelText('x.raw').tagName).toBe('TEXTAREA');
   });
 
   it('map: lists entries, adds a starter entry, rejects duplicate keys', () => {

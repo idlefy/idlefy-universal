@@ -67,6 +67,7 @@ describe('ObjectListField', () => {
   });
   it('a present non-list value keeps the raw YAML editor', () => {
     render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: { NOT: 'a list' } }} tier="basic" onEdit={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText('edit deployments.web.containers.main.env as YAML'));
     expect(screen.getByLabelText('deployments.web.containers.main.env').tagName).toBe('TEXTAREA');
   });
   it('tolerations: block rows collapsed with the identifying value, expand shows the item fields', () => {

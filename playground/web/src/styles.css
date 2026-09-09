@@ -267,3 +267,5 @@ code { font-family: var(--mono); font-size: 12px; }
 .mol .card + .card { margin-top: 0; }
 .mol .card-body { padding: 4px 12px 10px; }
 .mol .card > h4 .muted { font-size: 11.5px; }
+.yaml-collapsed { display: flex; align-items: flex-start; gap: 10px; }
+.yaml-preview { flex: 1; min-width: 0; margin: 0; padding: 6px 9px; border: 1px dashed var(--line-2); border-radius: 7px; font: 12px/1.5 var(--mono); color: var(--ink-2); white-space: pre-wrap; overflow: hidden; }

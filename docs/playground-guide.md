@@ -27,6 +27,8 @@ A **workload panel** shows only the workload: **Workload** (replicas and rollout
 
 A field only gets a control once it exists in values.yaml; everything else is an *Add* chip that inserts the schema's starter value. Clearing a control removes the key.
 
+Lists edit as rows: plain string lists (`args`, `policyTypes`) one input per line, lists of objects (`env`, ingress `hosts`, `tolerations`) as a name plus its one or two main values, with a `…` button for the rest, or as a collapsible block when the item is larger. `secretRefs` is one card per group with a row per variable. Only Kubernetes passthrough objects (`affinity`, raw `volumes`, RBAC rules) stay YAML, shown as a two-line preview with an **Edit as YAML** button.
+
 Icons are the official Kubernetes resource icons (© The Kubernetes Authors, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), from [kubernetes/community](https://github.com/kubernetes/community/tree/master/icons)), recolored per resource family.
 
 IntOrString fields (for example `pdb.minAvailable`) accept either a percentage (`50%`) or a whole

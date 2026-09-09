@@ -14,7 +14,7 @@ resource dependency graph. User-facing documentation lives at `docs/playground-g
 
 - `web/src/inspector/schema.ts` — `$ref`/`allOf` resolution, `schemaAt(path)`, widget classification.
 - `web/src/inspector/form.ts` — `buildFields(schema, value, tier)`: basic tier = `x-ui-tier: basic`, required, or present in the document.
-- `web/src/inspector/fields/*` — one widget per kind (boolean, number, string, list, keyvalue, object, map, yaml).
+- `web/src/inspector/fields/*` — one widget per kind (boolean, number, string, list rows, keyvalue, object, map, objectList, mapOfLists, collapsed yaml).
 - `web/src/app/selection.ts` — selection strings (`<nodeId>`, `group:<workloadNodeId>`, `block:<kindKey>.<name>.<block>`) and `resolveSelection`.
 - `web/src/inspector/target.ts`, `Inspector.tsx`, `GroupPanel.tsx`, `SecondaryPanel.tsx` — which panel a selection opens: group (switch list), workload (own fields only), secondary (one auto-created resource), release, entity.
 - `web/src/graph/secondary.ts` — the one table of auto-created resources (kinds, on/off ops); `expectations.ts` reads it too.
