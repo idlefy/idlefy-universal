@@ -1,20 +1,8 @@
-import type { SecondaryId } from '../graph/secondary';
+import { secondaryById, type SecondaryId } from '../graph/secondary';
 import { isObj } from '../model/guards';
 
-export const ORDER: readonly SecondaryId[] = ['service', 'ingress', 'httpRoute', 'certificate', 'hpa', 'pdb', 'serviceMonitor', 'networkPolicy', 'serviceAccount', 'rbac', 'migrations'];
-
-const KIND: Record<SecondaryId, string> = {
-  service: 'Service', ingress: 'Ingress', httpRoute: 'HTTPRoute', certificate: 'Certificate', hpa: 'HorizontalPodAutoscaler', pdb: 'PodDisruptionBudget',
-  serviceMonitor: 'ServiceMonitor', networkPolicy: 'NetworkPolicy', serviceAccount: 'ServiceAccount', rbac: 'Role', migrations: 'Job',
-};
-export const kindOfSecondary = (id: SecondaryId): string => KIND[id];
-
-const HINT: Record<SecondaryId, string> = {
-  service: 'expose container ports inside the cluster', ingress: 'needs Service', httpRoute: 'needs Service', certificate: 'needs Ingress with TLS hosts',
-  hpa: 'scale on CPU or memory', pdb: 'keep pods up during node drains', serviceMonitor: 'needs Service', networkPolicy: 'restrict pod traffic',
-  serviceAccount: 'own identity for the pods', rbac: 'namespace permissions for the pods', migrations: 'pre-upgrade hook, same image',
-};
-export const hintOf = (id: SecondaryId): string => HINT[id];
+export const kindOfSecondary = (id: SecondaryId): string => secondaryById(id).kind;
+export const hintOf = (id: SecondaryId): string => secondaryById(id).hint;
 
 export const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 

@@ -7,9 +7,9 @@ const byId = (id: string) => SECONDARY.find((s) => s.id === id)!;
 
 describe('secondary resources', () => {
   it('hides resources the chart does not render for a kind', () => {
-    expect(secondariesFor('deployments').map((s) => s.id)).toEqual(['service', 'ingress', 'httpRoute', 'certificate', 'hpa', 'migrations', 'pdb', 'serviceMonitor', 'networkPolicy', 'rbac', 'serviceAccount']);
-    expect(secondariesFor('statefulSets').map((s) => s.id)).toEqual(['service', 'pdb', 'serviceMonitor', 'networkPolicy', 'rbac', 'serviceAccount']);
-    expect(secondariesFor('daemonSets').map((s) => s.id)).toEqual(['pdb', 'serviceMonitor', 'networkPolicy', 'rbac', 'serviceAccount']);
+    expect(secondariesFor('deployments').map((s) => s.id)).toEqual(['service', 'ingress', 'httpRoute', 'certificate', 'hpa', 'pdb', 'serviceMonitor', 'networkPolicy', 'serviceAccount', 'rbac', 'migrations']);
+    expect(secondariesFor('statefulSets').map((s) => s.id)).toEqual(['service', 'pdb', 'serviceMonitor', 'networkPolicy', 'serviceAccount', 'rbac']);
+    expect(secondariesFor('daemonSets').map((s) => s.id)).toEqual(['pdb', 'serviceMonitor', 'networkPolicy', 'serviceAccount', 'rbac']);
     expect(secondariesFor('jobs').map((s) => s.id)).toEqual(['networkPolicy', 'rbac']);
     expect(secondariesFor('cronJobs').map((s) => s.id)).toEqual(['networkPolicy', 'rbac']);
   });

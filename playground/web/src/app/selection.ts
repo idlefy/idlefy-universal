@@ -1,6 +1,6 @@
 import type { GraphModel, GraphNode } from '../graph/types';
 import type { ValuesPath } from '../model/ValuesDocument';
-import { groupsOf, isWorkloadNode, type Group } from '../canvas/groups';
+import { groupsOf, isWorkloadNode, type Group } from '../graph/groups';
 import { kindOfSecondary } from '../inspector/summary';
 import type { SecondaryId } from '../graph/secondary';
 

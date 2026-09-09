@@ -1,7 +1,7 @@
 import ELK from 'elkjs/lib/elk.bundled.js';
 import type { Edge, Node } from '@xyflow/react';
 import type { GraphModel, GraphNode } from '../graph/types';
-import { groupsOf } from './groups';
+import { groupsOf } from '../graph/groups';
 
 export type ResourceNodeData = { node: GraphNode; dimmed: boolean };
 export type GroupNodeData = { label: string; kind: string; name: string; ownerId: string };

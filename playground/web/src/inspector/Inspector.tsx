@@ -3,13 +3,13 @@ import type { GraphNode } from '../graph/types';
 import type { EditOp, ValuesDocument, ValuesPath } from '../model/ValuesDocument';
 import type { Tier } from '../app/state';
 import { groupId, type ResolvedSelection } from '../app/selection';
-import { isWorkloadNode } from '../canvas/groups';
+import { isWorkloadNode } from '../graph/groups';
 import { schemaAt, classify, resolve, type SchemaNode } from './schema';
 import { buildFields, type Field } from './form';
 import { FieldList, FieldRow } from './fields';
 import { inspectTarget, type InspectTarget } from './target';
-import { SECONDARY } from '../graph/secondary';
-import { WORKLOAD_SECTIONS, RELEASE_TITLES, KIND_LABEL } from './sections';
+import { SECONDARY, SEC_IDS, WORKLOAD_KINDS } from '../graph/secondary';
+import { WORKLOAD_SECTIONS, RELEASE_TITLES } from './sections';
 import { Sections } from './Sections';
 import { OwnerStrip } from './OwnerStrip';
 import { GroupPanel } from './GroupPanel';
@@ -17,10 +17,9 @@ import { SecondaryPanel } from './SecondaryPanel';
 import { HiddenNote } from './HiddenNote';
 import { isObj, samePath } from '../model/guards';
 
-const RELEASE_SECTIONS = ['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs'];
+const RELEASE_SECTIONS = Object.keys(RELEASE_TITLES);
 // Flags the switch list owns and the config blocks behind them: reached through the group panel, never as plain fields.
 export const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));
-export const ALL_BLOCKS = new Set<string>(SECONDARY.map((s) => s.id));
 
 export type InspectorProps = {
   sel: ResolvedSelection; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[];
@@ -44,7 +43,7 @@ export function Inspector(p: InspectorProps): ReactElement {
         <OwnerStrip kind="group" text={<>In group <b>{name}</b> · {summary}</>} button="Open group" ariaLabel="open group" onClick={wl ? () => p.onSelect(groupId(wl.id)) : undefined} />
         <fieldset disabled={p.disabled}>
           <Sections root={p.root} node={schemaAt(p.root, base)!} base={base} value={p.doc.valueAt(base)} tier={p.tier} tables={WORKLOAD_SECTIONS}
-            hide={(k) => OWNED_FLAGS.has(k) || ALL_BLOCKS.has(k)} onEdit={edit} onTier={p.onTier} />
+            hide={(k) => OWNED_FLAGS.has(k) || SEC_IDS.has(k)} onEdit={edit} onTier={p.onTier} />
         </fieldset>
       </>
     );
@@ -72,7 +71,7 @@ export function Inspector(p: InspectorProps): ReactElement {
         const count = (tier: Tier) => buildFields(p.root, node, [k], all[k], tier, { hide: (x) => OWNED_FLAGS.has(x) }).length;
         if (count(p.tier) === 0) {
           // nothing on this tier: name it in the footer (spec §4.6) when the advanced tier would show something
-          if (p.tier !== 'advanced' && count('advanced') > 0) hidden.push(RELEASE_TITLES[k] ?? k);
+          if (p.tier !== 'advanced' && count('advanced') > 0) hidden.push(RELEASE_TITLES[k]);
           return null;
         }
       }
@@ -80,7 +79,7 @@ export function Inspector(p: InspectorProps): ReactElement {
       return (
         <div key={k} className="sec">
           <h3>
-            {RELEASE_TITLES[k] ?? k} <span className="k">{k}</span>
+            {RELEASE_TITLES[k]} <span className="k">{k}</span>
             {bareBlock && <button type="button" className="clear more" aria-label={`clear ${k}`} title="Remove this block from values.yaml" onClick={() => edit([{ op: 'delete', path: [k] }])}>×</button>}
           </h3>
           {releaseSection(k)}
@@ -101,7 +100,7 @@ export function Inspector(p: InspectorProps): ReactElement {
       const owner = p.sel.kind === 'node' ? p.sel.node.provenance?.owner : undefined;
       body = (
         <>
-          {owner && <p className="prov">Part of {KIND_LABEL[String(owner[0])] ?? owner[0]} {String(owner[1])} (values: <code>{t.path.join('.')}</code>).</p>}
+          {owner && <p className="prov">Part of {WORKLOAD_KINDS[String(owner[0])]} {String(owner[1])} (values: <code>{t.path.join('.')}</code>).</p>}
           <fieldset disabled={p.disabled}>
             <div className="sec">
               <FieldList root={p.root} node={schemaAt(p.root, t.path)!} basePath={t.path} value={p.doc.valueAt(t.path)} tier={p.tier} onEdit={edit} />

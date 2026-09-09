@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { ORDER, kindOfSecondary, hintOf, summaryOf, workloadSummary } from '../src/inspector/summary';
-import { SECONDARY } from '../src/graph/secondary';
+import { kindOfSecondary, hintOf, summaryOf, workloadSummary } from '../src/inspector/summary';
+import { SECONDARY, type SecondaryId } from '../src/graph/secondary';
+
+const ALL_IDS: readonly SecondaryId[] = ['service', 'ingress', 'httpRoute', 'certificate', 'hpa', 'pdb', 'serviceMonitor', 'networkPolicy', 'serviceAccount', 'rbac', 'migrations'];
 
 describe('secondary summaries', () => {
-  it('ORDER lists every secondary id exactly once', () => {
-    expect(new Set(ORDER)).toEqual(new Set(SECONDARY.map((s) => s.id)));
+  it('SECONDARY lists every SecondaryId exactly once', () => {
+    expect(new Set(SECONDARY.map((s) => s.id))).toEqual(new Set(ALL_IDS));
+    expect(SECONDARY.length).toBe(ALL_IDS.length);
   });
   it('maps ids to node kinds', () => {
     expect(kindOfSecondary('rbac')).toBe('Role');

@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import type { EditOp, ValuesPath } from '../model/ValuesDocument';
 import { secondariesFor, type SecondaryId } from '../graph/secondary';
 import { KindIcon } from '../canvas/icons';
-import { ORDER, kindOfSecondary, hintOf, summaryOf } from './summary';
+import { summaryOf } from './summary';
 import { familyOf } from '../graph/labels';
 import { blockId } from '../app/selection';
 import { isFilledObj } from '../model/guards';
@@ -12,20 +12,19 @@ export function AutoCreated(p: {
   kindKey: string; name: string; base: ValuesPath; cfg: Record<string, any>; disabled: boolean;
   onEdit: (ops: EditOp[]) => void; nodeFor: (id: SecondaryId) => string | null; hasSchema: (id: SecondaryId) => boolean; onSelect: (selection: string) => void;
 }): ReactElement | null {
-  const byId = new Map(secondariesFor(p.kindKey).map((s) => [s.id, s]));
-  const list = ORDER.map((id) => byId.get(id)!).filter(Boolean);
+  const list = secondariesFor(p.kindKey);
   if (list.length === 0) return null;
   return (
     <div className="list">
       {list.map((s) => {
         const on = s.isOn(p.cfg);
         const blocked = s.blocked?.(p.cfg, p.kindKey);
-        const kind = kindOfSecondary(s.id);
+        const kind = s.kind;
         const node = on ? p.nodeFor(s.id) : null;
         // a rendered node opens itself; a block with a schema node opens as `block:<path>` even without a node
         const target = node ?? (p.hasSchema(s.id) ? blockId([...p.base, s.id]) : null);
         const configured = !on && isFilledObj(p.cfg[s.id]);
-        const sub = blocked ?? (on ? summaryOf(s.id, p.cfg) : configured ? 'configured, not created' : hintOf(s.id));
+        const sub = blocked ?? (on ? summaryOf(s.id, p.cfg) : configured ? 'configured, not created' : s.hint);
         return (
           <div key={s.id} className={`it ${on ? 'on' : ''}`}>
             <span className={`tile sm fam-${familyOf(kind)}`}><KindIcon kind={kind} /></span>

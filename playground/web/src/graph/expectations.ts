@@ -1,6 +1,6 @@
 import type { Provenance, RemoveAction } from './types';
 import type { ValuesPath } from '../model/ValuesDocument';
-import { SECONDARY, SVC_KINDS, SA_KINDS, SM_KINDS, PDB_KINDS, hasAnyPort } from './secondary';
+import { WORKLOAD_KINDS, SVC_KINDS, SA_KINDS, SM_KINDS, PDB_KINDS, hasAnyPort, secondaryById, type SecondaryId } from './secondary';
 import { isObj } from '../model/guards';
 
 export type Expectation = {
@@ -15,11 +15,8 @@ export type Expectation = {
 // service.yaml → deployments, statefulSets; ingress/httproute/certificate/hpa/migrations → deployments only;
 // pdb.yaml, serviceaccount.yaml, _autocreate-servicemonitor → deployments, statefulSets, daemonSets;
 // networkpolicy.yaml, rbac.yaml → all five kinds.
-const WORKLOAD_KINDS: Record<string, string> = { deployments: 'Deployment', statefulSets: 'StatefulSet', daemonSets: 'DaemonSet', jobs: 'Job', cronJobs: 'CronJob' };
-
-const sec = (id: string) => SECONDARY.find((s) => s.id === id)!;
-const on = (id: string, cfg: Record<string, any>) => sec(id).isOn(cfg);
-const off = (id: string, base: ValuesPath) => sec(id).off(base);
+const on = (id: SecondaryId, cfg: Record<string, any>) => secondaryById(id).isOn(cfg);
+const off = (id: SecondaryId, base: ValuesPath) => secondaryById(id).off(base);
 
 const del = (p: ValuesPath): RemoveAction => ({ op: 'delete', path: p });
 

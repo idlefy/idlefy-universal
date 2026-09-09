@@ -1,9 +1,8 @@
-import type { GraphModel, GraphNode } from '../graph/types';
+import type { GraphModel, GraphNode } from './types';
 import { samePath } from '../model/guards';
+import { WORKLOAD_KEYS } from './secondary';
 
 export type Group = { id: string; owner: GraphNode; members: GraphNode[] };
-/** values.yaml maps whose entries are workloads (spec 2026-09-08 §2.1). */
-export const WORKLOAD_KEYS: ReadonlySet<string> = new Set(['deployments', 'statefulSets', 'daemonSets', 'jobs', 'cronJobs']);
 
 export const isWorkloadNode = (n: GraphNode): boolean =>
   !!n.manifest && !!n.provenance && n.provenance.path.length === 2 && !n.provenance.owner && WORKLOAD_KEYS.has(String(n.provenance.path[0]));

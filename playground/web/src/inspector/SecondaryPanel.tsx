@@ -3,13 +3,14 @@ import type { GraphNode } from '../graph/types';
 import type { EditOp, ValuesDocument } from '../model/ValuesDocument';
 import type { Tier } from '../app/state';
 import { groupId } from '../app/selection';
-import { isWorkloadNode } from '../canvas/groups';
+import { isWorkloadNode } from '../graph/groups';
 import { schemaAt, type SchemaNode } from './schema';
 import { FieldList } from './fields';
 import { Sections } from './Sections';
 import { OwnerStrip } from './OwnerStrip';
-import { secondaryById, type InspectTarget } from './target';
-import { SECONDARY_SECTIONS, SERVICE_OWNER_KEYS, KIND_LABEL } from './sections';
+import type { InspectTarget } from './target';
+import { secondaryById, WORKLOAD_KINDS } from '../graph/secondary';
+import { SECONDARY_SECTIONS, SERVICE_OWNER_KEYS } from './sections';
 import { isObj, samePath } from '../model/guards';
 
 /** spec 2026-09-08 §3.3 / §3.3.1 / §3.5: one auto-created resource, with or without a rendered node. */
@@ -21,7 +22,7 @@ export function SecondaryPanel(p: {
   const sec = secondaryById(secondary);
   const kindKey = String(owner[0]), name = String(owner[1]);
   const ownerNode = p.nodes.find((n) => isWorkloadNode(n) && samePath(n.provenance!.path, owner)) ?? null;
-  const ownerKind = ownerNode?.kind ?? KIND_LABEL[kindKey] ?? kindKey;
+  const ownerKind = ownerNode?.kind ?? WORKLOAD_KINDS[kindKey];
   const raw = p.doc.valueAt(owner);
   const cfg = isObj(raw) ? raw : {};
   const on = sec.isOn(cfg);
@@ -38,7 +39,7 @@ export function SecondaryPanel(p: {
 
   let fields: ReactElement | null = null;
   if (secondary === 'service') {
-    const keys = SERVICE_OWNER_KEYS[kindKey] ?? [];
+    const keys = SERVICE_OWNER_KEYS[kindKey];
     const ownerSchema = schemaAt(p.root, owner)!;
     const ports = Object.entries(cfg.containers ?? {}).flatMap(([cn, c]: [string, any]) =>
       Object.entries(isObj(c?.ports) ? c.ports : {}).map(([pn, pt]: [string, any]) => ({
@@ -46,12 +47,10 @@ export function SecondaryPanel(p: {
       })));
     fields = (
       <>
-        {keys.length > 0 && (
-          <div className="sec">
-            <h3>Service</h3>
-            <FieldList root={p.root} node={ownerSchema} basePath={owner} value={cfg} tier="advanced" onEdit={p.onEdit} hide={(k) => !keys.includes(k)} order={keys} />
-          </div>
-        )}
+        <div className="sec">
+          <h3>Service</h3>
+          <FieldList root={p.root} node={ownerSchema} basePath={owner} value={cfg} tier="advanced" onEdit={p.onEdit} hide={(k) => !keys.includes(k)} order={keys} />
+        </div>
         <div className="sec">
           <h3>Ports</h3>
           {ports.length > 0 ? (

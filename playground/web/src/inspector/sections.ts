@@ -64,8 +64,7 @@ export const SECONDARY_SECTIONS: Partial<Record<SecondaryId, readonly Section[]>
 };
 
 // spec 2026-09-08 §3.3.1: the Service has no values block; its settings are these owner keys.
+// Only deployments and statefulSets: the Service secondary's `kinds` is SVC_KINDS, so no other workload kind ever looks this up.
 export const SERVICE_OWNER_KEYS: Record<string, readonly string[]> = {
-  deployments: ['serviceType'], statefulSets: ['serviceType', 'serviceName', 'serviceHeadless'], daemonSets: [], jobs: [], cronJobs: [],
+  deployments: ['serviceType'], statefulSets: ['serviceType', 'serviceName', 'serviceHeadless'],
 };
-
-export const KIND_LABEL: Record<string, string> = { deployments: 'Deployment', statefulSets: 'StatefulSet', daemonSets: 'DaemonSet', jobs: 'Job', cronJobs: 'CronJob' };

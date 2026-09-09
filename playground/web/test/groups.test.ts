@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildGraph } from '../src/graph/build';
 import { loadFixture } from './fixtures';
-import { groupsOf } from '../src/canvas/groups';
+import { groupsOf } from '../src/graph/groups';
 
 describe('groupsOf', () => {
   it('groups a workload with the resources it owns', () => {

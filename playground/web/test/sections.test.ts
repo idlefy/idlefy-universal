@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { WORKLOAD_SECTIONS, OTHER_SECTION, partition, RELEASE_TITLES, SECONDARY_SECTIONS, SERVICE_OWNER_KEYS, KIND_LABEL } from '../src/inspector/sections';
+import { WORKLOAD_SECTIONS, OTHER_SECTION, partition, RELEASE_TITLES, SECONDARY_SECTIONS, SERVICE_OWNER_KEYS } from '../src/inspector/sections';
+import { WORKLOAD_KINDS } from '../src/graph/secondary';
 
 describe('sections', () => {
   it('orders known keys by section and sends the rest to Other', () => {
@@ -29,7 +30,6 @@ describe('sections', () => {
   it('service keys per owner kind', () => {
     expect(SERVICE_OWNER_KEYS.deployments).toEqual(['serviceType']);
     expect(SERVICE_OWNER_KEYS.statefulSets).toEqual(['serviceType', 'serviceName', 'serviceHeadless']);
-    expect(SERVICE_OWNER_KEYS.daemonSets).toEqual([]);
-    expect(KIND_LABEL.cronJobs).toBe('CronJob');
+    expect(WORKLOAD_KINDS.cronJobs).toBe('CronJob');
   });
 });
