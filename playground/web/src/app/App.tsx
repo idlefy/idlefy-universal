@@ -11,6 +11,9 @@ import { initialState, markersFrom, reducer } from "./state";
 import { resolveSelection, titleOf } from "./selection";
 import { useRenderPipeline } from "./useRenderPipeline";
 import { usePanes, SplitHandle, Rail } from "./Panes";
+import { AddButton, type LauncherRequest } from "../palette/AddButton";
+import { useHotkey } from "../palette/useHotkey";
+import { addEntityOps } from "../palette/add";
 
 const FIRST = (examples as { id: string; values: string }[])[0];
 
@@ -46,6 +49,17 @@ export function App() {
   const { panes, setOpen, setWidth, reset } = usePanes();
   // The token names the group the pill was pressed on, so a later plain selection of a group never inherits the focus request.
   const [addToken, setAddToken] = useState<{ id: string; n: number } | null>(null);
+  const [launcher, setLauncher] = useState<LauncherRequest | null>(null);
+  const yamlBroken = state.doc.errors.length > 0;
+  const openLauncher = useCallback(() => setLauncher({}), []);
+  useHotkey("a", openLauncher, !yamlBroken && !launcher);
+  // toJS() walks the whole document; only pay for it while the launcher is open.
+  const values = useMemo(() => (launcher ? (inspectorDoc.toJS() as Record<string, unknown>) : {}), [launcher, inspectorDoc]);
+  // Text is canonical: the launcher only produces ops; the reducer's one-shot focusPath selects the new node once it renders.
+  const onAdd = useCallback((key: string, name: string) => {
+    dispatch({ type: "edit", ops: addEntityOps(schema as SchemaNode, key, name) });
+    dispatch({ type: "focus-path", path: [key, name] });
+  }, []);
   // A node click always shows the inspector, even after the user collapsed it for the previous node.
   useEffect(() => { if (state.selection) setOpen("inspector", true); }, [state.selection, setOpen]);
   const dragStart = useRef<{ editor: number; inspector: number }>({ editor: 0, inspector: 0 });
@@ -108,9 +122,12 @@ export function App() {
         <section className="pane pane-canvas">
           {error && <div className={`banner ${error.kind}`}><pre>{error.message}</pre></div>}
           {!error && warnings.length > 0 && <div className="banner warn">{warnings.map((w) => <div key={w}>{w}</div>)}</div>}
-          <Canvas model={state.graph} stale={!!error || state.doc.errors.length > 0} selection={state.selection}
-            onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }}
-            onAddResource={(id) => { dispatch({ type: "select", id }); setOpen("inspector", true); setAddToken((t) => ({ id, n: (t?.n ?? 0) + 1 })); }} />
+          <div className="canvas-wrap">
+            <AddButton disabled={yamlBroken} open={launcher} onOpen={openLauncher} onClose={() => setLauncher(null)} root={schema as SchemaNode} values={values} onAdd={onAdd} />
+            <Canvas model={state.graph} stale={!!error || yamlBroken} selection={state.selection}
+              onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }}
+              onAddResource={(id) => { dispatch({ type: "select", id }); setOpen("inspector", true); setAddToken((t) => ({ id, n: (t?.n ?? 0) + 1 })); }} />
+          </div>
         </section>
         {sel && panes.inspector.open && (
           <>
@@ -119,7 +136,7 @@ export function App() {
             <section className="pane" style={{ width: panes.inspector.width }}>
               <DetailPanel
                 sel={sel} nodes={state.graph?.nodes ?? []} tab={state.ui.tab} tier={state.ui.tier} doc={inspectorDoc} root={schema as SchemaNode}
-                disabled={state.doc.errors.length > 0} focusToken={addToken && addToken.id === state.selection ? addToken.n : 0}
+                disabled={yamlBroken} focusToken={addToken && addToken.id === state.selection ? addToken.n : 0}
                 onTab={(tab) => dispatch({ type: "tab", tab })} onTier={(tier) => dispatch({ type: "tier", tier })}
                 onEdit={(ops) => dispatch({ type: "edit", ops })}
                 onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); setOpen("inspector", true); }}
