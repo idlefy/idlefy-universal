@@ -12,6 +12,7 @@ import { resolveSelection, titleOf } from "./selection";
 import { useRenderPipeline } from "./useRenderPipeline";
 import { usePanes, SplitHandle, Rail } from "./Panes";
 import { AddButton, type LauncherRequest } from "../palette/AddButton";
+import { EmptyState } from "../palette/EmptyState";
 import { useHotkey } from "../palette/useHotkey";
 import { addEntityOps } from "../palette/add";
 
@@ -60,6 +61,16 @@ export function App() {
     dispatch({ type: "edit", ops: addEntityOps(schema as SchemaNode, key, name) });
     dispatch({ type: "focus-path", path: [key, name] });
   }, []);
+  // The editor pane is closed by default and the examples <select> lives inside it: open first, focus on the next frame.
+  const loadExample = useCallback(() => {
+    setOpen("editor", true);
+    requestAnimationFrame(() => document.querySelector<HTMLSelectElement>('select[aria-label="examples"]')?.focus());
+  }, [setOpen]);
+  // Not while the YAML is broken (the banner covers that) or the render failed (the canvas error covers that);
+  // Canvas itself only shows the slot when the graph has zero manifest nodes, and shows nothing before the first render.
+  const emptyState = !error && !yamlBroken
+    ? <EmptyState onAddDeployment={() => setLauncher({ key: "deployments" })} onLoadExample={loadExample} />
+    : undefined;
   // A node click always shows the inspector, even after the user collapsed it for the previous node.
   useEffect(() => { if (state.selection) setOpen("inspector", true); }, [state.selection, setOpen]);
   const dragStart = useRef<{ editor: number; inspector: number }>({ editor: 0, inspector: 0 });
@@ -126,7 +137,8 @@ export function App() {
             <AddButton disabled={yamlBroken} open={launcher} onOpen={openLauncher} onClose={() => setLauncher(null)} root={schema as SchemaNode} values={values} onAdd={onAdd} />
             <Canvas model={state.graph} stale={!!error || yamlBroken} selection={state.selection}
               onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }}
-              onAddResource={(id) => { dispatch({ type: "select", id }); setOpen("inspector", true); setAddToken((t) => ({ id, n: (t?.n ?? 0) + 1 })); }} />
+              onAddResource={(id) => { dispatch({ type: "select", id }); setOpen("inspector", true); setAddToken((t) => ({ id, n: (t?.n ?? 0) + 1 })); }}
+              emptyState={emptyState} />
           </div>
         </section>
         {sel && panes.inspector.open && (

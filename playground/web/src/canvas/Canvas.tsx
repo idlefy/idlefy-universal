@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -38,12 +38,14 @@ export function Canvas({
   selection,
   onSelect,
   onAddResource,
+  emptyState,
 }: {
   model: GraphModel | null;
   stale: boolean;
   selection: string | null;
   onSelect: (id: string | null) => void;
   onAddResource: (groupId: string) => void;
+  emptyState?: ReactNode;
 }) {
   const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[] }>({
     nodes: [],
@@ -129,7 +131,7 @@ export function Canvas({
         <div className="canvas-error">Layout failed: {layoutError}</div>
       )}
       {!layoutError && model.nodes.filter((n) => n.manifest).length === 0 && (
-        <div className="canvas-empty overlay">No resources rendered yet.</div>
+        emptyState ?? <div className="canvas-empty overlay">No resources rendered yet.</div>
       )}
     </div>
   );

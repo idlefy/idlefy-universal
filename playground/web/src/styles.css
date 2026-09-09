@@ -296,4 +296,11 @@ code { font-family: var(--mono); font-size: 12px; }
 .name-step .hint { margin: 6px 0 0; color: var(--muted); font-size: 11.5px; }
 .name-step .preview { margin-top: 10px; padding: 8px 10px; border-radius: var(--r); background: var(--panel-2); }
 .name-step .preview .ph { font-size: 11px; font-weight: 600; color: var(--ink-2); margin-bottom: 4px; }
+.empty { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }   /* like .canvas-empty.overlay: never swallow React Flow's pane clicks/controls */
+.empty-card { pointer-events: auto; width: 400px; max-width: calc(100% - 48px); padding: 22px 24px 18px; border-radius: 12px; background: var(--panel); box-shadow: var(--shadow); text-align: center; }
+.empty-card .glyph { width: 40px; height: 40px; margin: 0 auto 10px; display: grid; place-items: center; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 22px; }
+.empty-card h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+.empty-card p { margin: 0; color: var(--ink-2); }
+.empty-card .row { display: flex; justify-content: center; gap: 8px; margin: 14px 0 12px; }
+.empty-card .hint { color: var(--muted); font-size: 11.5px; }
 .name-step .preview pre { margin: 0; font: 11.5px/1.45 var(--mono); white-space: pre; overflow-x: auto; }
