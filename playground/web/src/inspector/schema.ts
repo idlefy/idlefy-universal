@@ -1,4 +1,5 @@
 import type { ValuesPath } from '../model/ValuesDocument';
+import { isObj as isObjGuard, isScalar } from '../model/guards';
 
 export type SchemaNode = Record<string, any>;
 export type Widget =
@@ -25,8 +26,7 @@ export function deref(root: SchemaNode, node: SchemaNode | undefined, depth = 0)
   return { ...deref(root, target, depth + 1), ...siblings, 'x-ref-name': ref.slice(REF.length) };
 }
 
-const isObj = (v: unknown): v is SchemaNode => !!v && typeof v === 'object' && !Array.isArray(v);
-const isScalar = (v: unknown): boolean => v === null || typeof v !== 'object';
+const isObj = (v: unknown): v is SchemaNode => isObjGuard<SchemaNode>(v);
 
 /** True when at least one `examples` entry is an object with a non-scalar (object/array) value —
  *  a flat key/value widget can't represent that, so the node needs the `yaml` widget instead. */

@@ -4,8 +4,8 @@ import { FieldList } from './index';
 import { resolve, classify, type SchemaNode } from '../schema';
 import { itemShape, itemLabelOf, starterValue } from '../form';
 import { YamlField } from './YamlField';
+import { isObj } from '../../model/guards';
 
-const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 const leafAt = (v: unknown, leaf: string[]): unknown => leaf.reduce<any>((cur, k) => (isObj(cur) ? cur[k] : undefined), v);
 
 /** A list of objects as rows (spec 2026-09-08 §5.2): pair rows when the item is small, collapsed block rows otherwise. */

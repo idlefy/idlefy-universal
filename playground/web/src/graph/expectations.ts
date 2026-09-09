@@ -1,6 +1,7 @@
 import type { Provenance, RemoveAction } from './types';
 import type { ValuesPath } from '../model/ValuesDocument';
 import { SECONDARY, SVC_KINDS, SA_KINDS, SM_KINDS, PDB_KINDS, hasAnyPort } from './secondary';
+import { isObj } from '../model/guards';
 
 export type Expectation = {
   kind: string; name: string; namespace: string;
@@ -20,7 +21,6 @@ const sec = (id: string) => SECONDARY.find((s) => s.id === id)!;
 const on = (id: string, cfg: Record<string, any>) => sec(id).isOn(cfg);
 const off = (id: string, base: ValuesPath) => sec(id).off(base);
 
-const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 const del = (p: ValuesPath): RemoveAction => ({ op: 'delete', path: p });
 
 type Extra = { owner?: ValuesPath; standalone?: boolean; matchBy?: Expectation['matchBy']; templateFile?: string };
@@ -47,7 +47,7 @@ export function buildExpectations(values: any, ns: string): Expectation[] {
 
   for (const [kindKey, kind] of Object.entries(WORKLOAD_KINDS)) {
     for (const [name, raw] of Object.entries<any>(values?.[kindKey] ?? {})) {
-      const cfg = isObj(raw) ? raw : {};
+      const cfg = isObj<Record<string, any>>(raw) ? raw : {};
       const base: ValuesPath = [kindKey, name];
       const owner: Extra = { owner: base };
       // jobs.N renders in job.yaml before the migrations block, hence standalone: true.

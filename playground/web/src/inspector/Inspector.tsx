@@ -15,13 +15,12 @@ import { OwnerStrip } from './OwnerStrip';
 import { GroupPanel } from './GroupPanel';
 import { SecondaryPanel } from './SecondaryPanel';
 import { HiddenNote } from './HiddenNote';
-import { sameP } from './paths';
+import { isObj, samePath } from '../model/guards';
 
 const RELEASE_SECTIONS = ['generic', 'deploymentsGeneral', 'statefulSetsGeneral', 'daemonSetsGeneral', 'secretRefs'];
 // Flags the switch list owns and the config blocks behind them: reached through the group panel, never as plain fields.
 export const OWNED_FLAGS = new Set(SECONDARY.map((s) => `autoCreate${s.id[0].toUpperCase()}${s.id.slice(1)}`));
 export const ALL_BLOCKS = new Set<string>(SECONDARY.map((s) => s.id));
-const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export type InspectorProps = {
   sel: ResolvedSelection; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[];
@@ -37,8 +36,8 @@ export function Inspector(p: InspectorProps): ReactElement {
 
   // spec 2026-09-08 §3.2: only the workload's own fields, with the group named above them
   const workloadPanel = (base: ValuesPath, name: string) => {
-    const wl = p.nodes.find((n) => isWorkloadNode(n) && sameP(n.provenance!.path, base));
-    const members = p.nodes.filter((n) => n.provenance?.owner && sameP(n.provenance.owner, base));
+    const wl = p.nodes.find((n) => isWorkloadNode(n) && samePath(n.provenance!.path, base));
+    const members = p.nodes.filter((n) => n.provenance?.owner && samePath(n.provenance.owner, base));
     const summary = members.length === 0 ? 'no other resources yet' : members.length === 1 ? members[0].kind : `${members[0].kind}, ${members.length - 1} more`;
     return (
       <>

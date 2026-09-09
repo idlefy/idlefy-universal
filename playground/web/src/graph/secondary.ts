@@ -1,4 +1,5 @@
 import type { EditOp, ValuesPath } from '../model/ValuesDocument';
+import { isFilledObj as isFilledObjGuard, isObj as isObjGuard } from '../model/guards';
 
 export type SecondaryId = 'service' | 'ingress' | 'httpRoute' | 'certificate' | 'hpa' | 'migrations' | 'pdb' | 'serviceMonitor' | 'networkPolicy' | 'rbac' | 'serviceAccount';
 type Cfg = Record<string, any>;
@@ -18,8 +19,8 @@ export const SA_KINDS = new Set(['deployments', 'statefulSets', 'daemonSets']);
 export const SM_KINDS = SA_KINDS;
 export const PDB_KINDS = SA_KINDS;
 
-const isObj = (v: unknown): v is Cfg => !!v && typeof v === 'object' && !Array.isArray(v);
-const isFilledObj = (v: unknown): v is Cfg => isObj(v) && Object.keys(v).length > 0;
+const isObj = (v: unknown): v is Cfg => isObjGuard<Cfg>(v);
+const isFilledObj = (v: unknown): v is Cfg => isFilledObjGuard<Cfg>(v);
 const set = (path: ValuesPath, value: unknown): EditOp => ({ op: 'set', path, value });
 const del = (path: ValuesPath): EditOp => ({ op: 'delete', path });
 const setFalse = (path: ValuesPath) => set(path, false);

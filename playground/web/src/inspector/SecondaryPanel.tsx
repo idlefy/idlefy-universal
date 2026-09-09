@@ -10,9 +10,7 @@ import { Sections } from './Sections';
 import { OwnerStrip } from './OwnerStrip';
 import { secondaryById, type InspectTarget } from './target';
 import { SECONDARY_SECTIONS, SERVICE_OWNER_KEYS, KIND_LABEL } from './sections';
-import { sameP } from './paths';
-
-const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
+import { isObj, samePath } from '../model/guards';
 
 /** spec 2026-09-08 §3.3 / §3.3.1 / §3.5: one auto-created resource, with or without a rendered node. */
 export function SecondaryPanel(p: {
@@ -22,7 +20,7 @@ export function SecondaryPanel(p: {
   const { owner, secondary, path } = p.target;
   const sec = secondaryById(secondary);
   const kindKey = String(owner[0]), name = String(owner[1]);
-  const ownerNode = p.nodes.find((n) => isWorkloadNode(n) && sameP(n.provenance!.path, owner)) ?? null;
+  const ownerNode = p.nodes.find((n) => isWorkloadNode(n) && samePath(n.provenance!.path, owner)) ?? null;
   const ownerKind = ownerNode?.kind ?? KIND_LABEL[kindKey] ?? kindKey;
   const raw = p.doc.valueAt(owner);
   const cfg = isObj(raw) ? raw : {};

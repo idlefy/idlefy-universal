@@ -2,9 +2,7 @@ import { useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import type { SchemaNode } from '../schema';
 import { YamlField } from './YamlField';
-
-const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
-export const isScalar = (v: unknown): boolean => v === null || typeof v !== 'object';
+import { isObj, isScalar } from '../../model/guards';
 
 /**
  * True when this node's own `examples` show a non-string scalar, i.e. the map really holds numbers

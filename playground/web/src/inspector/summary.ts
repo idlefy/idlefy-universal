@@ -1,4 +1,5 @@
 import type { SecondaryId } from '../graph/secondary';
+import { isObj } from '../model/guards';
 
 export const ORDER: readonly SecondaryId[] = ['service', 'ingress', 'httpRoute', 'certificate', 'hpa', 'pdb', 'serviceMonitor', 'networkPolicy', 'serviceAccount', 'rbac', 'migrations'];
 
@@ -15,7 +16,6 @@ const HINT: Record<SecondaryId, string> = {
 };
 export const hintOf = (id: SecondaryId): string => HINT[id];
 
-const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
 export const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 /** One line describing the configured block; never throws on partial config. */

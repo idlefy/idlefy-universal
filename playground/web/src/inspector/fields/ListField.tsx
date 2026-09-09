@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { YamlField } from './YamlField';
-import { isScalar } from './KeyValueField';
+import { isScalar } from '../../model/guards';
 
 /** One row per item (spec 2026-09-08 §5.1). Add appends an item and focuses it; removing the last item deletes the key. */
 export function ListField(props: FieldProps): ReactElement {

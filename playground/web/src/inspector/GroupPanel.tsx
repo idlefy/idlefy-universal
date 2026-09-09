@@ -6,8 +6,7 @@ import { schemaAt, type SchemaNode } from './schema';
 import { KindIcon } from '../canvas/icons';
 import { AutoCreated } from './AutoCreated';
 import { workloadSummary } from './summary';
-
-const isObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v);
+import { isObj } from '../model/guards';
 
 /** spec 2026-09-08 §3.1: the workload row and the "Created alongside it" switch list. */
 export function GroupPanel(p: {

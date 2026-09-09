@@ -1,13 +1,12 @@
 import type { ValuesPath } from '../model/ValuesDocument';
 import type { Tier } from '../app/state';
 import { classify, resolve, type SchemaNode, type Widget } from './schema';
+import { isObj } from '../model/guards';
 
 export type Field = {
   key: string; path: ValuesPath; label: string; description?: string;
   widget: Widget; schema: SchemaNode; value: unknown; present: boolean; required: boolean; tier: Tier;
 };
-
-const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 export function buildFields(root: SchemaNode, node: SchemaNode, basePath: ValuesPath, value: unknown, tier: Tier, opts: { hide?: (key: string) => boolean } = {}): Field[] {
   const r = resolve(root, node);
@@ -79,7 +78,7 @@ export type ItemShape = { identifying: string | null; leaves: string[][]; extras
 const ID_KEYS = ['name', 'host', 'key', 'mountPath', 'path', 'ip', 'type', 'secretName'];
 const kindOf = (root: SchemaNode, node: SchemaNode) => classify(root, node).kind;
 const isTextLeaf = (root: SchemaNode, node: SchemaNode) => { const k = kindOf(root, node); return k === 'string' || k === 'number'; };
-const isScalar = (root: SchemaNode, node: SchemaNode) => isTextLeaf(root, node) || kindOf(root, node) === 'boolean';
+const isLeafWidget = (root: SchemaNode, node: SchemaNode) => isTextLeaf(root, node) || kindOf(root, node) === 'boolean';
 // inside a promoted nested object, identifying-style keys come first (`secretKeyRef.name / secretKeyRef.key`), then schema order
 const byIdKeys = (a: string, b: string) => (ID_KEYS.indexOf(a) + 1 || 99) - (ID_KEYS.indexOf(b) + 1 || 99);
 
@@ -101,7 +100,7 @@ export function itemShape(root: SchemaNode, item: SchemaNode): ItemShape {
     if (isTextLeaf(root, s)) { leaves.push([k]); continue; }
     const sub: Record<string, SchemaNode> = isObj(s.properties) ? (s.properties as any) : {};
     const subKeys = Object.keys(sub);
-    if (kindOf(root, s) === 'object' && subKeys.length > 0 && subKeys.every((sk) => isScalar(root, resolve(root, sub[sk])))) {
+    if (kindOf(root, s) === 'object' && subKeys.length > 0 && subKeys.every((sk) => isLeafWidget(root, resolve(root, sub[sk])))) {
       const text = subKeys.filter((sk) => isTextLeaf(root, resolve(root, sub[sk]))).sort(byIdKeys);
       for (const sk of text) leaves.push([k, sk]);
       if (text.length < subKeys.length) extras.push(k);

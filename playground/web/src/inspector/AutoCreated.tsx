@@ -5,8 +5,7 @@ import { KindIcon } from '../canvas/icons';
 import { ORDER, kindOfSecondary, hintOf, summaryOf } from './summary';
 import { familyOf } from '../graph/labels';
 import { blockId } from '../app/selection';
-
-const isFilledObj = (v: unknown): v is Record<string, any> => !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length > 0;
+import { isFilledObj } from '../model/guards';
 
 /** Switch list of the resources the chart can auto-create for a workload (spec 2026-09-08 §3.1). Never renders a block inline. */
 export function AutoCreated(p: {
