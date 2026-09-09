@@ -41,3 +41,28 @@ very first inspector edit on a document that uses flush-left sequences (`- a` at
 indentation), multiple spaces before a `# comment`, or a trailing comment with no blank line above
 it — that first edit normalises those lines once (sequences get indented, comments get one leading
 space). It happens once, lands as a single undo step, and never recurs after that.
+
+### Adding and removing resources
+
+Press **A** anywhere on the page (outside a text field), or click **＋ Add** at the top-left of the
+canvas, to open the launcher. Type to filter the eleven things the chart can render at the top
+level — the five workload kinds and the standalone Config, Service, Ingress, HTTPRoute, HPA and
+PVC — pick one with the arrow keys or the mouse, and name it. The name is checked as you type
+against the schema's key pattern (a DNS label for most entries) and against the names already in
+your document; the panel previews the YAML the insert will produce. **Enter** inserts it into
+`values.yaml`, selects the new node and opens the inspector on it.
+
+Starter bodies come from the schema's own examples, with a few corrections so a from-scratch
+document renders: a Deployment gets a container port (so its auto-created Service appears), an
+Ingress and an HTTPRoute get `<name>.example.com` as their host, a Service gets a selector
+matching its own name. References inside them (an HPA's target, a route's backend) are
+placeholders — edit them in the inspector.
+
+The inspector header of a workload, a workload group or a standalone resource has a **🗑 Remove**
+button. It deletes that entry from `values.yaml` (a workload's auto-created resources go with it);
+**Ctrl+Z** in the editor restores it. Auto-created resources have no Remove button: switch them
+off from the group panel instead.
+
+When the document renders nothing, the canvas shows a card with **Add a Deployment** and **Load an
+example**. Start from an empty editor rather than `{}`: a flow-style root keeps every later insert
+on one line.
