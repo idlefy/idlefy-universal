@@ -108,13 +108,15 @@ describe('itemShape', () => {
   });
   it('secretRefs item: name + secretKeyRef.name / secretKeyRef.key (name first); the boolean `optional` keeps secretKeyRef behind the expander', () => {
     const items = resolve(root, root.properties.secretRefs.additionalProperties).items;
-    expect(itemShape(root, items)).toEqual({ identifying: 'name', leaves: [['secretKeyRef', 'name'], ['secretKeyRef', 'key']], extras: ['secretKeyRef'], required: ['name', 'secretKeyRef'], pair: true });
+    expect(itemShape(root, items)).toEqual({ identifying: 'name', leaves: [['secretKeyRef', 'name'], ['secretKeyRef', 'key']], extras: ['secretKeyRef'], required: ['name', 'secretKeyRef'], pair: true, exclusive: [] });
   });
   it('required leaves are reported', () => {
     expect(itemShape(root, resolve(root, schemaAt(root, ['deployments', 'web', 'containers', 'main', 'env'])!).items).required).toEqual(['name']);
   });
   it('hosts: host + subdomain pair, paths behind the expander', () => {
-    expect(shape(['deployments', 'web', 'ingress', 'hosts'])).toEqual({ identifying: 'host', leaves: [['subdomain']], extras: ['paths'], required: [], pair: true });
+    expect(shape(['deployments', 'web', 'ingress', 'hosts'])).toEqual({ identifying: 'host', leaves: [['subdomain']], extras: ['paths'], required: [], pair: true, exclusive: [] });
+    // anyOf (IngressHost) admits both keys; only a oneOf of single required keys is exclusive
+    expect(shape(['deployments', 'web', 'httpRoute', 'hostnames'])).toMatchObject({ identifying: 'host', leaves: [['subdomain']], pair: true, exclusive: ['host', 'subdomain'] });
   });
   it('tls and hostAliases: an identifying leaf plus a list → block', () => {
     expect(shape(['deployments', 'web', 'ingress', 'tls'])).toMatchObject({ identifying: 'secretName', leaves: [], extras: ['hosts'], pair: false });

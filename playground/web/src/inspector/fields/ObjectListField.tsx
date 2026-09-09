@@ -84,7 +84,11 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
     const value = parseScalarText(text, classify(root, leafSchema(leaf)));
     if (value === undefined) { setDrafts((d) => ({ ...d, [draftKey]: text })); return; }
     clearDraft(draftKey);
-    onEdit([{ op: 'set', path, value }]);
+    // a oneOf-exclusive leaf (host xor subdomain) evicts its siblings, or the item fails the schema
+    const row = items[i];
+    const evict = leaf.length === 1 && shape.exclusive.includes(leaf[0]) && isObj(row)
+      ? shape.exclusive.filter((k) => k !== leaf[0] && (row as Record<string, unknown>)[k] !== undefined) : [];
+    onEdit([{ op: 'set', path, value }, ...evict.map((k) => ({ op: 'delete' as const, path: [...field.path, i, k] }))]);
   };
   const leafInput = (i: number, v: unknown, leaf: string[], cls: string) => {
     const s = leafSchema(leaf);

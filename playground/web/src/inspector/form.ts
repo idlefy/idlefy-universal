@@ -93,7 +93,7 @@ export function starterValue(root: SchemaNode, node: SchemaNode): unknown {
   }
 }
 
-export type ItemShape = { identifying: string | null; leaves: string[][]; extras: string[]; required: string[]; pair: boolean };
+export type ItemShape = { identifying: string | null; leaves: string[][]; extras: string[]; required: string[]; pair: boolean; exclusive: string[] };
 const ID_KEYS = ['name', 'host', 'key', 'mountPath', 'path', 'ip', 'type', 'secretName'];
 const kindOf = (root: SchemaNode, node: SchemaNode) => classify(root, node).kind;
 const isTextLeaf = (root: SchemaNode, node: SchemaNode) => { const k = kindOf(root, node); return k === 'string' || k === 'number'; };
@@ -108,6 +108,8 @@ const byIdKeys = (a: string, b: string) => (ID_KEYS.indexOf(a) + 1 || 99) - (ID_
  * objects) is an "extra" reachable through the row's expander; a promoted nested object that also has a
  * boolean (`secretKeyRef.optional`) is both. Pair row = an identifying leaf plus one or two other leaves.
  * `required` lists the item's required top-level keys so an emptied required leaf is set to '' rather than deleted.
+ * `exclusive` lists top-level leaves a `oneOf` of single `required` keys makes mutually exclusive
+ * (HttpRouteHostname: `host` xor `subdomain`) — setting one must delete the others.
  */
 export function itemShape(root: SchemaNode, item: SchemaNode): ItemShape {
   const r = resolve(root, item);
@@ -129,7 +131,10 @@ export function itemShape(root: SchemaNode, item: SchemaNode): ItemShape {
   }
   const identifying = ID_KEYS.find((k) => leaves.some((l) => l.length === 1 && l[0] === k)) ?? null;
   const rest = leaves.filter((l) => !(l.length === 1 && l[0] === identifying));
-  return { identifying, leaves: rest, extras, required: Array.isArray(r.required) ? r.required.map(String) : [], pair: identifying !== null && rest.length >= 1 && rest.length <= 2 };
+  const alts: any[] = Array.isArray(r.oneOf) ? r.oneOf : [];
+  const single = (a: any) => Array.isArray(a?.required) && a.required.length === 1 && leaves.some((l) => l.length === 1 && l[0] === a.required[0]);
+  const exclusive = alts.length > 1 && alts.every(single) ? alts.map((a) => String(a.required[0])) : [];
+  return { identifying, leaves: rest, extras, required: Array.isArray(r.required) ? r.required.map(String) : [], pair: identifying !== null && rest.length >= 1 && rest.length <= 2, exclusive };
 }
 
 const ITEM_LABELS: Record<string, string> = {

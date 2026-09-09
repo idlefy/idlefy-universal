@@ -65,6 +65,19 @@ describe('ObjectListField', () => {
     expect(screen.getByLabelText('add field x.refs.0.secretKeyRef.optional')).toBeTruthy();
     expect(screen.queryByText('No fields here.')).toBeNull();
   });
+  it('oneOf-exclusive leaves: setting subdomain deletes host and vice versa; other pairs are untouched', () => {
+    const onEdit = vi.fn();
+    const hostnames = schemaAt(root, ['deployments', 'web', 'httpRoute'])!;
+    const hbase = [...base, 'httpRoute'];
+    render(<FieldList root={root} node={hostnames} basePath={hbase} value={{ hostnames: [{ host: 'a.example.com' }, { subdomain: 'api' }] }} tier="basic" onEdit={onEdit} />);
+    fireEvent.change(screen.getByLabelText('deployments.web.httpRoute.hostnames.0.subdomain'), { target: { value: 'shop' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...hbase, 'hostnames', 0, 'subdomain'], value: 'shop' }, { op: 'delete', path: [...hbase, 'hostnames', 0, 'host'] }]);
+    fireEvent.change(screen.getByLabelText('deployments.web.httpRoute.hostnames.1.host'), { target: { value: 'b.example.com' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...hbase, 'hostnames', 1, 'host'], value: 'b.example.com' }, { op: 'delete', path: [...hbase, 'hostnames', 1, 'subdomain'] }]);
+    // no sibling present → a plain set
+    fireEvent.change(screen.getByLabelText('deployments.web.httpRoute.hostnames.1.subdomain'), { target: { value: 'api2' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...hbase, 'hostnames', 1, 'subdomain'], value: 'api2' }]);
+  });
   it('a present non-list value keeps the raw YAML editor', () => {
     render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: { NOT: 'a list' } }} tier="basic" onEdit={vi.fn()} />);
     fireEvent.click(screen.getByLabelText('edit deployments.web.containers.main.env as YAML'));
