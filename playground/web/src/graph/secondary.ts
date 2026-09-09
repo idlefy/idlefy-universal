@@ -8,7 +8,11 @@ export type Secondary = {
   isOn(cfg: Cfg): boolean;
   on(base: ValuesPath, cfg: Cfg, name: string): EditOp[];
   off(base: ValuesPath): EditOp[];
-  blocked?(cfg: Cfg, kindKey?: string): string | undefined;   // reason the toggle cannot be switched on
+  blocked?(cfg: Cfg, kindKey?: string): string | undefined;      // reason the toggle cannot be switched on
+  // Turning a toggle off can be just as invalid as turning it on: the chart fails a workload whose
+  // autoCreateRbac is true and has no ServiceAccount left. The switch is disabled while this returns
+  // a reason, and the reason replaces the summary line.
+  blockedOff?(cfg: Cfg, kindKey?: string): string | undefined;   // reason it cannot be switched off
 };
 
 // Workload map keys each auto-created resource is rendered for (verified against templates/*.yaml, see expectations.ts).
