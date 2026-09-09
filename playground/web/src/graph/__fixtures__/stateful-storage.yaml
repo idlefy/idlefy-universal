@@ -1,0 +1,290 @@
+---
+# Source: idlefy-universal/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uploads
+  labels:
+    helm.sh/chart: idlefy-universal-1.2.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: uploads
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: uploads
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Source: idlefy-universal/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    helm.sh/chart: idlefy-universal-1.2.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+---
+# Source: idlefy-universal/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cache-headless
+  labels:
+    helm.sh/chart: idlefy-universal-1.2.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: cache-headless
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: cache-headless
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp
+      port: 80
+      targetPort: 80
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: cache
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: cache
+---
+# Source: idlefy-universal/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: files
+  labels:
+    helm.sh/chart: idlefy-universal-1.2.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: files
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: files
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: files
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: files
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: idlefy-universal-1.2.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: files
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/component: files
+    spec:
+      containers:
+      - name: main
+        image: nginx:1.27-alpine
+        volumeMounts:
+          - name: uploads
+            mountPath: /data
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads
+---
+# Source: idlefy-universal/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    helm.sh/chart: idlefy-universal-1.2.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: idlefy-universal-1.2.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: web
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/component: web
+    spec:
+      containers:
+      - name: main
+        image: nginx:1.27-alpine
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+        envFrom:
+          - secretRef:
+              name: app-secrets
+          - configMapRef:
+              name: app-config
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+---
+# Source: idlefy-universal/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cache
+  labels:
+    helm.sh/chart: idlefy-universal-1.2.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: cache
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: cache
+spec:
+  serviceName: cache-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cache
+      app.kubernetes.io/instance: demo
+      app.kubernetes.io/component: cache
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: idlefy-universal-1.2.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: cache
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/component: cache
+    spec:
+      containers:
+      - name: main
+        image: nginx:1.27-alpine
+        ports:
+          - name: tcp
+            containerPort: 80
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+---
+# Source: idlefy-universal/templates/hpa.yaml
+---
+---
+# Source: idlefy-universal/templates/configs.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  labels:
+    helm.sh/chart: idlefy-universal-1.2.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: app-secrets
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: app-secrets
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+type: Opaque
+data:
+  DB_PASSWORD: czNjcjN0
+---
+# Source: idlefy-universal/templates/configs.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  labels:
+    helm.sh/chart: idlefy-universal-1.2.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: app-config
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: app-config
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-10"
+data:
+  LOG_LEVEL: "info"
+---
+# Source: idlefy-universal/templates/job.yaml
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: web-migrations
+  labels:
+    helm.sh/chart: idlefy-universal-1.2.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: web-migrations
+    app.kubernetes.io/instance: demo
+    app.kubernetes.io/component: web-migrations
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: idlefy-universal-1.2.0
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: web-migrations
+        app.kubernetes.io/instance: demo
+        app.kubernetes.io/component: web-migrations
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: main
+        image: nginx:1.27-alpine
+        args:
+          - nginx
+          - -v
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+        envFrom:
+          - secretRef:
+              name: app-secrets
+          - configMapRef:
+              name: app-config
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi

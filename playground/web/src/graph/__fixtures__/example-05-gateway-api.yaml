@@ -5,7 +5,7 @@ kind: Service
 metadata:
   name: web
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: web
     app.kubernetes.io/instance: demo
@@ -28,7 +28,7 @@ kind: Deployment
 metadata:
   name: web
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: web
     app.kubernetes.io/instance: demo
@@ -43,7 +43,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.1.0
+        helm.sh/chart: idlefy-universal-1.2.0
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: web
         app.kubernetes.io/instance: demo
@@ -70,7 +70,7 @@ kind: HTTPRoute
 metadata:
   name: web
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: web
     app.kubernetes.io/instance: demo

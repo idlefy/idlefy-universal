@@ -1,0 +1,75 @@
+# ci: coverage that no other ci file has — migrations hook Job, standalone persistentVolumeClaims
+# mounted by a Deployment, configs.type: secret read via container envFrom — plus a StatefulSet with
+# an auto-created governing Service (also in full-features; kept here so the playground fixture is
+# self-contained). CRD-free so `ct install` works on bare kind.
+#
+# The migrations Job inherits its deployment's whole pod spec (volumes included) and is a
+# pre-install hook, so it MUST NOT live on the deployment that mounts the PVC: the PVC is created in
+# the main install phase, the hook pod would stay Pending and `ct install` would time out (600s).
+configs:
+  app-secrets:
+    type: secret
+    data:
+      DB_PASSWORD: s3cr3t
+  app-config:
+    type: configMap
+    data:
+      LOG_LEVEL: info
+
+persistentVolumeClaims:
+  uploads:
+    size: 1Gi
+    accessModes: [ReadWriteOnce]
+
+deployments:
+  web:                       # migrations hook + envFrom; no volumes, so the hook pod has no PVC dependency
+    replicas: 1
+    autoCreateService: true
+    migrations:
+      enabled: true
+      # The chart sets no `command`, so args replace CMD only and the image ENTRYPOINT
+      # (/docker-entrypoint.sh) still runs: ["nginx", "-v"] execs `nginx -v` (exit 0);
+      # ["-v"] alone hits the entrypoint's getopts and exits 2.
+      args: ["nginx", "-v"]
+      backoffLimit: 1
+    containers:
+      main:
+        image: nginx
+        imageTag: "1.27-alpine"
+        ports:
+          http: {containerPort: 80, servicePort: 80}
+        envFrom:
+          - {type: secret, configName: app-secrets}
+          - {type: configMap, configName: app-config}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 128Mi}
+  files:                     # PVC mount; no migrations, no Service
+    replicas: 1
+    containers:
+      main:
+        image: nginx
+        imageTag: "1.27-alpine"
+        volumeMounts:
+          - {name: uploads, mountPath: /data}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 128Mi}
+    volumes:
+      - name: uploads
+        persistentVolumeClaim: {claimName: uploads}
+
+statefulSets:
+  cache:
+    replicas: 1
+    serviceName: cache-headless
+    autoCreateService: true    # serviceHeadless defaults to true under autoCreateService (_defaults.tpl)
+    containers:
+      main:
+        image: nginx
+        imageTag: "1.27-alpine"
+        ports:
+          tcp: {containerPort: 80}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 128Mi}

@@ -3,9 +3,19 @@ import { test, expect } from '@playwright/test';
 const BAD = 'deployments:\n  app:\n    replcias: 1\n    containers:\n      main: {image: nginx, imageTag: "1"}\n';
 const GOOD = BAD.replace('replcias', 'replicas');
 
+// The YAML pane starts collapsed; tests that use the toolbar or type into Monaco open it first.
+// Waits for either the rail or an already-visible editor so it cannot race the first paint.
+const openYaml = async (page: import('@playwright/test').Page) => {
+  const rail = page.getByRole('button', { name: 'Show values.yaml' });
+  await rail.or(page.locator('.editor:visible')).first().waitFor();
+  if (await rail.isVisible()) await rail.click();
+  await expect(page.locator('.editor')).toBeVisible();
+};
+
 test('renders, errors, recovers', async ({ page }) => {
   await page.goto('./');
   await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
+  await openYaml(page);
   await page.getByLabel('examples').selectOption('05-gateway-api');
   // examples/05: Deployment web, Service web, HTTPRoute web + external Gateway eg + dangling external
   // Service demo-web (the example's backendRef does not match its own Service) + release node = 6.
@@ -33,6 +43,8 @@ test('renders, errors, recovers', async ({ page }) => {
   // Node order follows buildGraph's array: the synthetic Release node is always first, so the
   // real manifest node (the one with a "kind:" line in its detail) is last, not first.
   await page.locator('.rnode').last().click();
+  // The detail panel opens on the Fields tab; the rendered manifest lives behind the Manifest tab.
+  await page.getByRole('tab', { name: 'Manifest' }).click();
   await expect(page.locator('.detail pre')).toContainText('kind:');
 });
 

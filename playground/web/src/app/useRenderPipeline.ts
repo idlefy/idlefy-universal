@@ -24,7 +24,6 @@ export function useRenderPipeline(state: AppState, dispatch: (a: Action) => void
     const rev = ++revision.current;
     if (engineError || doc.errors.length) return;                  // YAML invalid: keep last graph, markers show the error
     const t = setTimeout(async () => {
-      dispatch({ type: 'render-start' });
       let result;
       try {
         result = await client.current!.render(text, releaseName, namespace);   // rejects only if ready rejected

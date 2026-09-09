@@ -56,6 +56,13 @@ x-agent-example-use-case: |
   configuration changes.
 ```
 
+## `x-ui-tier`
+
+Playground-only hint. `x-ui-tier: basic` marks a field the browser playground's Object
+Inspector shows in its default *Basic* view; every other field appears under *Advanced*.
+Set it in `schema/docs/*.yaml` next to `description`. Allowed values: `basic`. The
+keyword is not part of `agent-index.json`.
+
 ## `agent-index.json`
 
 A flat machine-readable index shipped at `charts/idlefy-universal/agent-index.json`.

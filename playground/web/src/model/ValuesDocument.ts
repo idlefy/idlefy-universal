@@ -2,6 +2,8 @@ import { Document, parseDocument, isMap, isSeq, isPair, LineCounter } from 'yaml
 
 export type ValuesPath = (string | number)[];
 
+export type EditOp = { op: 'set'; path: ValuesPath; value: unknown } | { op: 'delete'; path: ValuesPath };
+
 export class ValuesDocument {
   private doc: Document;
   private lc: LineCounter;
@@ -31,9 +33,6 @@ export class ValuesDocument {
     const js = this.doc.toJS();
     return js && typeof js === 'object' ? js : {};
   }
-  hasIn(path: ValuesPath): boolean { return this.doc.hasIn(path); }
-  getIn(path: ValuesPath): unknown { return this.doc.getIn(path); }
-
   setIn(path: ValuesPath, value: unknown): void {
     if (path.length === 0) return;
 
@@ -48,17 +47,18 @@ export class ValuesDocument {
     const root: any = this.doc.contents;
     if (!isMap(root)) return; // sequence or scalar root: no-op (never throws)
 
-    // Walk intermediate segments, creating maps as needed. If an intermediate
+    // Walk intermediate segments, creating a map, or a sequence when the next
+    // segment is a numeric index, as needed. If an intermediate
     // segment holds a scalar (not a collection) rather than being missing, we
     // treat the caller's intent as "make this a nested structure" and replace
-    // the scalar with a fresh map rather than throwing — the same behavior a
+    // the scalar with a fresh collection rather than throwing — the same behavior a
     // deep-set utility like lodash's `set` has for a superseded scalar.
     let node: any = root;
     for (let i = 0; i < path.length - 1; i++) {
       const seg = path[i];
       let next = node.get(seg, true);
       if (!isMap(next) && !isSeq(next)) {
-        next = this.doc.createNode({});
+        next = this.doc.createNode(typeof path[i + 1] === 'number' ? [] : {});
         node.set(seg, next);
       }
       node = next;
@@ -84,10 +84,33 @@ export class ValuesDocument {
     // which `yaml` would otherwise render as the literal text "null\n" —
     // return the original source instead.
     if (this.errors.length || this.doc.contents == null) return this.source;
-    return this.doc.toString();
+    // lineWidth 0 disables folding; flowCollectionPadding false keeps `{a: b}` from becoming
+    // `{ a: b }` on every round-trip, which would make the "minimal" diff span the whole file.
+    return this.doc.toString({ lineWidth: 0, flowCollectionPadding: false });
   }
 
   clone(): ValuesDocument { return ValuesDocument.parse(this.toString()); }
+
+  /** Clone, apply ops in order, return the new document. `this` is never mutated. Invalid documents pass through unchanged. */
+  apply(ops: EditOp[]): ValuesDocument {
+    if (this.errors.length) return this.clone();
+    const next = this.clone();
+    for (const o of ops) {
+      if (o.op === 'set') next.setIn(o.path, o.value);
+      else next.deleteIn(o.path);
+    }
+    return next;
+  }
+
+  /** Plain-JS value at path (undefined when absent). `[]` returns the whole document as JS. */
+  valueAt(path: ValuesPath): unknown {
+    let cur: any = this.toJS();
+    for (const seg of path) {
+      if (cur === null || typeof cur !== 'object') return undefined;
+      cur = cur[seg as any];
+    }
+    return cur;
+  }
 
   /** 1-based line of the key node at path, or null. */
   lineOf(path: ValuesPath): number | null {
@@ -106,5 +129,29 @@ export class ValuesDocument {
     const range = keyNode?.range;
     if (!range) return null;
     return this.lc.linePos(range[0]).line;
+  }
+
+  /** 1-based inclusive line span from the key at `path` to the end of its value, or null when absent. */
+  rangeOf(path: ValuesPath): { start: number; end: number } | null {
+    if (path.length === 0) return null;
+    let node: any = this.doc.contents;
+    let keyNode: any = null;
+    for (const seg of path) {
+      if (isMap(node)) {
+        const pair = node.items.find((p: any) => isPair(p) && String((p.key as any)?.value ?? p.key) === String(seg));
+        if (!pair) return null;
+        keyNode = pair.key; node = pair.value;
+      } else if (isSeq(node) && typeof seg === 'number') {
+        node = node.items[seg]; keyNode = node;
+        if (!node) return null;
+      } else return null;
+    }
+    const startPos = keyNode?.range?.[0];
+    if (typeof startPos !== 'number') return null;
+    // yaml Node.range = [start, valueEnd, nodeEnd]; valueEnd excludes trailing whitespace/comments.
+    const endPos: number | undefined = node?.range?.[1] ?? keyNode?.range?.[1];
+    const start = this.lc.linePos(startPos).line;
+    const end = typeof endPos === 'number' ? this.lc.linePos(Math.max(startPos, endPos - 1)).line : start;
+    return { start, end: Math.max(start, end) };
   }
 }

@@ -10,6 +10,26 @@ resource dependency graph. User-facing documentation lives at `docs/playground-g
 - `make playground-build` builds everything inside Docker; `make playground-dev` serves the SPA at
   <http://localhost:5173/playground/> (the Vite `base`, so the bare `/` is a 404).
 
+## Inspector (Phase 2)
+
+- `web/src/inspector/schema.ts` — `$ref`/`allOf` resolution, `schemaAt(path)`, widget classification.
+- `web/src/inspector/form.ts` — `buildFields(schema, value, tier)`: basic tier = `x-ui-tier: basic`, required, or present in the document.
+- `web/src/inspector/fields/*` — one widget per kind (boolean, number, string, list rows, keyvalue, object, map, objectList, mapOfLists, collapsed yaml).
+- `web/src/app/selection.ts` — selection strings (`<nodeId>`, `group:<workloadNodeId>`, `block:<kindKey>.<name>.<block>`) and `resolveSelection`.
+- `web/src/inspector/target.ts`, `Inspector.tsx`, `GroupPanel.tsx`, `SecondaryPanel.tsx` — which panel a selection opens: group (switch list), workload (own fields only), secondary (one auto-created resource), release, entity.
+- `web/src/graph/secondary.ts` — the one table of auto-created resources (kinds, on/off ops); `expectations.ts` reads it too.
+- `web/src/canvas/groups.ts`, `GroupNode.tsx` — one selectable group per workload with a header and `+ Add resource`.
+
+Field tiers come from the `x-ui-tier` vendor keyword in `values.schema.json`; see `docs/reference/agent-metadata.md`.
+
+### UI
+
+- `web/src/app/Panes.tsx`, `web/src/app/panes.ts` — the three-pane layout (`SplitHandle`, `Rail`, `usePanes`): resizable, collapsible editor and inspector panes around the canvas, sizes persisted to `localStorage`.
+- `web/src/canvas/icons/` — official Kubernetes resource icons; regenerate with `node web/scripts/fetch-k8s-icons.mjs`, attribution in `web/src/canvas/icons/NOTICE`.
+- `web/src/inspector/sections.ts`, `Sections.tsx` — section tables for workloads (`WORKLOAD_SECTIONS`) and secondary blocks (`SECONDARY_SECTIONS`); hidden advanced sections collapse into `HiddenNote`.
+- `web/src/inspector/fields/*` — compound widgets (`ContainersField`, `ImageField`, `ResourcesField`, `PortsTable`, …) alongside the primitive ones.
+- `web/src/inspector/AutoCreated.tsx`, `web/src/inspector/summary.ts` — the auto-created-resources switch list (group panel), one-line summaries, `Open` links to nodes or nodeless blocks.
+
 ## monaco-yaml coverage
 
 Checked against `src/chart-bundle/schema.json` (draft-07, 156 `$defs`) with the editor from

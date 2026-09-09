@@ -43,6 +43,7 @@ $defs:
           required. The key becomes the Kubernetes container name verbatim.
         examples:
           - main: {image: fluent/fluent-bit, imageTag: "2.2"}
+        x-ui-tier: basic
       initContainers:
         description: |
           Map of init containers keyed by name. Each uses the same shape
@@ -59,6 +60,7 @@ $defs:
           schedule onto nodes that match all listed labels.
         examples:
           - {"kubernetes.io/os": linux}
+        x-ui-tier: basic
       tolerations:
         description: |
           Pod tolerations for tainted nodes (passthrough). DaemonSets often
@@ -184,6 +186,7 @@ $defs:
         examples:
           - policyTypes: [Ingress]
             ingress: []
+        x-ui-tier: basic
       autoCreateRbac:
         description: |
           When true, chart renders a kind: Role + kind: RoleBinding pair named
@@ -201,3 +204,10 @@ $defs:
               - apiGroups: [""]
                 resources: [configmaps]
                 verbs: [get, list, watch]
+        x-ui-tier: basic
+      pdb:
+        x-ui-tier: basic
+      serviceAccount:
+        x-ui-tier: basic
+      serviceMonitor:
+        x-ui-tier: basic

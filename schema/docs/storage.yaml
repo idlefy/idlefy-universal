@@ -29,6 +29,7 @@ $defs:
         examples:
           - [ReadWriteOnce]
           - [ReadWriteMany]
+        x-ui-tier: basic
       selector:
         description: |
           Label selector to bind to a specific pre-provisioned
@@ -49,3 +50,7 @@ $defs:
           automatically.
         examples:
           - {team: platform, storage-tier: ssd}
+      size:
+        x-ui-tier: basic
+      storageClassName:
+        x-ui-tier: basic

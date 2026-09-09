@@ -6,23 +6,29 @@ import {
   Controls,
   MiniMap,
   useReactFlow,
-  type Node,
+  useStore,
   type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { GraphModel } from "../graph/types";
-import { layoutGraph, type ResourceNodeData } from "./layout";
+import { layoutGraph, type AppNode } from "./layout";
 import { ResourceNode } from "./ResourceNode";
+import { GroupNode } from "./GroupNode";
+import { CanvasActions } from "./actions";
+import { isGroupId, isBlockId } from "../app/selection";
 
-const nodeTypes = { resource: ResourceNode };
+const nodeTypes = { resource: ResourceNode, group: GroupNode };
+const reduceMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** Re-fit the viewport whenever a new layout lands (the `fitView` prop only fires on mount). */
+/** Re-fit the viewport whenever a new layout lands or the canvas box changes size (pane open/close/drag, window resize). */
 function FitOnLayout({ token }: { token: unknown }) {
   const { fitView } = useReactFlow();
+  const box = useStore((s) => `${Math.round(s.width)}x${Math.round(s.height)}`);
+  useEffect(() => { void fitView({ padding: 0.15, duration: reduceMotion() ? 0 : 200 }); }, [token, fitView]);
   useEffect(() => {
-    // fitView is queued by React Flow and resolves once the new nodes are measured.
-    void fitView({ padding: 0.15, duration: 200 });
-  }, [token, fitView]);
+    const id = requestAnimationFrame(() => void fitView({ padding: 0.15, duration: reduceMotion() ? 0 : 150 }));
+    return () => cancelAnimationFrame(id);
+  }, [box, fitView]);
   return null;
 }
 
@@ -31,17 +37,18 @@ export function Canvas({
   stale,
   selection,
   onSelect,
+  onAddResource,
 }: {
   model: GraphModel | null;
   stale: boolean;
   selection: string | null;
   onSelect: (id: string | null) => void;
+  onAddResource: (groupId: string) => void;
 }) {
-  const [laid, setLaid] = useState<{
-    nodes: Node<ResourceNodeData>[];
-    edges: Edge[];
-  }>({ nodes: [], edges: [] });
-  const [hover, setHover] = useState<string | null>(null);
+  const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[] }>({
+    nodes: [],
+    edges: [],
+  });
   const [layoutError, setLayoutError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,29 +73,24 @@ export function Canvas({
     };
   }, [model]);
 
-  const focus = hover ?? selection;
+  // Node selections dim non-neighbours; group and block selections dim nothing.
+  const focus = selection && !isGroupId(selection) && !isBlockId(selection) ? selection : null;
   const { nodes, edges } = useMemo(() => {
-    if (!focus) return laid;
-    const near = new Set<string>([focus]);
-    for (const e of laid.edges) {
+    const near = new Set<string>(focus ? [focus] : []);
+    if (focus) for (const e of laid.edges) {
       if (e.source === focus) near.add(e.target);
       if (e.target === focus) near.add(e.source);
     }
     return {
-      nodes: laid.nodes.map((n) => ({
-        ...n,
-        data: { ...n.data, dimmed: !near.has(n.id) },
-        selected: n.id === selection,
-      })),
-      edges: laid.edges.map((e) => ({
-        ...e,
-        style: {
-          ...e.style,
-          opacity: e.source === focus || e.target === focus ? 1 : 0.15,
-        },
-      })),
+      nodes: laid.nodes.map((n) =>
+        n.type === "resource"
+          ? { ...n, data: { ...n.data, dimmed: focus ? !near.has(n.id) : false }, selected: n.id === selection }
+          : { ...n, selected: n.id === selection },
+      ),
+      edges: laid.edges.map((e) => ({ ...e, style: { ...e.style, opacity: !focus || e.source === focus || e.target === focus ? 1 : 0.15 } })),
     };
-  }, [laid, focus, selection]);
+  }, [laid, selection, focus]);
+  const actions = useMemo(() => ({ select: onSelect, addResource: onAddResource }), [onSelect, onAddResource]);
 
   if (!model)
     return (
@@ -98,6 +100,7 @@ export function Canvas({
     );
   return (
     <div className={`canvas ${stale ? "stale" : ""}`}>
+      <CanvasActions.Provider value={actions}>
       <ReactFlowProvider>
         <ReactFlow
           nodes={nodes}
@@ -107,19 +110,21 @@ export function Canvas({
           fitViewOptions={{ padding: 0.15 }}
           colorMode="system"
           minZoom={0.2}
+          maxZoom={1.25}
+          // React Flow fires these for `selectable: false` nodes too; a click anywhere inside a group
+          // (its empty interior included) selects the group.
           onNodeClick={(_, n) => onSelect(n.id)}
           onPaneClick={() => onSelect(null)}
-          onNodeMouseEnter={(_, n) => setHover(n.id)}
-          onNodeMouseLeave={() => setHover(null)}
           nodesConnectable={false}
           proOptions={{ hideAttribution: true }}
         >
           <Background />
           <Controls />
-          <MiniMap pannable zoomable />
+          {model.nodes.length >= 12 && <MiniMap pannable zoomable />}
           <FitOnLayout token={laid} />
         </ReactFlow>
       </ReactFlowProvider>
+      </CanvasActions.Provider>
       {layoutError && (
         <div className="canvas-error">Layout failed: {layoutError}</div>
       )}

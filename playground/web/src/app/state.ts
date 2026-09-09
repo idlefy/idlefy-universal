@@ -1,42 +1,57 @@
-import { ValuesDocument } from '../model/ValuesDocument';
-import { SUPERSEDED, type RenderResult } from '../engine/types';   // types.ts has no side effects, so this test stays bundle-free
+import { ValuesDocument, type EditOp } from '../model/ValuesDocument';
+import { SUPERSEDED, type RenderResult } from '../engine/types';
 import type { GraphModel } from '../graph/types';
 import type { EditorMarker } from '../editor/Editor';
+import { anchorOf } from './selection';
+
+export type Tier = 'basic' | 'advanced';
+export type DetailTab = 'inspector' | 'yaml';
 
 export type AppState = {
   text: string; doc: ValuesDocument; releaseName: string; namespace: string;
-  render: RenderResult | null; graph: GraphModel | null; selection: string | null; exampleId: string | null; rendering: boolean;
+  render: RenderResult | null; graph: GraphModel | null; selection: string | null;
   engineError: string | null;                   // helm.wasm failed to load → full-page message
+  ui: { tier: Tier; tab: DetailTab };
 };
 export type Action =
-  | { type: 'text'; text: string } | { type: 'example'; id: string; text: string }
+  | { type: 'text'; text: string } | { type: 'example'; text: string }
   | { type: 'release'; v: string } | { type: 'ns'; v: string }
-  | { type: 'render-start' } | { type: 'render-done'; result: RenderResult; graph: GraphModel | null }
+  | { type: 'render-done'; result: RenderResult; graph: GraphModel | null }
   | { type: 'select'; id: string | null }
-  | { type: 'engine-failed'; message: string };
+  | { type: 'engine-failed'; message: string }
+  | { type: 'edit'; ops: EditOp[] } | { type: 'tier'; tier: Tier } | { type: 'tab'; tab: DetailTab };
 
 export function initialState(text: string): AppState {
-  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, exampleId: null, rendering: false, engineError: null };
+  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, engineError: null, ui: { tier: 'basic', tab: 'inspector' } };
 }
 
 export function reducer(s: AppState, a: Action): AppState {
   switch (a.type) {
     case 'text': return a.text === s.text ? s : { ...s, text: a.text, doc: ValuesDocument.parse(a.text) };
-    case 'example': return { ...s, text: a.text, doc: ValuesDocument.parse(a.text), exampleId: a.id, selection: null };
+    case 'example': return { ...s, text: a.text, doc: ValuesDocument.parse(a.text), selection: null };
     case 'release': return { ...s, releaseName: a.v };
     case 'ns': return { ...s, namespace: a.v };
-    case 'render-start': return { ...s, rendering: true };
     case 'render-done': {
       // A superseded request (EngineClient latest-wins) carries no information; a newer result is on its way.
       if (!a.result.ok && a.result.error.message === SUPERSEDED) return s;
       const graph = a.result.ok ? a.graph : s.graph;
-      // A selected node can disappear from the rebuilt graph (renamed or removed). Dropping the
-      // dead id keeps Canvas from dimming every node around a focus that no node matches.
-      const selection = graph && s.selection && !graph.nodes.some((n) => n.id === s.selection) ? null : s.selection;
-      return { ...s, rendering: false, render: a.result, graph, selection };
+      // A selected node can disappear from the rebuilt graph (renamed or removed). Group and block
+      // selections are anchored to their workload and survive as long as it does.
+      const selection = graph && s.selection && !anchorOf(graph, s.selection) ? null : s.selection;
+      return { ...s, render: a.result, graph, selection };
     }
     case 'select': return { ...s, selection: a.id };
-    case 'engine-failed': return { ...s, rendering: false, engineError: a.message };
+    case 'engine-failed': return { ...s, engineError: a.message };
+    case 'edit': {
+      // The inspector is disabled while the YAML is invalid. Text is canonical, so the
+      // edited document is serialised and re-parsed rather than kept.
+      if (s.doc.errors.length || a.ops.length === 0) return s;
+      const text = s.doc.apply(a.ops).toString();
+      if (text === s.text) return s;
+      return { ...s, text, doc: ValuesDocument.parse(text) };
+    }
+    case 'tier': return s.ui.tier === a.tier ? s : { ...s, ui: { ...s.ui, tier: a.tier } };
+    case 'tab': return s.ui.tab === a.tab ? s : { ...s, ui: { ...s.ui, tab: a.tab } };
   }
 }
 

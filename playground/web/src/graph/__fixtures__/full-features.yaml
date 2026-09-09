@@ -5,7 +5,7 @@ kind: NetworkPolicy
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -42,7 +42,7 @@ kind: PodDisruptionBudget
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -60,7 +60,7 @@ kind: ServiceAccount
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -72,7 +72,7 @@ kind: Role
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -93,7 +93,7 @@ kind: RoleBinding
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -113,7 +113,7 @@ kind: Service
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -136,7 +136,7 @@ kind: Service
 metadata:
   name: cache-headless
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: cache-headless
     app.kubernetes.io/instance: demo
@@ -160,7 +160,7 @@ kind: DaemonSet
 metadata:
   name: node-info
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: node-info
     app.kubernetes.io/instance: demo
@@ -174,7 +174,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.1.0
+        helm.sh/chart: idlefy-universal-1.2.0
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: node-info
         app.kubernetes.io/instance: demo
@@ -198,7 +198,7 @@ kind: Deployment
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -213,7 +213,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.1.0
+        helm.sh/chart: idlefy-universal-1.2.0
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: api
         app.kubernetes.io/instance: demo
@@ -250,7 +250,7 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: cache
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: cache
     app.kubernetes.io/instance: demo
@@ -276,7 +276,7 @@ kind: StatefulSet
 metadata:
   name: cache
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: cache
     app.kubernetes.io/instance: demo
@@ -293,7 +293,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.1.0
+        helm.sh/chart: idlefy-universal-1.2.0
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: cache
         app.kubernetes.io/instance: demo
@@ -320,7 +320,7 @@ kind: Job
 metadata:
   name: init
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: init
     app.kubernetes.io/instance: demo
@@ -330,7 +330,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.1.0
+        helm.sh/chart: idlefy-universal-1.2.0
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: init
         app.kubernetes.io/instance: demo
@@ -360,7 +360,7 @@ kind: CronJob
 metadata:
   name: beacon
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: beacon
     app.kubernetes.io/instance: demo
@@ -370,7 +370,7 @@ spec:
   jobTemplate:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.1.0
+        helm.sh/chart: idlefy-universal-1.2.0
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: beacon
         app.kubernetes.io/instance: demo
@@ -379,7 +379,7 @@ spec:
       template:
         metadata:
           labels:
-            helm.sh/chart: idlefy-universal-1.1.0
+            helm.sh/chart: idlefy-universal-1.2.0
             app.kubernetes.io/managed-by: Helm
             app.kubernetes.io/name: beacon
             app.kubernetes.io/instance: demo
@@ -409,7 +409,7 @@ kind: Ingress
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -441,7 +441,7 @@ kind: Certificate
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -460,7 +460,7 @@ kind: ServiceMonitor
 metadata:
   name: api
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: api
     app.kubernetes.io/instance: demo
@@ -481,7 +481,7 @@ kind: ConfigMap
 metadata:
   name: app-config
   labels:
-    helm.sh/chart: idlefy-universal-1.1.0
+    helm.sh/chart: idlefy-universal-1.2.0
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: app-config
     app.kubernetes.io/instance: demo

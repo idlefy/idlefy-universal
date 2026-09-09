@@ -79,3 +79,11 @@ def test_merge_does_not_overwrite_structure_type():
     # docs cannot override structure's type
     assert result["properties"]["x"]["type"] == "integer"
     assert result["properties"]["x"]["description"] == "X."
+
+
+def test_merge_injects_x_ui_tier():
+    structure = {"$defs": {}, "properties": {"x": {"type": "object", "additionalProperties": False,
+                 "properties": {"replicas": {"type": "integer"}}}}}
+    docs = {"$defs": {}, "properties": {"x": {"properties": {"replicas": {"x-ui-tier": "basic"}}}}}
+    merged = merge_layers(structure, docs)
+    assert merged["properties"]["x"]["properties"]["replicas"]["x-ui-tier"] == "basic"

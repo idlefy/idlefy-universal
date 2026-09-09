@@ -1,0 +1,7 @@
+The SVG files in this directory are the Kubernetes resource icons from
+https://github.com/kubernetes/community/tree/master/icons
+© The Kubernetes Authors, licensed under CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/).
+Changes: Inkscape metadata removed; the heptagon fill #326ce5 replaced by
+currentColor so the playground can color it per resource family; helm.svg is
+the deploy.svg heptagon with a ship's-wheel glyph added by this project.
