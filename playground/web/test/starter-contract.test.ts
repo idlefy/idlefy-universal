@@ -23,6 +23,9 @@ function violations(value: unknown, node: SchemaNode, where: string): string[] {
   if (Array.isArray(r.enum) && !r.enum.includes(value as never)) out.push(`${where}: ${JSON.stringify(value)} not in enum`);
   if (typeof r.pattern === 'string' && typeof value === 'string' && !new RegExp(r.pattern).test(value)) out.push(`${where}: ${JSON.stringify(value)} !~ ${r.pattern}`);
   if (typeof r.minimum === 'number' && typeof value === 'number' && value < r.minimum) out.push(`${where}: ${value} < minimum ${r.minimum}`);
+  if (typeof r.maximum === 'number' && typeof value === 'number' && value > r.maximum) out.push(`${where}: ${value} > maximum ${r.maximum}`);
+  if (typeof r.minLength === 'number' && typeof value === 'string' && value.length < r.minLength) out.push(`${where}: ${JSON.stringify(value)} shorter than minLength ${r.minLength}`);
+  if (typeof r.maxLength === 'number' && typeof value === 'string' && value.length > r.maxLength) out.push(`${where}: ${JSON.stringify(value)} longer than maxLength ${r.maxLength}`);
   if (typeof r.minItems === 'number' && Array.isArray(value) && value.length < r.minItems) out.push(`${where}: ${value.length} items < minItems ${r.minItems}`);
   if (Array.isArray(r.required) && value && typeof value === 'object' && !Array.isArray(value)) {
     for (const k of r.required) if (!(k in (value as Record<string, unknown>))) out.push(`${where}: missing required '${k}'`);
