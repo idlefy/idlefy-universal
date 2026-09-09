@@ -56,7 +56,7 @@ export function SecondaryPanel(p: {
           {ports.length > 0 ? (
             <div className="fields">
               {ports.map((pt) => (
-                <div key={pt.id} className="field inline">
+                <div key={pt.id} className="field">
                   <div className="field-head"><label data-key={pt.name}>{pt.name}</label></div>
                   <code>{pt.container} → {pt.service}/{pt.protocol}</code>
                 </div>

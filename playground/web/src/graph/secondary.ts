@@ -35,7 +35,7 @@ const ingressOn = (base: ValuesPath, cfg: Cfg, name: string): EditOp[] => [
 ];
 
 export const SECONDARY: readonly Secondary[] = [
-  // isOn predicates use the same truthiness as expectations.ts (which calls them — see Step 4), so the
+  // isOn predicates use the same truthiness as expectations.ts, so the
   // toggle state and the graph never disagree.
   { id: 'service', label: 'Service', kind: 'Service', hint: 'expose container ports inside the cluster', kinds: SVC_KINDS, isOn: (c) => !!c.autoCreateService,
     on: (b) => [set([...b, 'autoCreateService'], true)], off: (b) => [setFalse([...b, 'autoCreateService'])],

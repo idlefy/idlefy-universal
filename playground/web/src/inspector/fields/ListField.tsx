@@ -24,7 +24,9 @@ export function ListField(props: FieldProps): ReactElement {
   // deleting one index splices the sequence in place (flow style survives); deleting the last item removes the key
   const remove = (i: number) => onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
   const setOne = (i: number, v: string) => {
-    // preserve a numeric item's type when the edited text still parses as a number
+    // preserve a numeric item's type when the edited text still parses as a number. parseScalarText only
+    // accepts the canonical `-?\d+(\.\d+)?` shape, so a non-canonical numeral (`1e3`, ` 5`, `.5`) falls
+    // through and is stored as the typed string rather than a number — intentional.
     const orig = Array.isArray(field.value) ? field.value[i] : undefined;
     const value: unknown = typeof orig === 'number' ? parseScalarText(v, { kind: 'number', integer: false }) ?? v : v;
     onEdit([{ op: 'set', path: [...field.path, i], value }]);

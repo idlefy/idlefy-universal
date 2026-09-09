@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { AddKeyRow } from './AddKeyRow';
 import { parseScalarText } from '../form';
+import { isObj } from '../../model/guards';
 
 const PROTOCOLS = ['TCP', 'UDP', 'SCTP'];
 const NAME = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;   // Kubernetes port names (IANA_SVC_NAME, ≤15 chars)
@@ -9,7 +10,7 @@ const NAME = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;   // Kubernetes port names (IANA
 /** Map of PortSpec as a table: name | containerPort | servicePort | protocol | ×, plus an add row. */
 export function PortsTable({ field, onEdit }: FieldProps): ReactElement {
   const id = field.path.join('.');
-  const ports = (field.value && typeof field.value === 'object' ? field.value : {}) as Record<string, Record<string, unknown>>;
+  const ports = isObj<Record<string, Record<string, unknown>>>(field.value) ? field.value : {};
   const names = Object.keys(ports);
   const num = (name: string, key: 'containerPort' | 'servicePort', t: string) => {
     if (t === '') return onEdit([{ op: 'delete', path: [...field.path, name, key] }]);

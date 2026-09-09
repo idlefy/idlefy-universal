@@ -9,6 +9,8 @@ import { useState, type ReactElement } from 'react';
 export function AddKeyRow(p: {
   id: string; existing: readonly string[]; valid: (key: string) => boolean; invalidText: string;
   placeholder?: string; inputAriaLabel?: string; buttonAriaLabel?: string; buttonText?: string; buttonClassName?: string; grid?: boolean;
+  /** Suppress the "already exists"/invalidText message; the add button still disables. */
+  hideError?: boolean;
   onAdd: (key: string) => void;
 }): ReactElement {
   const [draft, setDraft] = useState('');
@@ -18,7 +20,7 @@ export function AddKeyRow(p: {
   const buttonAria = p.buttonAriaLabel ?? `add ${p.id}`;
   const buttonClassName = p.buttonClassName ?? 'btn';
   const buttonText = p.buttonText ?? 'add';
-  const errorText = bad ? (p.existing.includes(k) ? 'already exists' : p.invalidText) : '';
+  const errorText = bad && !p.hideError ? (p.existing.includes(k) ? 'already exists' : p.invalidText) : '';
   const add = () => { p.onAdd(k); setDraft(''); };
   if (p.grid) {
     return (
@@ -33,7 +35,7 @@ export function AddKeyRow(p: {
     <div className="kv-row add">
       <input type="text" aria-label={inputAria} placeholder={p.placeholder ?? 'new key'} value={draft} className={bad ? 'invalid' : ''} onChange={(e) => setDraft(e.target.value)} />
       <button type="button" className={buttonClassName} aria-label={buttonAria} disabled={k === '' || bad} onClick={add}>{buttonText}</button>
-      {bad && <span className="field-err">{errorText}</span>}
+      {bad && !p.hideError && <span className="field-err">{errorText}</span>}
     </div>
   );
 }

@@ -16,13 +16,13 @@ const manifestOf = (node: GraphNode): string =>
     : node.kind === 'Release' ? '# release-level settings'
       : `# ${node.kind}/${node.name} is created at runtime by another resource in this release.`);
 
-export type Head = {
+type Head = {
   fam: string; icon: ReactElement; name: string; kind: string | null; ns: string;
   path: ValuesPath | null; count?: number; manifest: string | null; tabs: readonly string[];
 };
 
 /** Header facts per selection shape. */
-export function headOf(sel: ResolvedSelection): Head {
+function headOf(sel: ResolvedSelection): Head {
   if (sel.kind === 'group') {
     const { owner, members } = sel.group;
     return { fam: 'workload', icon: <GroupGlyph className="fam-workload" />, name: owner.name, kind: `${owner.kind} group`, ns: owner.namespace, path: owner.provenance?.path ?? null,

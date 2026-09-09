@@ -23,7 +23,8 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   // pane) — mirror NumberField's resync-on-`field.value` rule: any not-yet-committed text is stale once
   // the committed value moves, so drop it. Keyed on the value's content, not its identity: `field.value` is a fresh
   // `toJS()` object on every parent render, so an identity dep would erase a draft mid-keystroke. Kept above the
-  // early return below: hooks must run unconditionally.
+  // early return below: hooks must run unconditionally. Re-stringifying on every render is intentional — it is
+  // the cheapest value-based key available here; do not go back to an identity check.
   const valueKey = JSON.stringify(field.value ?? null);
   useEffect(() => { setDrafts({}); }, [valueKey]);
   // a present value that is not a list (hand-written map/scalar) keeps the raw editor instead of being overwritten

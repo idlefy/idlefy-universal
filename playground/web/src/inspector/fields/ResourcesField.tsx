@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import type { FieldProps } from './index';
+import { isObj } from '../../model/guards';
 
 const ROWS = ['requests', 'limits'] as const;
 const COLS = ['cpu', 'memory'] as const;
@@ -7,7 +8,7 @@ const COLS = ['cpu', 'memory'] as const;
 /** 2 × 2 grid for ResourceRequirements. Other keys (ephemeral-storage, hugepages) stay in the YAML untouched. */
 export function ResourcesField({ field, onEdit }: FieldProps): ReactElement {
   const id = field.path.join('.');
-  const v = (field.value && typeof field.value === 'object' ? field.value : {}) as Record<string, Record<string, unknown>>;
+  const v = isObj<Record<string, Record<string, unknown>>>(field.value) ? field.value : {};
   return (
     <div className="grid22">
       <span /><span className="h">CPU</span><span className="h">Memory</span>

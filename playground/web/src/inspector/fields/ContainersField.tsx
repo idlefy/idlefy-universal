@@ -6,6 +6,7 @@ import { Card } from './Card';
 import { resolve, type SchemaNode } from '../schema';
 import { starterValue } from '../form';
 import { ImageField } from './ImageField';
+import { isObj } from '../../model/guards';
 
 // `containers` has no propertyNames pattern in the schema, so fall back to Kubernetes container-name rules.
 const NAME = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
@@ -15,7 +16,7 @@ export function ContainersField({ root, field, tier, onEdit }: FieldProps): Reac
   const id = field.path.join('.');
   const item = resolve(root, field.schema).additionalProperties as SchemaNode;
   const pattern = (field.widget as { keyPattern?: string }).keyPattern ?? NAME.source;
-  const containers = (field.value && typeof field.value === 'object' ? field.value : {}) as Record<string, Record<string, unknown>>;
+  const containers = isObj<Record<string, Record<string, unknown>>>(field.value) ? field.value : {};
   const names = Object.keys(containers);
   return (
     <div className="containers">

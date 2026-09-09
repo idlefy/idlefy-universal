@@ -88,6 +88,14 @@ describe('field widgets', () => {
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'args', 2], value: '' }]);   // append by index, not whole-array rewrite
     expect(screen.queryByLabelText('deployments.web.containers.main.args')).toBeNull();   // no textarea any more
   });
+  it('list: a non-canonical numeral typed into a numeric item is stored as the typed string', () => {
+    const onEdit = vi.fn();
+    const c = schemaAt(root, cbase)!;
+    render(<FieldList root={root} node={c} basePath={cbase} value={{ image: 'x', args: [3] }} tier="advanced" onEdit={onEdit} />);
+    const first = screen.getByLabelText('deployments.web.containers.main.args.0') as HTMLInputElement;
+    fireEvent.change(first, { target: { value: '1e3' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'args', 0], value: '1e3' }]);
+  });
   it('list: a present non-list value keeps the raw YAML editor', () => {
     render(<FieldList root={root} node={schemaAt(root, cbase)!} basePath={cbase} value={{ image: 'x', args: { oops: 1 } }} tier="advanced" onEdit={vi.fn()} />);
     fireEvent.click(screen.getByLabelText('edit deployments.web.containers.main.args as YAML'));

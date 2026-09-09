@@ -1,7 +1,8 @@
-import { useState, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import type { FieldProps } from './index';
 import type { SchemaNode } from '../schema';
 import { YamlField } from './YamlField';
+import { AddKeyRow } from './AddKeyRow';
 import { parseScalarText } from '../form';
 import { isObj, isScalar } from '../../model/guards';
 
@@ -30,7 +31,6 @@ export function KeyValueField(props: FieldProps): ReactElement {
   const { field, onEdit } = props;
   const id = field.path.join('.');
   const entries = isObj(field.value) ? Object.entries(field.value) : [];
-  const [newKey, setNewKey] = useState('');
   const coerce = coercesScalars(field.schema);
   // Defensive: a hand-written values.yaml can nest an object/array under a node the schema calls
   // flat. Flat rows would silently drop it, so fall back to the YAML editor.
@@ -45,11 +45,8 @@ export function KeyValueField(props: FieldProps): ReactElement {
           <button type="button" className="clear icon" aria-label={`remove ${id}.${k}`} onClick={() => onEdit([{ op: 'delete', path: [...field.path, k] }])}>×</button>
         </div>
       ))}
-      <div className="kv-row add">
-        <input type="text" aria-label={`new key ${id}`} placeholder="new key" value={newKey} onChange={(e) => setNewKey(e.target.value)} />
-        <button type="button" className="btn" aria-label={`add ${id}`} disabled={!newKey.trim() || entries.some(([k]) => k === newKey.trim())}
-          onClick={() => { onEdit([{ op: 'set', path: [...field.path, newKey.trim()], value: '' }]); setNewKey(''); }}>add</button>
-      </div>
+      <AddKeyRow id={id} existing={entries.map(([k]) => k)} valid={() => true} invalidText="" hideError
+        onAdd={(k) => onEdit([{ op: 'set', path: [...field.path, k], value: '' }])} />
     </div>
   );
 }
