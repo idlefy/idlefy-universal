@@ -1,8 +1,8 @@
-import { useState, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { FieldList } from './index';
 import { resolve, classify, type SchemaNode } from '../schema';
-import { itemShape, itemLabelOf, starterValue } from '../form';
+import { itemShape, itemLabelOf, parseScalarText, starterValue } from '../form';
 import { YamlField } from './YamlField';
 import { isObj } from '../../model/guards';
 
@@ -16,6 +16,9 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   const shape = itemShape(root, item);
   const items: unknown[] = Array.isArray(field.value) ? field.value : [];
   const [open, setOpen] = useState<Record<number, boolean>>({});
+  // per-leaf (row, path) text the user is still typing that does not yet parse to a value; kept only
+  // while invalid, so the input shows what was typed and carries the `invalid` class until it is fixed
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   // a present value that is not a list (hand-written map/scalar) keeps the raw editor instead of being overwritten
   if (field.present && !Array.isArray(field.value)) return <YamlField {...props} />;
   // an extras key that also promoted leaves (secretKeyRef: `.name`/`.key` are leaves, `.optional` is the extra) only
@@ -35,31 +38,59 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
     const v = starterValue(root, item);
     onEdit([{ op: 'set', path: [...field.path, items.length], value: v }]);
   };
-  // deleting one index splices the sequence in place; the expansion map shifts down so it keeps following the same items
+  // deleting one index splices the sequence in place; the expansion map (and any pending drafts) shift
+  // down so they keep following the same items
   const remove = (i: number) => {
     onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
     setOpen(Object.fromEntries(Object.entries(open).filter(([k]) => Number(k) !== i).map(([k, v]) => [Number(k) > i ? Number(k) - 1 : Number(k), v])));
+    setDrafts({});
   };
-  const leafSchema = (leaf: string[]) => { let n: SchemaNode = item; for (const k of leaf) n = resolve(root, n).properties[k]; return resolve(root, n); };
+  // resolving every leaf's (and every extra top-level key's) schema is a walk down `item`'s properties;
+  // that set is fixed by the item shape (not by how many rows exist), so it is computed once per shape
+  // rather than once per row per render — `leafSchema([k])` for a mixed extra key (`secretKeyRef`) needs
+  // the same map as the promoted leaves (`secretKeyRef.name`) it shares a prefix with.
+  const leafSchemas = useMemo(() => {
+    const keys: string[][] = [...shape.leaves, ...shape.extras.map((k) => [k])];
+    if (shape.identifying) keys.push([shape.identifying]);
+    const m = new Map<string, SchemaNode>();
+    for (const leaf of keys) {
+      let n: SchemaNode = item;
+      for (const k of leaf) n = resolve(root, n).properties[k];
+      m.set(leaf.join('.'), resolve(root, n));
+    }
+    return m;
+  }, [shape]);
+  const leafSchema = (leaf: string[]): SchemaNode => leafSchemas.get(leaf.join('.'))!;
+  const clearDraft = (key: string) => setDrafts((d) => { if (!(key in d)) return d; const next = { ...d }; delete next[key]; return next; });
   const setLeaf = (i: number, leaf: string[], text: string) => {
+    const draftKey = `${i}.${leaf.join('.')}`;
     const path = [...field.path, i, ...leaf];
     // an emptied required leaf (the identifying `name`) is set to '' so the item never turns schema-invalid mid-typing
-    if (text === '') { onEdit(leaf.length === 1 && shape.required.includes(leaf[0]) ? [{ op: 'set', path, value: '' }] : [{ op: 'delete', path }]); return; }
-    const w = classify(root, leafSchema(leaf));
-    const value = w.kind === 'number' ? (/^-?\d+(\.\d+)?$/.test(text) ? Number(text) : undefined) : w.kind === 'string' && w.intOrString && /^-?\d+$/.test(text) ? Number(text) : text;
-    if (value !== undefined) onEdit([{ op: 'set', path, value }]);
+    if (text === '') {
+      clearDraft(draftKey);
+      onEdit(leaf.length === 1 && shape.required.includes(leaf[0]) ? [{ op: 'set', path, value: '' }] : [{ op: 'delete', path }]);
+      return;
+    }
+    const value = parseScalarText(text, classify(root, leafSchema(leaf)));
+    if (value === undefined) { setDrafts((d) => ({ ...d, [draftKey]: text })); return; }
+    clearDraft(draftKey);
+    onEdit([{ op: 'set', path, value }]);
   };
   const leafInput = (i: number, v: unknown, leaf: string[], cls: string) => {
     const s = leafSchema(leaf);
+    const draftKey = `${i}.${leaf.join('.')}`;
     const cur = leafAt(v, leaf);
-    const text = cur === undefined || cur === null ? '' : String(cur);
+    const committed = cur === undefined || cur === null ? '' : String(cur);
+    const draft = drafts[draftKey];
+    const text = draft ?? committed;
     const aria = `${id}.${i}.${leaf.join('.')}`;
     if (Array.isArray(s.enum)) return (
       <select key={aria} className={cls} aria-label={aria} value={text} onChange={(e) => setLeaf(i, leaf, e.target.value)}>
         <option value="">(unset)</option>{s.enum.map((o: string) => <option key={o} value={o}>{o}</option>)}
       </select>
     );
-    return <input key={aria} type="text" className={cls} aria-label={aria} placeholder={leaf[leaf.length - 1]} value={text} onChange={(e) => setLeaf(i, leaf, e.target.value)} />;
+    const className = [cls, draft !== undefined && 'invalid'].filter(Boolean).join(' ');
+    return <input key={aria} type="text" className={className} aria-label={aria} placeholder={leaf[leaf.length - 1]} value={text} onChange={(e) => setLeaf(i, leaf, e.target.value)} />;
   };
   // sub-keys of `k` already promoted into a pair leaf (secretKeyRef.name/.key) — the row already edits these directly
   const promotedSubKeys = (k: string) => shape.leaves.filter((l) => l[0] === k).map((l) => l[1]);
@@ -75,12 +106,15 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   // mixed key — both hidden by hideLeaves), the top-level FieldList would have nothing to show but its own
   // "No fields here." fallback; skip it so the body holds only the nested mixed-key FieldList(s) below.
   const itemKeys = Object.keys(resolve(root, item).properties ?? {});
-  const body = (i: number, v: unknown, hide?: (k: string) => boolean) => {
-    const anyVisible = !hide || itemKeys.some((k) => !hide(k));
+  // `pair` says which row shape called this: a pair row hides its own leaves from the nested FieldList
+  // and also renders the mixed-key FieldLists below it; a block row shows everything, unfiltered.
+  const body = (i: number, v: unknown, pair: boolean) => {
+    const hide = pair ? hideLeaves : undefined;
+    const anyVisible = !pair || itemKeys.some((k) => !hideLeaves(k));
     return (
       <div className="field-body">
         {anyVisible && <FieldList root={root} node={item} basePath={[...field.path, i]} value={v} tier="advanced" onEdit={onEdit} hide={hide} />}
-        {hide === hideLeaves && mixedKeys.map((k) => (
+        {pair && mixedKeys.map((k) => (
           <FieldList key={k} root={root} node={leafSchema([k])} basePath={[...field.path, i, k]} value={leafAt(v, [k])} tier="advanced" onEdit={onEdit} hide={(sk) => promotedSubKeys(k).includes(sk)} />
         ))}
       </div>
@@ -100,7 +134,7 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
               <button type="button" className="clear" aria-label={`remove ${id}.${i}`} onClick={() => remove(i)}>×</button>
             </span>
           </div>
-          {isOpen(i, v) && body(i, v, hideLeaves)}
+          {isOpen(i, v) && body(i, v, true)}
         </div>
       ) : (
         <div key={i} className={`field block orow ${blockOpen(i) ? 'open' : ''}`}>
@@ -111,7 +145,7 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
             </button>
             <button type="button" className="clear" aria-label={`remove ${id}.${i}`} onClick={() => remove(i)}>×</button>
           </div>
-          {blockOpen(i) && body(i, v)}
+          {blockOpen(i) && body(i, v, false)}
         </div>
       ))}
       <div className="add">
