@@ -47,6 +47,8 @@ code { font-family: var(--mono); font-size: 12px; }
 .rail-text { writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--mono); font-size: 12px; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn { width: 28px; height: 28px; border: 0; border-radius: var(--r); background: transparent; color: var(--muted); display: grid; place-items: center; font-size: 14px; }
 .icon-btn:hover { background: var(--panel-2); color: var(--ink); }
+.icon-btn.danger:hover:not(:disabled) { background: var(--banner-err-bg); color: var(--err); }
+.icon-btn:disabled { opacity: .45; cursor: default; }
 .btn { height: 30px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--panel); color: var(--ink-2); white-space: nowrap; font-weight: 500; }
 .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .btn:disabled { opacity: .5; cursor: default; }

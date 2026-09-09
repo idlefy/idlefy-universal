@@ -96,4 +96,38 @@ describe('DetailPanel', () => {
     expect(screen.getByLabelText('toggle Ingress')).toBeTruthy();
     expect(screen.getByLabelText('show all fields')).toBeTruthy();
   });
+  it('Remove: present for a workload with its ops, dispatches edit then close', () => {
+    const p = base();
+    render(<DetailPanel {...p} tab="inspector" />);
+    const btn = screen.getByLabelText('Remove Deployment hello') as HTMLButtonElement;
+    expect(btn.title).toBe('Remove Deployment hello · Ctrl+Z in the editor restores');
+    expect(btn.className).toContain('danger');
+    expect(btn.disabled).toBe(false);
+    fireEvent.click(btn);
+    expect(p.onEdit).toHaveBeenCalledWith([{ op: 'delete', path: ['deployments', 'hello'] }]);
+    expect(p.onClose).toHaveBeenCalled();
+    expect(p.onEdit.mock.invocationCallOrder[0]).toBeLessThan(p.onClose.mock.invocationCallOrder[0]);
+  });
+  it('Remove: group shows the member count; absent for a secondary node, a block and the Release node', () => {
+    const p = base();
+    const { rerender } = render(<DetailPanel {...p} sel={resolveSelection(g, groupId(dep.id))!} tab="inspector" />);
+    expect((screen.getByLabelText('Remove Deployment hello') as HTMLButtonElement).title).toContain('and its 1 rendered resource');
+    const svc = g.nodes.find((n) => n.kind === 'Service')!;
+    rerender(<DetailPanel {...p} sel={resolveSelection(g, svc.id)!} tab="inspector" />);
+    expect(screen.queryByLabelText(/^Remove /)).toBeNull();
+    rerender(<DetailPanel {...p} sel={resolveSelection(g, blockId(['deployments', 'hello', 'hpa']))!} tab="inspector" />);
+    expect(screen.queryByLabelText(/^Remove /)).toBeNull();
+    const release = g.nodes.find((n) => n.kind === 'Release')!;
+    rerender(<DetailPanel {...p} sel={resolveSelection(g, release.id)!} tab="inspector" />);
+    expect(screen.queryByLabelText(/^Remove /)).toBeNull();
+  });
+  it('Remove: disabled with the inspector\'s notice while the YAML is broken', () => {
+    const p = base();
+    render(<DetailPanel {...p} disabled tab="inspector" />);
+    const btn = screen.getByLabelText('Remove Deployment hello') as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(btn.title).toBe('Fix the YAML syntax error in the editor to edit here.');
+    fireEvent.click(btn);
+    expect(p.onEdit).not.toHaveBeenCalled();
+  });
 });
