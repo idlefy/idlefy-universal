@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import schema from '../src/chart-bundle/schema.json';
-import { buildFields, starterValue, firstSentence, chipValue } from '../src/inspector/form';
-import { classify, schemaAt } from '../src/inspector/schema';
+import { buildFields, starterValue, firstSentence, chipValue, itemShape, itemLabelOf } from '../src/inspector/form';
+import { classify, schemaAt, resolve } from '../src/inspector/schema';
 
 const root = schema as any;
 const dep = schemaAt(root, ['deployments', 'web'])!;
@@ -98,5 +98,36 @@ describe('firstSentence / chipValue', () => {
     expect(chipValue(root, f('autoCreateSoftAntiAffinity'))).toBe(true);
     expect(typeof chipValue(root, f('replicas'))).toBe('number');   // default or examples[0] or 0
     expect(chipValue(root, f('labels'))).toEqual(expect.any(Object));
+  });
+});
+
+describe('itemShape (spec 2026-09-08 §5.2)', () => {
+  const shape = (p: (string | number)[]) => itemShape(root, resolve(root, schemaAt(root, p)!).items);
+  it('env: name + value as a pair, valueFrom behind the expander', () => {
+    expect(shape(['deployments', 'web', 'containers', 'main', 'env'])).toMatchObject({ identifying: 'name', leaves: [['value']], extras: ['valueFrom'], pair: true });
+  });
+  it('secretRefs item: name + secretKeyRef.name / secretKeyRef.key (name first); the boolean `optional` keeps secretKeyRef behind the expander', () => {
+    const items = resolve(root, root.properties.secretRefs.additionalProperties).items;
+    expect(itemShape(root, items)).toEqual({ identifying: 'name', leaves: [['secretKeyRef', 'name'], ['secretKeyRef', 'key']], extras: ['secretKeyRef'], required: ['name', 'secretKeyRef'], pair: true });
+  });
+  it('required leaves are reported', () => {
+    expect(itemShape(root, resolve(root, schemaAt(root, ['deployments', 'web', 'containers', 'main', 'env'])!).items).required).toEqual(['name']);
+  });
+  it('hosts: host + subdomain pair, paths behind the expander', () => {
+    expect(shape(['deployments', 'web', 'ingress', 'hosts'])).toEqual({ identifying: 'host', leaves: [['subdomain']], extras: ['paths'], required: [], pair: true });
+  });
+  it('tls and hostAliases: an identifying leaf plus a list → block', () => {
+    expect(shape(['deployments', 'web', 'ingress', 'tls'])).toMatchObject({ identifying: 'secretName', leaves: [], extras: ['hosts'], pair: false });
+    expect(shape(['deployments', 'web', 'hostAliases'])).toMatchObject({ identifying: 'ip', pair: false });
+  });
+  it('tolerations: more than two remaining leaves → block', () => {
+    expect(shape(['deployments', 'web', 'tolerations'])).toMatchObject({ identifying: 'key', pair: false });
+  });
+  it('item labels', () => {
+    expect(itemLabelOf('secretRefs')).toBe('Variable');
+    expect(itemLabelOf('env')).toBe('Variable');
+    expect(itemLabelOf('hosts')).toBe('Host');
+    expect(itemLabelOf('tolerations')).toBe('Toleration');
+    expect(itemLabelOf('whatever')).toBe('Item');
   });
 });

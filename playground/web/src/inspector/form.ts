@@ -75,6 +75,52 @@ export function starterValue(root: SchemaNode, node: SchemaNode): unknown {
   }
 }
 
+export type ItemShape = { identifying: string | null; leaves: string[][]; extras: string[]; required: string[]; pair: boolean };
+const ID_KEYS = ['name', 'host', 'key', 'mountPath', 'path', 'ip', 'type', 'secretName'];
+const kindOf = (root: SchemaNode, node: SchemaNode) => classify(root, node).kind;
+const isTextLeaf = (root: SchemaNode, node: SchemaNode) => { const k = kindOf(root, node); return k === 'string' || k === 'number'; };
+const isScalar = (root: SchemaNode, node: SchemaNode) => isTextLeaf(root, node) || kindOf(root, node) === 'boolean';
+// inside a promoted nested object, identifying-style keys come first (`secretKeyRef.name / secretKeyRef.key`), then schema order
+const byIdKeys = (a: string, b: string) => (ID_KEYS.indexOf(a) + 1 || 99) - (ID_KEYS.indexOf(b) + 1 || 99);
+
+/**
+ * How one item of an object list renders (spec 2026-09-08 §5.2), decided by the item schema alone.
+ * Leaves: string/number properties, plus the string/number properties of a nested object whose properties
+ * are all scalar (`secretKeyRef.name`, `secretKeyRef.key`). Everything else (lists, booleans, deeper
+ * objects) is an "extra" reachable through the row's expander; a promoted nested object that also has a
+ * boolean (`secretKeyRef.optional`) is both. Pair row = an identifying leaf plus one or two other leaves.
+ * `required` lists the item's required top-level keys so an emptied required leaf is set to '' rather than deleted.
+ */
+export function itemShape(root: SchemaNode, item: SchemaNode): ItemShape {
+  const r = resolve(root, item);
+  const props: Record<string, SchemaNode> = isObj(r.properties) ? (r.properties as any) : {};
+  const leaves: string[][] = [];
+  const extras: string[] = [];
+  for (const [k, raw] of Object.entries(props)) {
+    const s = resolve(root, raw);
+    if (isTextLeaf(root, s)) { leaves.push([k]); continue; }
+    const sub: Record<string, SchemaNode> = isObj(s.properties) ? (s.properties as any) : {};
+    const subKeys = Object.keys(sub);
+    if (kindOf(root, s) === 'object' && subKeys.length > 0 && subKeys.every((sk) => isScalar(root, resolve(root, sub[sk])))) {
+      const text = subKeys.filter((sk) => isTextLeaf(root, resolve(root, sub[sk]))).sort(byIdKeys);
+      for (const sk of text) leaves.push([k, sk]);
+      if (text.length < subKeys.length) extras.push(k);
+      continue;
+    }
+    extras.push(k);
+  }
+  const identifying = ID_KEYS.find((k) => leaves.some((l) => l.length === 1 && l[0] === k)) ?? null;
+  const rest = leaves.filter((l) => !(l.length === 1 && l[0] === identifying));
+  return { identifying, leaves: rest, extras, required: Array.isArray(r.required) ? r.required.map(String) : [], pair: identifying !== null && rest.length >= 1 && rest.length <= 2 };
+}
+
+const ITEM_LABELS: Record<string, string> = {
+  secretRefs: 'Variable', env: 'Variable', envFrom: 'Source', hosts: 'Host', paths: 'Path', tls: 'TLS entry', tolerations: 'Toleration',
+  hostAliases: 'Host alias', volumeMounts: 'Mount', metrics: 'Metric', endpoints: 'Endpoint', rules: 'Rule', parentRefs: 'Parent', options: 'Option',
+};
+/** Chip text for adding one item to a list keyed `key` (spec §5.2/§5.3). */
+export const itemLabelOf = (key: string): string => ITEM_LABELS[key] ?? 'Item';
+
 const SENTENCE_ABBREVIATIONS = new Set(['e.g', 'i.e', 'etc', 'vs', 'ex', 'cf']);
 
 /**

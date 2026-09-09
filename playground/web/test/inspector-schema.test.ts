@@ -68,3 +68,27 @@ describe('inspector schema resolver', () => {
     expect(r.required).toContain('b');
   });
 });
+
+describe('objectList / mapOfLists (spec 2026-09-08 §5.2, §5.3)', () => {
+  const at = (p: (string | number)[]) => classify(root, schemaAt(root, p)!).kind;
+  it('lists of chart-defined objects are objectList', () => {
+    expect(at(['deployments', 'web', 'containers', 'main', 'env'])).toBe('objectList');
+    expect(at(['deployments', 'web', 'ingress', 'hosts'])).toBe('objectList');
+    expect(at(['deployments', 'web', 'ingress', 'tls'])).toBe('objectList');
+    expect(at(['deployments', 'web', 'hostAliases'])).toBe('objectList');
+    expect(at(['deployments', 'web', 'hpa', 'metrics'])).toBe('objectList');
+  });
+  it('allow-listed upstream item types are objectList; other k8s.io item types stay yaml', () => {
+    expect(at(['deployments', 'web', 'tolerations'])).toBe('objectList');
+    expect(at(['deployments', 'web', 'volumes'])).toBe('yaml');
+    expect(at(['deployments', 'web', 'topologySpreadConstraints'])).toBe('yaml');
+    expect(at(['deployments', 'web', 'rbac', 'rules'])).toBe('yaml');
+  });
+  it('items without properties stay yaml; string lists stay list', () => {
+    expect(at(['deployments', 'web', 'serviceMonitor', 'endpoints', 0, 'metricRelabelings'])).toBe('yaml');
+    expect(at(['deployments', 'web', 'containers', 'main', 'args'])).toBe('list');
+  });
+  it('secretRefs is a map of object lists', () => {
+    expect(classify(root, root.properties.secretRefs).kind).toBe('mapOfLists');
+  });
+});

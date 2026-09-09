@@ -38,9 +38,10 @@ export function FieldRow(p: FieldProps & { bare?: boolean }): ReactElement {
       case 'map': return <MapSection {...p} />;
       case 'object': return <ObjectSection {...p} />;
       case 'yaml': return <YamlField {...p} />;
+      case 'objectList': case 'mapOfLists': return <YamlField {...p} />;
     }
   })();
-  const block = special !== null || field.widget.kind === 'map' || field.widget.kind === 'object' || field.widget.kind === 'keyvalue' || field.widget.kind === 'yaml' || field.widget.kind === 'list';
+  const block = special !== null || field.widget.kind === 'map' || field.widget.kind === 'object' || field.widget.kind === 'keyvalue' || field.widget.kind === 'yaml' || field.widget.kind === 'list' || field.widget.kind === 'objectList' || field.widget.kind === 'mapOfLists';
   return (
     <div className={`field ${block ? 'block' : 'inline'} ${p.bare ? 'bare' : ''} ${special ? `sp-${special}` : ''} tier-${field.tier} ${field.present ? 'present' : 'absent'}`}>
       {!p.bare && <div className="field-head">

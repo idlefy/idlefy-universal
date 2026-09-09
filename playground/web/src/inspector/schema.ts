@@ -9,6 +9,8 @@ export type Widget =
   | { kind: 'keyvalue' }
   | { kind: 'object' }
   | { kind: 'map'; keyPattern?: string }
+  | { kind: 'objectList' }
+  | { kind: 'mapOfLists' }
   | { kind: 'yaml' };
 
 const REF = '#/$defs/';
@@ -93,6 +95,17 @@ const scalarType = (n: SchemaNode): string | undefined => {
   return undefined;
 };
 
+// spec 2026-09-08 §5.2: upstream item types small enough to edit as rows; every other k8s.io.* item stays raw YAML
+const OBJECT_LIST_ALLOW = new Set(['k8s.io.api.core.v1.Toleration', 'k8s.io.api.core.v1.PodDNSConfigOption']);
+/** True when an array's `items` is an object with declared properties that is not an (un-allow-listed) k8s.io.* type. */
+export function isObjectListItem(root: SchemaNode, items: SchemaNode | undefined): boolean {
+  if (!isObj(items)) return false;
+  const item = resolve(root, items);
+  if (!isObj(item.properties) || Object.keys(item.properties).length === 0) return false;
+  const ref = item['x-ref-name'];
+  return !(typeof ref === 'string' && ref.startsWith('k8s.io.') && !OBJECT_LIST_ALLOW.has(ref));
+}
+
 export function classify(root: SchemaNode, node: SchemaNode): Widget {
   const r = resolve(root, node);
   if (typeof r['x-ref-name'] === 'string' && r['x-ref-name'].startsWith('k8s.io.')) return { kind: 'yaml' };
@@ -115,7 +128,7 @@ export function classify(root: SchemaNode, node: SchemaNode): Widget {
     const item = isObj(r.items) ? resolve(root, r.items) : undefined;
     const it = item ? scalarType(item) : undefined;
     if (it && it !== 'object' && it !== 'array') return item?.enum ? { kind: 'list', enum: item.enum.map(String) } : { kind: 'list' };
-    return { kind: 'yaml' };
+    return isObjectListItem(root, r.items) ? { kind: 'objectList' } : { kind: 'yaml' };
   }
   if (t === 'object' || isObj(r.properties) || r.additionalProperties !== undefined) {
     if (isObj(r.properties) && Object.keys(r.properties).length > 0) return { kind: 'object' };
@@ -128,7 +141,7 @@ export function classify(root: SchemaNode, node: SchemaNode): Widget {
         if (typeof r.propertyNames?.pattern === 'string') w.keyPattern = r.propertyNames.pattern;
         return w;
       }
-      if (apt === 'array') return { kind: 'yaml' };
+      if (apt === 'array') return isObjectListItem(root, apr.items) ? { kind: 'mapOfLists' } : { kind: 'yaml' };
       return hasNonScalarExamples(r) ? { kind: 'yaml' } : { kind: 'keyvalue' };
     }
     return hasNonScalarExamples(r) ? { kind: 'yaml' } : { kind: 'keyvalue' };
