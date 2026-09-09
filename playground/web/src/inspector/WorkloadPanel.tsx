@@ -12,7 +12,7 @@ import type { InspectTarget } from './target';
 import { SEC_IDS, OWNED_FLAGS } from '../graph/secondary';
 import { samePath } from '../model/guards';
 
-/** spec 2026-09-08 §3.2: only the workload's own fields, with the group named above them. */
+/** Only the workload's own fields, with the group named above them. */
 export function WorkloadPanel(p: {
   target: Extract<InspectTarget, { kind: 'workload' }>; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[]; disabled: boolean;
   onEdit: (ops: EditOp[]) => void; onSelect: (selection: string) => void; onTier: (t: Tier) => void;

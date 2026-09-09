@@ -13,7 +13,7 @@ import { isObj } from '../model/guards';
 const RELEASE_SECTIONS = Object.keys(RELEASE_TITLES);
 const hide = (x: string) => OWNED_FLAGS.has(x);
 
-/** spec 2026-09-08 §3: the release-level sections (`generic`, `<kind>General`, `secretRefs`). */
+/** The release-level sections (`generic`, `<kind>General`, `secretRefs`). */
 export function ReleasePanel(p: {
   target: Extract<InspectTarget, { kind: 'release' }>; root: SchemaNode; doc: ValuesDocument; tier: Tier; disabled: boolean;
   onEdit: (ops: EditOp[]) => void; onTier: (t: Tier) => void;

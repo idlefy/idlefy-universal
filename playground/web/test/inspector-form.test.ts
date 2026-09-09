@@ -101,7 +101,7 @@ describe('firstSentence / chipValue', () => {
   });
 });
 
-describe('itemShape (spec 2026-09-08 §5.2)', () => {
+describe('itemShape', () => {
   const shape = (p: (string | number)[]) => itemShape(root, resolve(root, schemaAt(root, p)!).items);
   it('env: name + value as a pair, valueFrom behind the expander', () => {
     expect(shape(['deployments', 'web', 'containers', 'main', 'env'])).toMatchObject({ identifying: 'name', leaves: [['value']], extras: ['valueFrom'], pair: true });

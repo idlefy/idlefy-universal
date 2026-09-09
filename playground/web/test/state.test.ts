@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { reducer, initialState, markersFrom, pointerToPath } from '../src/app/state';
+// engine/types.ts has no side effects, so importing SUPERSEDED from it here doesn't pull the
+// engine/WASM code into this test — it stays bundle-free.
 import { SUPERSEDED } from '../src/engine/types';
 
 describe('app state', () => {

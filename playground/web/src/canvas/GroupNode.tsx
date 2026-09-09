@@ -4,7 +4,7 @@ import type { GroupNodeData } from './layout';
 import { CanvasActions } from './actions';
 import { GroupGlyph } from './icons';
 
-/** The workload plus the resources the chart auto-creates for it; selectable as an entity (spec 2026-09-08 §2). */
+/** The workload plus the resources the chart auto-creates for it; selectable as an entity. */
 export function GroupNode({ id, data, selected }: NodeProps<Node<GroupNodeData>>) {
   const { select, addResource } = useContext(CanvasActions);
   const stop = (e: React.MouseEvent) => e.stopPropagation();

@@ -8,7 +8,7 @@ import { isObj } from '../../model/guards';
 
 const leafAt = (v: unknown, leaf: string[]): unknown => leaf.reduce<any>((cur, k) => (isObj(cur) ? cur[k] : undefined), v);
 
-/** A list of objects as rows (spec 2026-09-08 §5.2): pair rows when the item is small, collapsed block rows otherwise. */
+/** A list of objects as rows: pair rows when the item is small, collapsed block rows otherwise. */
 export function ObjectListField(props: FieldProps & { itemLabel?: string }): ReactElement {
   const { root, field, onEdit, itemLabel } = props;
   const id = field.path.join('.');
@@ -104,7 +104,7 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   // sub-keys of `k` already promoted into a pair leaf (secretKeyRef.name/.key) — the row already edits these directly
   const promotedSubKeys = (k: string) => shape.leaves.filter((l) => l[0] === k).map((l) => l[1]);
   // a "mixed" key is both promoted into pair leaves and flagged extra (secretKeyRef: `.name`/`.key` are leaves,
-  // `.optional` is the leftover extra) — spec §5.2: the body is for "those extra properties" only, so the row's
+  // `.optional` is the leftover extra) — the body is for those extra properties only, so the row's
   // own leaves (mixed or not) never repeat in the body; a mixed key instead gets its own nested FieldList below,
   // scoped to just its unpromoted sub-keys, so its promoted leaves aren't shown (or clearable) a second time.
   const mixedKeys = shape.extras.filter((k) => promotedSubKeys(k).length > 0);

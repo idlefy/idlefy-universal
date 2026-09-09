@@ -2,7 +2,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { KindIcon, GroupGlyph } from '../canvas/icons';
 import { familyOf } from '../graph/labels';
 
-/** The strip above a panel that names what the object belongs to (spec 2026-09-08 §3.2, §3.3). `kind: 'group'` draws the group glyph. */
+/** The strip above a panel that names what the object belongs to. `kind: 'group'` draws the group glyph. */
 export function OwnerStrip(p: { kind: string; text: ReactNode; button: string; ariaLabel: string; onClick?: () => void }): ReactElement {
   const fam = p.kind === 'group' ? 'workload' : familyOf(p.kind);
   return (

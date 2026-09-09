@@ -35,7 +35,7 @@ describe('layoutGraph', () => {
     expect(child.position.y).toBeGreaterThanOrEqual(36);
     expect(child.position.x + NODE_W).toBeLessThanOrEqual((group.width as number) + 1);
     expect(nodes.find((n) => n.id === 'default/PersistentVolumeClaim/uploads')!.parentId).toBeUndefined();
-    // Deployment/files owns nothing but still sits in its own group (spec 2026-09-08 §2.1)
+    // Deployment/files owns nothing but still sits in its own group
     const files = nodes.find((n) => n.id === 'group:default/Deployment/files')!;
     expect(files.type).toBe('group');
     expect(nodes.find((n) => n.id === 'default/Deployment/files')!.parentId).toBe(files.id);

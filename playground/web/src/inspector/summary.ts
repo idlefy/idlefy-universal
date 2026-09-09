@@ -36,7 +36,7 @@ export function summaryOf(id: SecondaryId, cfg: Record<string, any>): string {
   }
 }
 
-/** Group-panel Workload row (spec 2026-09-08 §3.1). Ruling: DaemonSets have no replicas, so they show the image only. */
+/** Group-panel Workload row. Ruling: DaemonSets have no replicas, so they show the image only. */
 export function workloadSummary(kindKey: string, cfg: Record<string, any>): string {
   const first = Object.values(cfg.containers ?? {})[0] as any;
   const image = first?.image ? `${first.image}${first.imageTag ? `:${first.imageTag}` : ''}` : 'no image';

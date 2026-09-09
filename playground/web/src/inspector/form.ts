@@ -102,7 +102,7 @@ const isLeafWidget = (root: SchemaNode, node: SchemaNode) => isTextLeaf(root, no
 const byIdKeys = (a: string, b: string) => (ID_KEYS.indexOf(a) + 1 || 99) - (ID_KEYS.indexOf(b) + 1 || 99);
 
 /**
- * How one item of an object list renders (spec 2026-09-08 §5.2), decided by the item schema alone.
+ * How one item of an object list renders, decided by the item schema alone.
  * Leaves: string/number properties, plus the string/number properties of a nested object whose properties
  * are all scalar (`secretKeyRef.name`, `secretKeyRef.key`). Everything else (lists, booleans, deeper
  * objects) is an "extra" reachable through the row's expander; a promoted nested object that also has a
@@ -136,7 +136,7 @@ const ITEM_LABELS: Record<string, string> = {
   secretRefs: 'Variable', env: 'Variable', envFrom: 'Source', hosts: 'Host', paths: 'Path', tls: 'TLS entry', tolerations: 'Toleration',
   hostAliases: 'Host alias', volumeMounts: 'Mount', metrics: 'Metric', endpoints: 'Endpoint', rules: 'Rule', parentRefs: 'Parent', options: 'Option',
 };
-/** Chip text for adding one item to a list keyed `key` (spec §5.2/§5.3). */
+/** Chip text for adding one item to a list keyed `key`. */
 export const itemLabelOf = (key: string): string => ITEM_LABELS[key] ?? 'Item';
 
 const SENTENCE_ABBREVIATIONS = new Set(['e.g', 'i.e', 'etc', 'vs', 'ex', 'cf']);

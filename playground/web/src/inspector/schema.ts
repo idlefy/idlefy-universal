@@ -96,7 +96,7 @@ const scalarType = (n: SchemaNode): string | undefined => {
   return undefined;
 };
 
-// spec 2026-09-08 §5.2: upstream item types small enough to edit as rows; every other k8s.io.* item stays raw YAML
+// Upstream item types small enough to edit as rows; every other k8s.io.* item stays raw YAML.
 const OBJECT_LIST_ALLOW = new Set(['k8s.io.api.core.v1.Toleration', 'k8s.io.api.core.v1.PodDNSConfigOption']);
 /** True when an array's `items` is an object with declared properties that is not an (un-allow-listed) k8s.io.* type. */
 export function isObjectListItem(root: SchemaNode, items: SchemaNode | undefined): boolean {

@@ -13,7 +13,7 @@ import { secondaryById, WORKLOAD_KINDS } from '../graph/secondary';
 import { SECONDARY_SECTIONS, SERVICE_OWNER_KEYS } from './sections';
 import { isObj, samePath } from '../model/guards';
 
-/** spec 2026-09-08 §3.3 / §3.3.1 / §3.5: one auto-created resource, with or without a rendered node. */
+/** One auto-created resource, with or without a rendered node. */
 export function SecondaryPanel(p: {
   target: Extract<InspectTarget, { kind: 'secondary' }>; root: SchemaNode; doc: ValuesDocument; tier: Tier; nodes: GraphNode[]; disabled: boolean;
   onEdit: (ops: EditOp[]) => void; onSelect: (selection: string) => void; onTier: (t: Tier) => void;
@@ -27,7 +27,7 @@ export function SecondaryPanel(p: {
   const cfg = isObj(raw) ? raw : {};
   const on = sec.isOn(cfg);
   const blocked = sec.blocked?.(cfg, kindKey);
-  // secondary.ts: some `off()` handlers delete the block, others only clear a flag — say which (spec §3.3)
+  // secondary.ts: some `off()` handlers delete the block, others only clear a flag — say which
   const deletes = sec.off(owner).some((o) => o.op === 'delete');
   const toggle = (checked: boolean) => {
     if (checked) { p.onEdit(sec.on(owner, cfg, name)); return; }

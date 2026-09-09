@@ -42,7 +42,7 @@ export function FieldList(p: {
   onEdit: (ops: EditOp[]) => void; hide?: (key: string) => boolean; order?: readonly string[];
 }): ReactElement {
   const fields = buildFields(p.root, p.node, p.basePath, p.value, p.tier, { hide: p.hide });
-  // Spec §5.2 lists keys "in this order"; buildFields walks the schema alphabetically. Stable sort: unlisted keys keep schema order after the listed ones.
+  // Some sections want keys in a specific display order; buildFields walks the schema alphabetically. Stable sort: unlisted keys keep schema order after the listed ones.
   const rank = new Map((p.order ?? []).map((k, i) => [k, i]));
   const byOrder = (a: Field, b: Field) => (rank.get(a.key) ?? 1e9) - (rank.get(b.key) ?? 1e9);
   const rows = fields.filter((f) => f.present || f.required).sort(byOrder);

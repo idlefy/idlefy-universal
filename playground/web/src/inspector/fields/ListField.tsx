@@ -4,7 +4,7 @@ import { YamlField } from './YamlField';
 import { parseScalarText } from '../form';
 import { isScalar } from '../../model/guards';
 
-/** One row per item (spec 2026-09-08 §5.1). Add appends an item and focuses it; removing the last item deletes the key. */
+/** One row per item. Add appends an item and focuses it; removing the last item deletes the key. */
 export function ListField(props: FieldProps): ReactElement {
   const { field, onEdit } = props;
   const id = field.path.join('.');

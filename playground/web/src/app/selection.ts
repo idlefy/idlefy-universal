@@ -4,7 +4,7 @@ import { groupsOf, isWorkloadNode, type Group } from '../graph/groups';
 import { kindOfSecondary } from '../inspector/summary';
 import type { SecondaryId } from '../graph/secondary';
 
-/** spec 2026-09-08 §2.3: a selection is a node id, `group:<workloadNodeId>` or `block:<kindKey>.<name>.<block>`. */
+/** A selection is a node id, `group:<workloadNodeId>` or `block:<kindKey>.<name>.<block>`. */
 export type ResolvedSelection =
   | { kind: 'node'; node: GraphNode }
   | { kind: 'group'; group: Group }

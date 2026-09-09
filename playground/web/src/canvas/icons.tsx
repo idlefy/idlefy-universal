@@ -25,10 +25,10 @@ const BY_KIND: Record<string, string> = {
   Service: svc, Ingress: ing, ConfigMap: cm, Secret: secret, PersistentVolumeClaim: pvc,
   ServiceAccount: sa, Role: role, RoleBinding: rb, NetworkPolicy: netpol, HorizontalPodAutoscaler: hpa,
   PodDisruptionBudget: pod, Release: helm,
-  // Gateway API, cert-manager and Prometheus operator have no icon in the official set (spec §4).
 };
 const cache = new Map<string, string>();
 export function iconFor(kind: string): string {
+  // Kinds with no icon here (e.g. Gateway API, cert-manager, Prometheus operator resources) fall back to the generic CRD glyph.
   const raw = BY_KIND[kind] ?? crd;
   let m = cache.get(raw);
   if (!m) { m = inner(raw); cache.set(raw, m); }

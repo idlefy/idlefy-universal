@@ -13,7 +13,7 @@ export type InspectTarget =
   | { kind: 'release' }
   | { kind: 'none'; reason: string };
 
-/** Which panel a selection opens (spec 2026-09-08 §3). */
+/** Which panel a selection opens. */
 export function inspectTarget(sel: ResolvedSelection, root: SchemaNode): InspectTarget {
   if (sel.kind === 'group') return { kind: 'group', owner: sel.group.owner, members: sel.group.members };
   if (sel.kind === 'block') {

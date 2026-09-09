@@ -73,7 +73,7 @@ export function Canvas({
     };
   }, [model]);
 
-  // spec 2026-09-08 §2.3: node selections dim non-neighbours; group and block selections dim nothing.
+  // Node selections dim non-neighbours; group and block selections dim nothing.
   const focus = selection && !isGroupId(selection) && !isBlockId(selection) ? selection : null;
   const { nodes, edges } = useMemo(() => {
     const near = new Set<string>(focus ? [focus] : []);
@@ -112,7 +112,7 @@ export function Canvas({
           minZoom={0.2}
           maxZoom={1.25}
           // React Flow fires these for `selectable: false` nodes too; a click anywhere inside a group
-          // (its empty interior included) selects the group (spec 2026-09-08 §2.3).
+          // (its empty interior included) selects the group.
           onNodeClick={(_, n) => onSelect(n.id)}
           onPaneClick={() => onSelect(null)}
           nodesConnectable={false}

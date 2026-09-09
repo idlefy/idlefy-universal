@@ -9,7 +9,7 @@ import { plural } from '../summary';
 import { ObjectListField } from './ObjectListField';
 import { YamlField } from './YamlField';
 
-/** A map whose values are object lists — today only `secretRefs` (spec 2026-09-08 §5.3): one card per key. */
+/** A map whose values are object lists — today only `secretRefs`: one card per key. */
 export function MapOfListsField({ root, field, tier, onEdit }: FieldProps): ReactElement {
   const id = field.path.join('.');
   const r = resolve(root, field.schema);

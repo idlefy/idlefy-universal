@@ -6,7 +6,7 @@ export type Section = { id: string; title: string; keys: readonly string[]; adva
 /**
  * `null` when `count(tier)` finds something to show — the caller renders normally. Otherwise the
  * section/row has nothing on this tier: the return value is the title to name it by in the footer
- * (spec §4.6), when the advanced tier would show something, or `''` when it would not (hidden with
+ * when the advanced tier would show something, or `''` when it would not (hidden with
  * nothing to say about it). Either way a non-null result means the caller must not render.
  */
 export function hiddenTitle(count: (t: Tier) => number, tier: Tier, title: string): string | null {
@@ -14,7 +14,7 @@ export function hiddenTitle(count: (t: Tier) => number, tier: Tier, title: strin
   return tier !== 'advanced' && count('advanced') > 0 ? title : '';
 }
 
-// spec 2026-09-07 §5.2. Keys are listed for every workload kind; a kind that lacks a key simply does not show it.
+// Keys are listed for every workload kind; a kind that lacks a key simply does not show it.
 export const WORKLOAD_SECTIONS: readonly Section[] = [
   { id: 'workload', title: 'Workload', keys: [
     'replicas', 'serviceType', 'serviceName', 'serviceHeadless', 'schedule', 'timezone', 'suspend', 'concurrencyPolicy',
@@ -49,7 +49,7 @@ export const RELEASE_TITLES: Record<string, string> = {
   daemonSetsGeneral: 'Defaults for every DaemonSet', secretRefs: 'Secrets referenced by name',
 };
 
-// spec 2026-09-08 §3.3: per-block section tables; blocks without a table render as one section titled by their label.
+// Per-block section tables; blocks without a table render as one section titled by their label.
 export const SECONDARY_SECTIONS: Partial<Record<SecondaryId, readonly Section[]>> = {
   ingress: [
     { id: 'routing', title: 'Routing', keys: ['ingressClassName', 'hosts'] },
@@ -75,7 +75,7 @@ export const SECONDARY_SECTIONS: Partial<Record<SecondaryId, readonly Section[]>
   ],
 };
 
-// spec 2026-09-08 §3.3.1: the Service has no values block; its settings are these owner keys.
+// The Service has no values block; its settings are these owner keys.
 // Only deployments and statefulSets: the Service secondary's `kinds` is SVC_KINDS, so no other workload kind ever looks this up.
 export const SERVICE_OWNER_KEYS: Record<string, readonly string[]> = {
   deployments: ['serviceType'], statefulSets: ['serviceType', 'serviceName', 'serviceHeadless'],

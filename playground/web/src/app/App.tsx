@@ -35,8 +35,8 @@ export function App() {
   const hStart = range?.start ?? null, hEnd = range?.end ?? null;
   const highlight = useMemo(() => (hStart === null || hEnd === null ? null : { start: hStart, end: hEnd }), [hStart, hEnd]);
   // A document with syntax errors reads as empty (`toJS()` gives `{}`), which would make every
-  // inspector field look absent while the user is mid-typo. The inspector is disabled then anyway
-  // (spec §6), so it keeps showing the last document that parsed.
+  // inspector field look absent while the user is mid-typo. The inspector is disabled then anyway,
+  // so it keeps showing the last document that parsed.
   const lastGoodDoc = useRef(state.doc);
   const inspectorDoc = useMemo(() => {
     if (state.doc.errors.length === 0) lastGoodDoc.current = state.doc;

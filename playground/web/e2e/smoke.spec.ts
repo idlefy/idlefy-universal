@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 const BAD = 'deployments:\n  app:\n    replcias: 1\n    containers:\n      main: {image: nginx, imageTag: "1"}\n';
 const GOOD = BAD.replace('replcias', 'replicas');
 
-// The YAML pane starts collapsed (spec §2); tests that use the toolbar or type into Monaco open it first.
+// The YAML pane starts collapsed; tests that use the toolbar or type into Monaco open it first.
 // Waits for either the rail or an already-visible editor so it cannot race the first paint.
 const openYaml = async (page: import('@playwright/test').Page) => {
   const rail = page.getByRole('button', { name: 'Show values.yaml' });

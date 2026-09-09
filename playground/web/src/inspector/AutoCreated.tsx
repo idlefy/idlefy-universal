@@ -7,7 +7,7 @@ import { familyOf } from '../graph/labels';
 import { blockId } from '../app/selection';
 import { isFilledObj } from '../model/guards';
 
-/** Switch list of the resources the chart can auto-create for a workload (spec 2026-09-08 §3.1). Never renders a block inline. */
+/** Switch list of the resources the chart can auto-create for a workload. Never renders a block inline. */
 export function AutoCreated(p: {
   kindKey: string; name: string; base: ValuesPath; cfg: Record<string, any>; disabled: boolean;
   onEdit: (ops: EditOp[]) => void; nodeFor: (id: SecondaryId) => string | null; hasSchema: (id: SecondaryId) => boolean; onSelect: (selection: string) => void;

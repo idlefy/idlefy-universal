@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { parse, stringify } from 'yaml';
 import type { FieldProps } from './index';
 
-/** Raw YAML for k8s.io.* passthrough nodes (spec 2026-09-08 §5.4): collapsed preview first, textarea on "Edit as YAML". */
+/** Raw YAML for k8s.io.* passthrough nodes: collapsed preview first, textarea on "Edit as YAML". */
 export function YamlField({ field, onEdit }: FieldProps): ReactElement {
   const id = field.path.join('.');
   const fromValue = field.value === undefined ? '' : stringify(field.value, { lineWidth: 0 });

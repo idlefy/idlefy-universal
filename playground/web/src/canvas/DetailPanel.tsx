@@ -21,7 +21,7 @@ export type Head = {
   path: ValuesPath | null; count?: number; manifest: string | null; tabs: readonly string[];
 };
 
-/** Header facts per selection shape (spec 2026-09-08 §3.1, §3.5). */
+/** Header facts per selection shape. */
 export function headOf(sel: ResolvedSelection): Head {
   if (sel.kind === 'group') {
     const { owner, members } = sel.group;

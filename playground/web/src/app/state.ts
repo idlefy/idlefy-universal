@@ -1,5 +1,5 @@
 import { ValuesDocument, type EditOp } from '../model/ValuesDocument';
-import { SUPERSEDED, type RenderResult } from '../engine/types';   // types.ts has no side effects, so this test stays bundle-free
+import { SUPERSEDED, type RenderResult } from '../engine/types';
 import type { GraphModel } from '../graph/types';
 import type { EditorMarker } from '../editor/Editor';
 import { anchorOf } from './selection';
@@ -36,14 +36,14 @@ export function reducer(s: AppState, a: Action): AppState {
       if (!a.result.ok && a.result.error.message === SUPERSEDED) return s;
       const graph = a.result.ok ? a.graph : s.graph;
       // A selected node can disappear from the rebuilt graph (renamed or removed). Group and block
-      // selections are anchored to their workload and survive as long as it does (spec 2026-09-08 §2.3).
+      // selections are anchored to their workload and survive as long as it does.
       const selection = graph && s.selection && !anchorOf(graph, s.selection) ? null : s.selection;
       return { ...s, render: a.result, graph, selection };
     }
     case 'select': return { ...s, selection: a.id };
     case 'engine-failed': return { ...s, engineError: a.message };
     case 'edit': {
-      // Spec §6: the inspector is disabled while the YAML is invalid; §5: text is canonical, so the
+      // The inspector is disabled while the YAML is invalid. Text is canonical, so the
       // edited document is serialised and re-parsed rather than kept.
       if (s.doc.errors.length || a.ops.length === 0) return s;
       const text = s.doc.apply(a.ops).toString();

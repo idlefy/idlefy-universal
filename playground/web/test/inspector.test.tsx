@@ -26,10 +26,10 @@ const ff = (() => { const f = loadFixture('full-features'); return buildGraph(f.
 const ffNode = (kind: string, name: string) => ff.nodes.find((n) => n.kind === kind && n.name === name)!;
 const ffBase = (sel: any) => ({ sel, root, doc: ValuesDocument.parse(ffText), tier: 'basic' as const, nodes: ff.nodes, onEdit: vi.fn(), onSelect: vi.fn(), onTier: vi.fn(), disabled: false, focusToken: 0 });
 
-// Absent optional fields now render as an "add field" chip instead of an empty control (task 6);
+// Absent optional fields render as an "add field" chip instead of an empty control;
 // a field is reachable either as a live control, its chip, or — for block widgets (object/map/keyvalue/
 // yaml), whose own <label for=id> targets a wrapper <div> that carries no matching id — the row's label
-// element itself. Reused by task 7.
+// element itself. Reused throughout this file.
 const reachable = (id: string) =>
   screen.queryByLabelText(id) ?? screen.queryByLabelText(`add field ${id}`) ?? document.querySelector(`label[for="${CSS.escape(id)}"]`);
 
@@ -104,8 +104,8 @@ describe('Inspector', () => {
     expect(reachable('deployments.api.autoCreateSoftAntiAffinity')).toBeTruthy();
     expect(reachable('deployments.api.autoCreateService')).toBeNull();
   });
-  // Secondary config blocks are reached through the auto-created list, never as fields (spec §5.2);
-  // the list itself only offers what the chart renders for the kind (spec 2026-09-05 §2.2).
+  // Secondary config blocks are reached through the auto-created list, never as fields;
+  // the list itself only offers what the chart renders for the kind.
   it('offers no secondary block as a field and no switches on the workload panel', () => {
     render(<Inspector {...ffBase(nodeSel(ffNode('StatefulSet', 'cache')))} tier="advanced" />);
     for (const k of ['ingress', 'httpRoute', 'certificate', 'hpa', 'pdb', 'networkPolicy']) expect(reachable(`statefulSets.cache.${k}`), k).toBeNull();
@@ -122,7 +122,7 @@ describe('Inspector', () => {
     const p = base(nodeSel(dep));
     const { container, rerender } = render(<Inspector {...p} tier="basic" />);
     // Metadata has nothing to show at basic tier here (no labels/annotations set) but does at advanced,
-    // so it joins Placement & security in the footer note (spec §4.6)
+    // so it joins Placement & security in the footer note
     expect(screen.getByText('Metadata, Placement & security hidden')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('show hidden sections'));
     expect(p.onTier).toHaveBeenCalledWith('advanced');

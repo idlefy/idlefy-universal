@@ -8,7 +8,7 @@ import { workloadSummary } from './summary';
 import type { InspectTarget } from './target';
 import { isObj } from '../model/guards';
 
-/** spec 2026-09-08 §3.1: the workload row and the "Created alongside it" switch list. */
+/** The workload row and the "Created alongside it" switch list. */
 export function GroupPanel(p: {
   target: Extract<InspectTarget, { kind: 'group' }>; root: SchemaNode; doc: ValuesDocument; disabled: boolean;
   onEdit: (ops: EditOp[]) => void; onSelect: (selection: string) => void; focusToken: number;
@@ -20,7 +20,7 @@ export function GroupPanel(p: {
   const cfg = isObj(raw) ? raw : {};
   const nodeFor = (id: SecondaryId) => members.find((m) => m.provenance && m.provenance.path.length === 3 && String(m.provenance.path[2]) === id)?.id ?? null;
   const created = useRef<HTMLDivElement>(null);
-  // "+ Add resource" on the canvas: scroll the list into view and focus its first switch (spec §2.2)
+  // "+ Add resource" on the canvas: scroll the list into view and focus its first switch
   useEffect(() => {
     if (p.focusToken > 0 && created.current) {
       created.current.scrollIntoView?.({ block: 'start' });

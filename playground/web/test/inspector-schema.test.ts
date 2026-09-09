@@ -69,7 +69,7 @@ describe('inspector schema resolver', () => {
   });
 });
 
-describe('objectList / mapOfLists (spec 2026-09-08 §5.2, §5.3)', () => {
+describe('objectList / mapOfLists', () => {
   const at = (p: (string | number)[]) => classify(root, schemaAt(root, p)!).kind;
   it('lists of chart-defined objects are objectList', () => {
     expect(at(['deployments', 'web', 'containers', 'main', 'env'])).toBe('objectList');

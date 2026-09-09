@@ -10,7 +10,7 @@ import { HiddenNote } from './HiddenNote';
 /**
  * Titled sections over one object node's keys, in table order, unknown keys last under `other`
  * (default "Other"). Advanced sections on the basic tier do not render; their titles go to one
- * footer note (spec 2026-09-08 §4.6). A section with nothing to show on this tier is omitted.
+ * footer note. A section with nothing to show on this tier is omitted.
  */
 export function Sections(p: {
   root: SchemaNode; node: SchemaNode; base: ValuesPath; value: unknown; tier: Tier; tables: readonly Section[]; other?: Section;

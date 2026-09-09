@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 
-/** Footer naming the advanced sections the basic tier hides (spec 2026-09-08 §4.6). Nothing renders when nothing is hidden. */
+/** Footer naming the advanced sections the basic tier hides. Nothing renders when nothing is hidden. */
 export function HiddenNote({ names, onShow }: { names: string[]; onShow: () => void }): ReactElement | null {
   if (names.length === 0) return null;
   return (

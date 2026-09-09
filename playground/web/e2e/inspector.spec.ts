@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-// The YAML pane starts collapsed (spec §2); tests that use the toolbar or type into Monaco open it first.
+// The YAML pane starts collapsed; tests that use the toolbar or type into Monaco open it first.
 // Waits for either the rail or an already-visible editor so it cannot race the first paint.
 const openYaml = async (page: import('@playwright/test').Page) => {
   const rail = page.getByRole('button', { name: 'Show values.yaml' });
@@ -23,7 +23,7 @@ test('inspector edits values, toggles resources, and undo goes through Monaco', 
   await replicas.fill('3');
   await expect(page.locator('.editor')).toContainText('replicas: 3');
 
-  // the switches live on the group panel (spec 2026-09-08 §3.1)
+  // the switches live on the group panel
   await page.getByLabel('Open group Deployment hello').click();
   await expect(page.locator('.rgroup.selected')).toHaveCount(1);
   await expect(page.locator('.detail [role="tab"][aria-selected="true"]')).toHaveText('Resources');

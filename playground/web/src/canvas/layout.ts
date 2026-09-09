@@ -33,7 +33,6 @@ export async function layoutGraph(model: GraphModel): Promise<{ nodes: AppNode[]
     children: [
       ...groups.map((g) => ({
         id: g.id,
-        // per-node elk.direction is a no-op under INCLUDE_CHILDREN (the root's direction applies to the whole hierarchy)
         layoutOptions: { 'elk.padding': `[top=${PAD.top},left=${PAD.side},bottom=${PAD.bottom},right=${PAD.side}]` },
         children: [leaf(g.owner), ...g.members.map(leaf)],
       })),

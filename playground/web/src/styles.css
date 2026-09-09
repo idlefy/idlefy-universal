@@ -103,7 +103,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .react-flow__controls button { background: var(--panel); color: var(--ink-2); border-bottom: 1px solid var(--line); }
 .react-flow__controls button:hover { background: var(--panel-2); }
 
-/* ---------- inspector (spec 2026-09-08 §4, values from the mockup) ---------- */
+/* ---------- inspector ---------- */
 .detail { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: 13px; color: var(--ink); background: var(--panel); }
 .detail .head { display: flex; align-items: center; gap: 12px; padding: 14px 12px 12px 16px; }
 .tile { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: color-mix(in srgb, var(--fam) 13%, transparent); color: var(--fam); }
