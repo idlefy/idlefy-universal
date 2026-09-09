@@ -5,6 +5,9 @@ import { createRequire } from 'node:module';
 import { toRenderResult } from '../src/engine/client';
 import chartFiles from '../src/chart-bundle/chart.json';
 import schema from '../src/chart-bundle/schema.json';
+import { ENTITIES, defaultName } from '../src/graph/entities';
+import { addEntityOps } from '../src/palette/add';
+import { ValuesDocument } from '../src/model/ValuesDocument';
 
 const pub = path.resolve(__dirname, '..', 'public');
 const wasmPath = path.join(pub, 'helm.wasm');
@@ -35,5 +38,16 @@ describe('helm.wasm via wasm_exec in node', () => {
     const r = toRenderResult(raw, 0);
     expect(r.ok).toBe(false);
     if (!r.ok) { expect(r.error.kind).toBe('schema'); expect(r.error.path).toBe('/deployments/app'); }
+  });
+  it('renders every palette starter body from an empty document', () => {
+    for (const e of ENTITIES) {
+      const name = defaultName(schema as any, e.key);
+      const text = ValuesDocument.parse('').apply(addEntityOps(schema as any, e.key, name)).toString();
+      expect(text, e.key).toMatch(new RegExp(`^${e.key}:\\n  ${name}:\\n`));          // block style, not flow
+      const raw = JSON.parse((globalThis as any).helmRender(files, text, 'demo', 'default'));
+      const r = toRenderResult(raw, 0);
+      expect(r.ok, `${e.key}: ${r.ok ? '' : r.error.message}`).toBe(true);
+      if (r.ok) expect(r.manifests.map((m) => m.obj.kind), e.key).toContain(e.kind);
+    }
   });
 });

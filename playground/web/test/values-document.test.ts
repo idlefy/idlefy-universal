@@ -163,4 +163,12 @@ describe('ValuesDocument', () => {
     expect(e.toString()).toContain('# vars');
     expect(e.toString()).toContain('value: "v"');
   });
+  it('setIn on an empty document creates a block-style root', () => {
+    const d = ValuesDocument.parse('').apply([{ op: 'set', path: ['deployments', 'backend-api'], value: { replicas: 2 } }]);
+    expect(d.toString()).toBe('deployments:\n  backend-api:\n    replicas: 2\n');
+  });
+  it('setIn on a flow root `{}` stays flow (documented caveat: the palette starts from an empty editor, not `{}`)', () => {
+    const d = ValuesDocument.parse('{}').apply([{ op: 'set', path: ['deployments', 'backend-api'], value: { replicas: 2 } }]);
+    expect(d.toString()).toBe('{deployments: {backend-api: {replicas: 2}}}\n');
+  });
 });
