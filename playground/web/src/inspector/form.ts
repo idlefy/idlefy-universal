@@ -1,4 +1,4 @@
-import type { ValuesPath } from '../model/ValuesDocument';
+import type { EditOp, ValuesPath } from '../model/ValuesDocument';
 import type { Tier } from '../app/state';
 import { classify, resolve, type SchemaNode, type Widget } from './schema';
 import { isObj } from '../model/guards';
@@ -230,6 +230,33 @@ export function itemShape(root: SchemaNode, item: SchemaNode): ItemShape {
   const rest = leaves.filter((l) => !(l.length === 1 && l[0] === identifying));
   const exclusive = exclusiveKeys(root, r);
   return { identifying, leaves: rest, extras, required: Array.isArray(r.required) ? r.required.map(String) : [], pair: identifying !== null && rest.length >= 1 && rest.length <= 2, exclusive };
+}
+
+/**
+ * Ops for one edited leaf of an object-list row, or `null` when the caller must hold the text as a
+ * local draft and emit nothing. `null` covers two cases: the text does not parse to the leaf's type
+ * (the existing draft behaviour), and the leaf is emptied but must not be deleted — a required leaf
+ * (`EnvVar.name`, whose pattern rejects `''`, so writing `''` is not an option either) or the last
+ * member of an exclusive group still set on the row (`env` with only `value`; a hostname with only
+ * `host`). A non-empty value that lands on an exclusive member evicts its siblings, or the item
+ * matches two `oneOf` branches at once.
+ */
+export function leafEditOps(
+  root: SchemaNode, shape: ItemShape, listPath: ValuesPath, index: number,
+  row: unknown, leaf: string[], leafSchema: SchemaNode, text: string,
+): EditOp[] | null {
+  const path = [...listPath, index, ...leaf];
+  const top = leaf.length === 1 ? leaf[0] : null;
+  const others = top !== null && shape.exclusive.includes(top)
+    ? shape.exclusive.filter((k) => k !== top && isObj(row) && (row as Record<string, unknown>)[k] !== undefined)
+    : [];
+  if (text === '') {
+    const mustKeep = top !== null && (shape.required.includes(top) || (shape.exclusive.includes(top) && others.length === 0));
+    return mustKeep ? null : [{ op: 'delete', path }];
+  }
+  const value = parseScalarText(text, classify(root, leafSchema));
+  if (value === undefined) return null;
+  return [{ op: 'set', path, value }, ...others.map((k) => ({ op: 'delete' as const, path: [...listPath, index, k] }))];
 }
 
 const ITEM_LABELS: Record<string, string> = {

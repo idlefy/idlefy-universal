@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { FieldList } from './index';
-import { resolve, classify, type SchemaNode } from '../schema';
-import { itemShape, itemLabelOf, parseScalarText, starterValue } from '../form';
+import { resolve, type SchemaNode } from '../schema';
+import { itemShape, itemLabelOf, leafEditOps, starterValue } from '../form';
 import { YamlField } from './YamlField';
 import { isObj } from '../../model/guards';
 
@@ -75,23 +75,14 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   }
   const leafSchema = (leaf: string[]): SchemaNode => leafSchemas.get(leaf.join('.'))!;
   const clearDraft = (key: string) => setDrafts((d) => { if (!(key in d)) return d; const next = { ...d }; delete next[key]; return next; });
+  // `leafEditOps` owns the whole decision (evict an exclusive sibling, delete, or emit nothing); a
+  // `null` result means the text is not committable yet, which is exactly what `drafts` is for.
   const setLeaf = (i: number, leaf: string[], text: string) => {
     const draftKey = `${i}.${leaf.join('.')}`;
-    const path = [...field.path, i, ...leaf];
-    // an emptied required leaf (the identifying `name`) is set to '' so the item never turns schema-invalid mid-typing
-    if (text === '') {
-      clearDraft(draftKey);
-      onEdit(leaf.length === 1 && shape.required.includes(leaf[0]) ? [{ op: 'set', path, value: '' }] : [{ op: 'delete', path }]);
-      return;
-    }
-    const value = parseScalarText(text, classify(root, leafSchema(leaf)));
-    if (value === undefined) { setDrafts((d) => ({ ...d, [draftKey]: text })); return; }
+    const ops = leafEditOps(root, shape, field.path, i, items[i], leaf, leafSchema(leaf), text);
+    if (ops === null) { setDrafts((d) => ({ ...d, [draftKey]: text })); return; }
     clearDraft(draftKey);
-    // a oneOf-exclusive leaf (host xor subdomain) evicts its siblings, or the item fails the schema
-    const row = items[i];
-    const evict = leaf.length === 1 && shape.exclusive.includes(leaf[0]) && isObj(row)
-      ? shape.exclusive.filter((k) => k !== leaf[0] && (row as Record<string, unknown>)[k] !== undefined) : [];
-    onEdit([{ op: 'set', path, value }, ...evict.map((k) => ({ op: 'delete' as const, path: [...field.path, i, k] }))]);
+    onEdit(ops);
   };
   const leafInput = (i: number, v: unknown, leaf: string[], cls: string) => {
     const s = leafSchema(leaf);

@@ -21,13 +21,18 @@ describe('ObjectListField', () => {
     expect(nameA.className).toContain('var');
     fireEvent.change(screen.getByLabelText('deployments.web.containers.main.env.1.value'), { target: { value: '3' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'env', 1, 'value'], value: '3' }]);
+    // `value` is the only member of EnvVar's value/valueFrom oneOf that is set: deleting it would
+    // leave a row that matches neither branch, so the text is held as a draft and nothing is emitted
+    onEdit.mockClear();
     fireEvent.change(screen.getByLabelText('deployments.web.containers.main.env.1.value'), { target: { value: '' } });
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...cbase, 'env', 1, 'value'] }]);
+    expect(onEdit).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('deployments.web.containers.main.env.1.value') as HTMLInputElement).className).toContain('invalid');
     fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main.env.0'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...cbase, 'env', 0] }]);
-    // a required identifying leaf is never deleted while typing: it is set to ''
+    // a required leaf is neither deleted nor set to '' (EnvVar.name's pattern rejects ''): held as a draft
+    onEdit.mockClear();
     fireEvent.change(screen.getByLabelText('deployments.web.containers.main.env.0.name'), { target: { value: '' } });
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'env', 0, 'name'], value: '' }]);
+    expect(onEdit).not.toHaveBeenCalled();
     const add = screen.getByLabelText('add deployments.web.containers.main.env');
     expect(add.textContent).toBe('Variable');
     fireEvent.click(add);
@@ -161,5 +166,27 @@ describe('ObjectListField', () => {
     expect((screen.getByLabelText('remove ingresses.site.hosts.0') as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByLabelText('remove ingresses.site.hosts.0'));
     expect(onEdit).not.toHaveBeenCalled();
+  });
+  it('a committed value evicts the exclusive sibling on the row (oneOf and anyOf alike)', () => {
+    const onEdit = vi.fn();
+    // HttpRouteHostname says host xor subdomain with `oneOf`
+    const hr = schemaAt(root, ['deployments', 'web', 'httpRoute'])!;
+    render(<FieldList root={root} node={hr} basePath={['deployments', 'web', 'httpRoute']} value={{ hostnames: [{ host: 'a.example.com' }, { host: 'b.example.com' }] }} tier="basic" onEdit={onEdit} />);
+    fireEvent.change(screen.getByLabelText('deployments.web.httpRoute.hostnames.1.subdomain'), { target: { value: 'api' } });
+    expect(onEdit).toHaveBeenLastCalledWith([
+      { op: 'set', path: ['deployments', 'web', 'httpRoute', 'hostnames', 1, 'subdomain'], value: 'api' },
+      { op: 'delete', path: ['deployments', 'web', 'httpRoute', 'hostnames', 1, 'host'] },
+    ]);
+    // IngressHost says the same thing with anyOf + not, and must behave identically
+    cleanup();
+    const onEdit2 = vi.fn();
+    const ing = schemaAt(root, ['deployments', 'web', 'ingress'])!;
+    const ibase = ['deployments', 'web', 'ingress'];
+    render(<FieldList root={root} node={ing} basePath={ibase} value={{ hosts: [{ host: 'a.example.com', paths: [{ path: '/', pathType: 'Prefix' }] }] }} tier="advanced" onEdit={onEdit2} />);
+    fireEvent.change(screen.getByLabelText('deployments.web.ingress.hosts.0.subdomain'), { target: { value: 'api' } });
+    expect(onEdit2).toHaveBeenLastCalledWith([
+      { op: 'set', path: [...ibase, 'hosts', 0, 'subdomain'], value: 'api' },
+      { op: 'delete', path: [...ibase, 'hosts', 0, 'host'] },
+    ]);
   });
 });
