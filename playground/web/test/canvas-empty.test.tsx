@@ -63,4 +63,22 @@ describe('Canvas empty state', () => {
     expect(screen.queryByTestId('slot')).toBeNull();
     await waitFor(() => expect(screen.getByTestId('slot')).toBeTruthy());
   });
+  it('does not strobe the card when a still-empty model replaces another (continuous typing over an empty document)', async () => {
+    const { rerender } = render(
+      <Canvas model={model} booting={false} stale={false} selection={null} onSelect={noop} onAddResource={noop}
+        emptyState={<div data-testid="slot" />} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('slot')).toBeTruthy());
+    // A fresh model object, still empty — the same shape a keystroke over an empty document produces.
+    const model2: GraphModel = { ...model, nodes: [...model.nodes] };
+    rerender(
+      <Canvas model={model2} booting={false} stale={false} selection={null} onSelect={noop} onAddResource={noop}
+        emptyState={<div data-testid="slot" />} />,
+    );
+    // Synchronous, same tick as the rerender: model2's own layout cannot have landed yet (its promise
+    // cannot settle inside RTL's act()), but the card must still be there — the previous test proves
+    // it would otherwise be withheld here, exactly the strobe this behavior avoids.
+    expect(screen.getByTestId('slot')).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('slot')).toBeTruthy());
+  });
 });

@@ -4,7 +4,14 @@ import { DNS_LABEL } from '../graph/entities';
 // helm accepts a DNS-1123 subdomain capped at 53 characters as a release name; a namespace is a
 // plain DNS-1123 label. Neither is enforced by the chart's schema, and both end up in
 // `app.kubernetes.io/instance` and in the copied install command.
-const RELEASE_NAME = /^[a-z0-9]([-a-z0-9.]{0,51}[a-z0-9])?$/;
+//
+// A DNS-1123 *subdomain* is one or more DNS-1123 labels joined by dots — each label on its own must
+// start and end with a letter or digit (`DNS_LABEL`), so a single regex over the whole string with a
+// `.` thrown into its character class (the previous shape here) is too permissive: it accepts
+// `a..b`/`a-.b`, where an empty or dash-bounded label sits between two dots. Split and check every
+// label instead.
+const RELEASE_NAME_TITLE = 'Lowercase letters, digits, dashes and dots; each dot-separated part must start and end with a letter or digit; at most 53 characters.';
+const isReleaseName = (v: string): boolean => v.length > 0 && v.length <= 53 && v.split('.').every((label) => DNS_LABEL.test(label));
 const badness = (ok: boolean, what: string) => (ok ? {} : { className: 'invalid', 'aria-invalid': true as const, title: what });
 
 export function Toolbar(p: {
@@ -31,7 +38,7 @@ export function Toolbar(p: {
       </div>
       <div className="toolbar-row muted">
         <label>release <input aria-label="release" value={p.release} onChange={(e) => p.onRelease(e.target.value)} size={8}
-          {...badness(RELEASE_NAME.test(p.release), 'Lowercase letters, digits, dashes and dots, at most 53 characters.')} /></label>
+          {...badness(isReleaseName(p.release), RELEASE_NAME_TITLE)} /></label>
         <label>namespace <input aria-label="namespace" value={p.ns} onChange={(e) => p.onNs(e.target.value)} size={8}
           {...badness(DNS_LABEL.test(p.ns), 'Lowercase letters, digits and dashes (DNS label).')} /></label>
       </div>

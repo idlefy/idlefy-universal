@@ -37,4 +37,16 @@ describe('Toolbar', () => {
     setup('r'.repeat(54), 'default');
     expect((screen.getByLabelText('release') as HTMLInputElement).className).toContain('invalid');
   });
+  it('rejects a release name with an empty or dash-bounded dot-separated part, and carries the rule in its title', () => {
+    setup('a..b', 'default');
+    const rel = screen.getByLabelText('release') as HTMLInputElement;
+    expect(rel.className).toContain('invalid');
+    expect(rel.title).toBe('Lowercase letters, digits, dashes and dots; each dot-separated part must start and end with a letter or digit; at most 53 characters.');
+    cleanup();
+    setup('a-.b', 'default');
+    expect((screen.getByLabelText('release') as HTMLInputElement).className).toContain('invalid');
+    cleanup();
+    setup('a.b-c.d', 'default');   // multiple valid dot-separated parts stay accepted
+    expect((screen.getByLabelText('release') as HTMLInputElement).className).not.toContain('invalid');
+  });
 });

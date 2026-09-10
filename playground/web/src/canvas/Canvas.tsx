@@ -50,13 +50,18 @@ export function Canvas({
   emptyState?: ReactNode;
 }) {
   // `model` is tracked alongside the layout so the empty card is never decided from a model whose
-  // ELK layout has not landed yet — otherwise it paints over the previous graph for one tick.
-  const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[]; model: GraphModel | null }>({
+  // ELK layout has not landed yet — otherwise it paints over the previous graph for one tick. `empty`
+  // is the emptiness of *that* completed layout's model, kept around so the card is not withheld
+  // during the gap of a later, still-empty model's own layout still being in flight — see the render
+  // check below for why that gap otherwise strobes the card while typing over an empty document.
+  const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[]; model: GraphModel | null; empty: boolean }>({
     nodes: [],
     edges: [],
     model: null,
+    empty: false,
   });
   const [layoutError, setLayoutError] = useState<string | null>(null);
+  const isEmpty = (m: GraphModel) => m.nodes.filter((n) => n.manifest).length === 0;
 
   useEffect(() => {
     let alive = true;
@@ -64,13 +69,13 @@ export function Canvas({
     layoutGraph(model)
       .then((r) => {
         if (alive) {
-          setLaid({ ...r, model });
+          setLaid({ ...r, model, empty: isEmpty(model) });
           setLayoutError(null);
         }
       })
       .catch((e) => {
         if (alive) {
-          setLaid({ nodes: [], edges: [], model });
+          setLaid({ nodes: [], edges: [], model, empty: isEmpty(model) });
           setLayoutError(e instanceof Error ? e.message : String(e));
           console.error("layout failed", e);
         }
@@ -137,7 +142,12 @@ export function Canvas({
       {layoutError && (
         <div className="canvas-error">Layout failed: {layoutError}</div>
       )}
-      {!layoutError && laid.model === model && model.nodes.filter((n) => n.manifest).length === 0 && (
+      {/* `laid.model === model`: the layout on screen actually is this model's, the normal case.
+          `laid.empty`: the layout in flight for *this* model has not landed yet, but the last one
+          that did was already empty too — continuous typing over an empty document produces a new
+          (still empty) model on every keystroke, and gating on `laid.model === model` alone would
+          hide and reshow the card on every one of those async gaps instead of leaving it be. */}
+      {!layoutError && (laid.model === model || laid.empty) && isEmpty(model) && (
         emptyState ?? <div className="canvas-empty overlay">No resources rendered yet.</div>
       )}
     </div>
