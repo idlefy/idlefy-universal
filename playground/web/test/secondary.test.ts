@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SECONDARY, secondariesFor } from '../src/graph/secondary';
+import { SECONDARY, secondariesFor, NEEDS_PORT } from '../src/graph/secondary';
 import { buildExpectations } from '../src/graph/expectations';
 
 const base = ['deployments', 'web'];
@@ -73,5 +73,30 @@ describe('secondary resources', () => {
     expect(ra('Role')).toEqual(byId('rbac').off(base));
     expect(ra('Job')).toEqual(byId('migrations').off(base));
     expect(ra('HorizontalPodAutoscaler')).toEqual(byId('hpa').off(base));
+  });
+  it('rbac is blocked on Jobs and CronJobs until a serviceAccountName exists', () => {
+    // JobSpec/CronJobSpec are additionalProperties:false with no autoCreateServiceAccount, so the
+    // SA chain rbac.on() adds for the other three kinds makes the document schema-invalid.
+    for (const kind of ['jobs', 'cronJobs']) {
+      expect(byId('rbac').blocked!({}, kind), kind).toMatch(/serviceAccountName/);
+      expect(byId('rbac').blocked!({ serviceAccountName: 'runner' }, kind), kind).toBeUndefined();
+    }
+    for (const kind of ['deployments', 'statefulSets', 'daemonSets']) {
+      expect(byId('rbac').blocked!({}, kind), kind).toBeUndefined();
+    }
+    // a Job that names its own SA takes the existing no-chain branch of on()
+    expect(byId('rbac').on(base, { serviceAccountName: 'runner' }, 'web')).toEqual([
+      { op: 'set', path: [...base, 'autoCreateRbac'], value: true },
+      { op: 'set', path: [...base, 'rbac'], value: { rules: [{ apiGroups: [''], resources: ['configmaps'], verbs: ['get', 'list'] }] } },
+    ]);
+  });
+  it('blockedOff explains why ServiceAccount cannot be switched off, and serviceMonitor needs a port', () => {
+    expect(byId('serviceAccount').blockedOff!({ autoCreateRbac: true })).toMatch(/Role \+ RoleBinding/);
+    expect(byId('serviceAccount').blockedOff!({ autoCreateRbac: true, serviceAccountName: 'sa' })).toBeUndefined();
+    expect(byId('serviceAccount').blockedOff!({})).toBeUndefined();
+    // no other secondary blocks its own off direction
+    expect(SECONDARY.filter((s) => s.blockedOff).map((s) => s.id)).toEqual(['serviceAccount']);
+    expect(byId('serviceMonitor').blocked!({ containers: { main: {} } })).toBe(NEEDS_PORT);
+    expect(byId('serviceMonitor').blocked!({ containers: { main: { ports: { http: { containerPort: 80 } } } } })).toBeUndefined();
   });
 });

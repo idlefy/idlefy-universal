@@ -27,6 +27,10 @@ export function SecondaryPanel(p: {
   const cfg = isObj(raw) ? raw : {};
   const on = sec.isOn(cfg);
   const blocked = sec.blocked?.(cfg, kindKey);
+  // Same direction rule as AutoCreated: `blocked` keeps explaining an on-but-blocked resource;
+  // only `blockedOff` disables a switch that is currently on.
+  const blockedOff = on ? sec.blockedOff?.(cfg, kindKey) : undefined;
+  const why = blockedOff ?? blocked;
   // secondary.ts: some `off()` handlers delete the block, others only clear a flag — say which
   const deletes = sec.off(owner).some((o) => o.op === 'delete');
   const toggle = (checked: boolean) => {
@@ -84,9 +88,9 @@ export function SecondaryPanel(p: {
       <div className="enabled">
         <div>
           <div className="nm">{sec.label} enabled</div>
-          <div className={`sub ${blocked ? 'why' : ''}`}>{blocked ?? (deletes ? 'turning off removes its settings from values.yaml' : 'turning off keeps the settings in values.yaml')}</div>
+          <div className={`sub ${why ? 'why' : ''}`}>{why ?? (deletes ? 'turning off removes its settings from values.yaml' : 'turning off keeps the settings in values.yaml')}</div>
         </div>
-        <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${sec.label}`} checked={on} disabled={p.disabled || (!on && !!blocked)} onChange={(e) => toggle(e.target.checked)} />
+        <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${sec.label}`} checked={on} disabled={p.disabled || (!on && !!blocked) || !!blockedOff} onChange={(e) => toggle(e.target.checked)} />
       </div>
       <fieldset disabled={p.disabled}>{fields}</fieldset>
     </>

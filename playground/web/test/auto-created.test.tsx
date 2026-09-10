@@ -15,7 +15,8 @@ describe('AutoCreated', () => {
     const sw = screen.getByLabelText('toggle Service') as HTMLInputElement;
     expect(sw.checked).toBe(true);
     expect(sw.disabled).toBe(false);
-    expect(screen.getByText(/add a container port first/i)).toBeTruthy();
+    // Service and ServiceMonitor share NEEDS_PORT, so the reason is on both rows
+    expect(screen.getAllByText(/add a container port first/i).length).toBe(2);
     fireEvent.click(sw);
     expect(p.onEdit).toHaveBeenCalledWith([{ op: 'set', path: ['deployments', 'api', 'autoCreateService'], value: false }]);
   });
@@ -24,7 +25,8 @@ describe('AutoCreated', () => {
     const sw = screen.getByLabelText('toggle Service') as HTMLInputElement;
     expect(sw.checked).toBe(false);
     expect(sw.disabled).toBe(true);
-    expect(screen.getByText(/add a container port first/i)).toBeTruthy();
+    // Service and ServiceMonitor share NEEDS_PORT, so the reason is on both rows
+    expect(screen.getAllByText(/add a container port first/i).length).toBe(2);
   });
   it('shows a summary when on, a hint when off, and opens the node', () => {
     const p = props('deployments', { autoCreateRbac: true, rbac: { rules: [{}] } }, { nodeFor: (id) => (id === 'rbac' ? 'default/Role/api' : null) });
@@ -66,5 +68,16 @@ describe('AutoCreated', () => {
     render(<AutoCreated {...props('statefulSets', {})} />);
     const labels = screen.getAllByRole('switch').map((e) => e.getAttribute('aria-label'));
     expect(labels).toEqual(['toggle Service', 'toggle PodDisruptionBudget', 'toggle ServiceMonitor', 'toggle NetworkPolicy', 'toggle ServiceAccount', 'toggle Role + RoleBinding']);
+  });
+  it('a switch whose off direction is blocked is disabled and says why', () => {
+    const cfg = { autoCreateRbac: true, autoCreateServiceAccount: true, rbac: { rules: [{}] }, containers: { main: { image: 'x', ports: { http: { containerPort: 80 } } } } };
+    const p = props('deployments', cfg);
+    render(<AutoCreated {...p} />);
+    const sw = screen.getByLabelText('toggle ServiceAccount') as HTMLInputElement;
+    expect(sw.checked).toBe(true);
+    expect(sw.disabled).toBe(true);
+    expect(screen.getByText(/turn Role \+ RoleBinding off first/i)).toBeTruthy();
+    fireEvent.click(sw);
+    expect(p.onEdit).not.toHaveBeenCalled();
   });
 });

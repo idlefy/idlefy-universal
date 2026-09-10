@@ -32,6 +32,8 @@ const set = (path: ValuesPath, value: unknown): EditOp => ({ op: 'set', path, va
 const del = (path: ValuesPath): EditOp => ({ op: 'delete', path });
 const setFalse = (path: ValuesPath) => set(path, false);
 export const hasAnyPort = (cfg: Cfg): boolean => Object.values(cfg.containers ?? {}).some((c: any) => isObj(c?.ports) && Object.keys(c.ports).length > 0);
+/** Shared by every switch whose resource is built out of container ports: Service and ServiceMonitor. */
+export const NEEDS_PORT = 'add a container port first (containers.<name>.ports)';
 
 const ingressOn = (base: ValuesPath, cfg: Cfg, name: string): EditOp[] => [
   set([...base, 'autoCreateIngress'], true),
@@ -44,7 +46,7 @@ export const SECONDARY: readonly Secondary[] = [
   { id: 'service', label: 'Service', kind: 'Service', hint: 'expose container ports inside the cluster', kinds: SVC_KINDS, isOn: (c) => !!c.autoCreateService,
     on: (b) => [set([...b, 'autoCreateService'], true)], off: (b) => [setFalse([...b, 'autoCreateService'])],
     // _validation.tpl fails a StatefulSet autoCreateService without serviceName or a container port.
-    blocked: (c, kindKey) => (!hasAnyPort(c) ? 'add a container port first (containers.<name>.ports)'
+    blocked: (c, kindKey) => (!hasAnyPort(c) ? NEEDS_PORT
       : kindKey === 'statefulSets' && !c.serviceName ? 'set serviceName first (required by the chart)' : undefined) },
   { id: 'ingress', label: 'Ingress', kind: 'Ingress', hint: 'needs Service', kinds: DEPLOY_ONLY, isOn: (c) => !!c.autoCreateIngress,
     on: ingressOn, off: (b) => [setFalse([...b, 'autoCreateIngress']), setFalse([...b, 'autoCreateCertificate'])] },
@@ -61,17 +63,29 @@ export const SECONDARY: readonly Secondary[] = [
     // _autocreate-pdb.tpl reads pdb.labels unconditionally, so an empty block fails the render; seed the template's default.
     on: (b, c) => [set([...b, 'autoCreatePdb'], true), ...(isFilledObj(c.pdb) ? [] : [set([...b, 'pdb'], { maxUnavailable: 1 })])], off: (b) => [setFalse([...b, 'autoCreatePdb']), del([...b, 'pdb'])] },
   { id: 'serviceMonitor', label: 'ServiceMonitor', kind: 'ServiceMonitor', hint: 'needs Service', kinds: SM_KINDS, isOn: (c) => !!c.autoCreateServiceMonitor,
-    on: (b) => [set([...b, 'autoCreateServiceMonitor'], true)], off: (b) => [setFalse([...b, 'autoCreateServiceMonitor'])] },
+    on: (b) => [set([...b, 'autoCreateServiceMonitor'], true)], off: (b) => [setFalse([...b, 'autoCreateServiceMonitor'])],
+    // _autocreate-servicemonitor.tpl leaves $metricsPort empty and renders `endpoints:\n  - port:` —
+    // a successful render of an object the API server rejects. Same gate as the Service switch.
+    blocked: (c) => (hasAnyPort(c) ? undefined : NEEDS_PORT) },
   { id: 'networkPolicy', label: 'NetworkPolicy', kind: 'NetworkPolicy', hint: 'restrict pod traffic', kinds: WORKLOAD_KEYS, isOn: (c) => !!c.autoCreateNetworkPolicy,
     on: (b, c) => [set([...b, 'autoCreateNetworkPolicy'], true), ...(isFilledObj(c.networkPolicy) ? [] : [set([...b, 'networkPolicy'], { policyTypes: ['Ingress'], ingress: [] })])],
     off: (b) => [setFalse([...b, 'autoCreateNetworkPolicy']), del([...b, 'networkPolicy'])] },
   { id: 'serviceAccount', label: 'ServiceAccount', kind: 'ServiceAccount', hint: 'own identity for the pods', kinds: SA_KINDS, isOn: (c) => !!c.autoCreateServiceAccount || isFilledObj(c.serviceAccount),
-    on: (b) => [set([...b, 'autoCreateServiceAccount'], true)], off: (b) => [setFalse([...b, 'autoCreateServiceAccount']), del([...b, 'serviceAccount'])] },
+    on: (b) => [set([...b, 'autoCreateServiceAccount'], true)], off: (b) => [setFalse([...b, 'autoCreateServiceAccount']), del([...b, 'serviceAccount'])],
+    // _validation.tpl RB-3 fails autoCreateRbac with no resolvable ServiceAccount. Blocking the off
+    // direction keeps the user's rbac.rules; clearing them for them would be a silent data loss.
+    blockedOff: (c) => (c.autoCreateRbac && !c.serviceAccountName ? 'turn Role + RoleBinding off first (RBAC needs a ServiceAccount)' : undefined) },
   { id: 'rbac', label: 'Role + RoleBinding', kind: 'Role', hint: 'namespace permissions for the pods', kinds: WORKLOAD_KEYS, isOn: (c) => !!c.autoCreateRbac,
     // _validation.tpl (RB-*) fails autoCreateRbac without a ServiceAccount; chain the SA on unless one is already configured.
     on: (b, c) => [...(c.autoCreateServiceAccount === true || c.serviceAccountName || isFilledObj(c.serviceAccount) ? [] : [set([...b, 'autoCreateServiceAccount'], true)]),
       set([...b, 'autoCreateRbac'], true), ...(isFilledObj(c.rbac) ? [] : [set([...b, 'rbac'], { rules: [{ apiGroups: [''], resources: ['configmaps'], verbs: ['get', 'list'] }] })])],
-    off: (b) => [setFalse([...b, 'autoCreateRbac']), del([...b, 'rbac'])] },
+    off: (b) => [setFalse([...b, 'autoCreateRbac']), del([...b, 'rbac'])],
+    // JobSpec/CronJobSpec are additionalProperties:false with neither autoCreateServiceAccount nor
+    // serviceAccount, and templates/serviceaccount.yaml never loops jobs/cronJobs — so the SA chain
+    // above is schema-invalid there and seeding serviceAccountName would bind to an SA nobody
+    // creates. Block instead, and let on() take its existing no-chain branch once the name is set.
+    blocked: (c, kindKey) => (!SA_KINDS.has(kindKey ?? '') && !c.serviceAccountName
+      ? 'set serviceAccountName first (the chart cannot create a ServiceAccount for a Job or CronJob)' : undefined) },
   { id: 'migrations', label: 'Migrations Job', kind: 'Job', hint: 'pre-upgrade hook, same image', kinds: DEPLOY_ONLY, isOn: (c) => c.migrations?.enabled === true,   // job.yaml tests `eq true`
     on: (b) => [set([...b, 'migrations', 'enabled'], true)], off: (b) => [setFalse([...b, 'migrations', 'enabled'])] },
 ];
