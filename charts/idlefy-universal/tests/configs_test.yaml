@@ -28,3 +28,34 @@ tests:
       - equal:
           path: binaryData["logo.bin"]
           value: aGVsbG8=
+  - it: should default the hook annotations when the user sets none
+    set:
+      configs:
+        test-config:
+          type: configMap
+          data:
+            key: value
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: pre-install,pre-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-10"
+  - it: a user annotation overrides the hardcoded helm.sh/hook
+    set:
+      configs:
+        test-config:
+          type: configMap
+          data:
+            key: value
+          annotations:
+            helm.sh/hook: post-install
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-install
+      # a key the user did not set still gets the chart's default
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "-10"

@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import type { EditOp, ValuesPath } from '../model/ValuesDocument';
-import { secondariesFor, type SecondaryId } from '../graph/secondary';
+import { secondariesFor, toggleState, type SecondaryId } from '../graph/secondary';
 import { KindIcon } from '../canvas/icons';
 import { summaryOf } from './summary';
 import { familyOf } from '../graph/labels';
@@ -17,13 +17,7 @@ export function AutoCreated(p: {
   return (
     <div className="list">
       {list.map((s) => {
-        const on = s.isOn(p.cfg);
-        const blocked = s.blocked?.(p.cfg, p.kindKey);
-        // The reason that applies to the direction this switch would move in. `blocked` still shows
-        // when the switch is already on (an on-but-blocked Service must keep explaining itself), but
-        // only `blockedOff` disables it there.
-        const blockedOff = on ? s.blockedOff?.(p.cfg, p.kindKey) : undefined;
-        const why = blockedOff ?? blocked;
+        const { on, why, isDisabled: disabledByToggle } = toggleState(s, p.cfg, p.kindKey, false);
         const kind = s.kind;
         const node = on ? p.nodeFor(s.id) : null;
         const configured = !on && isFilledObj(p.cfg[s.id]);
@@ -32,7 +26,7 @@ export function AutoCreated(p: {
         // since opening an off block whose autoCreate* flag is false fails the chart on any edit
         const target = node ?? (p.hasSchema(s.id) && (on || configured) ? blockId([...p.base, s.id]) : null);
         const sub = why ?? (on ? summaryOf(s.id, p.cfg) : configured ? 'configured, not created' : s.hint);
-        const isDisabled = p.disabled || (!on && !!blocked) || !!blockedOff;
+        const isDisabled = p.disabled || disabledByToggle;
         return (
           <div key={s.id} className={`it ${on ? 'on' : ''}`}>
             <span className={`tile sm fam-${familyOf(kind)}`}><KindIcon kind={kind} /></span>

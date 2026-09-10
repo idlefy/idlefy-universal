@@ -30,7 +30,7 @@ export function MapOfListsField({ root, field, tier, onEdit, blockedRemove }: Fi
             removeLabel={`remove ${id}.${key}`} removeDisabled={!!why}
             removeTitle={why ?? 'Remove this group'} removeText="×"
             onRemove={() => { if (!why) onEdit([{ op: 'delete', path: [...field.path, key] }]); }}>
-            <div className="card-body">{Array.isArray(v) ? <ObjectListField root={root} field={sub} tier={tier} onEdit={onEdit} itemLabel={label} /> : <YamlField root={root} field={sub} tier={tier} onEdit={onEdit} />}</div>
+            <div className="card-body">{Array.isArray(v) ? <ObjectListField root={root} field={sub} tier={tier} onEdit={onEdit} itemLabel={label} removeBlocked={why} /> : <YamlField root={root} field={sub} tier={tier} onEdit={onEdit} />}</div>
           </Card>
         );
       })}

@@ -10,6 +10,15 @@ export type FieldProps = {
   /** Only `MapOfListsField` reads this. The Release panel is the one caller that can see the whole
    *  document, so it is the one that can say whether a `secretRefs` group is still referenced. */
   blockedRemove?: (key: string) => string | undefined;
+  /** Absolute values-paths locked for a runtime (document-wide) reason `buildFields` cannot see on its
+   *  own — see `buildFields`'s own doc comment. Forwarded unchanged through every nested `FieldList`
+   *  (`ObjectSection`'s own re-render of it, in particular), the same way `hide` would be if it needed
+   *  to survive more than one level. */
+  lockedPaths?: ReadonlySet<string>;
+  /** Only `PortsTable` reads this. The owning workload's own flags — `Sections`/`WorkloadPanel` is the
+   *  one caller with the whole workload config in hand, so it is the one that can say whether the
+   *  last container port is load-bearing for an auto-created Service. */
+  workload?: { kindKey: string; autoCreateService: boolean };
 };
 export { FieldRow };
 
@@ -45,8 +54,9 @@ function AddChips({ root, fields, onEdit }: { root: SchemaNode; fields: Field[];
 export function FieldList(p: {
   root: SchemaNode; node: SchemaNode; basePath: ValuesPath; value: unknown; tier: Tier;
   onEdit: (ops: EditOp[]) => void; hide?: (key: string) => boolean; order?: readonly string[];
+  lockedPaths?: ReadonlySet<string>; workload?: FieldProps['workload'];
 }): ReactElement {
-  const fields = buildFields(p.root, p.node, p.basePath, p.value, p.tier, { hide: p.hide });
+  const fields = buildFields(p.root, p.node, p.basePath, p.value, p.tier, { hide: p.hide, lockedPaths: p.lockedPaths });
   // Some sections want keys in a specific display order; buildFields walks the schema alphabetically. Stable sort: unlisted keys keep schema order after the listed ones.
   const rank = new Map((p.order ?? []).map((k, i) => [k, i]));
   const byOrder = (a: Field, b: Field) => (rank.get(a.key) ?? 1e9) - (rank.get(b.key) ?? 1e9);
@@ -55,7 +65,7 @@ export function FieldList(p: {
   if (rows.length === 0 && chips.length === 0) return <p className="muted">No fields here.</p>;
   return (
     <>
-      {rows.length > 0 && <div className="fields">{rows.map((f) => <FieldRow key={f.key} root={p.root} field={f} tier={p.tier} onEdit={p.onEdit} />)}</div>}
+      {rows.length > 0 && <div className="fields">{rows.map((f) => <FieldRow key={f.key} root={p.root} field={f} tier={p.tier} onEdit={p.onEdit} lockedPaths={p.lockedPaths} workload={p.workload} />)}</div>}
       <AddChips root={p.root} fields={chips} onEdit={p.onEdit} />
     </>
   );

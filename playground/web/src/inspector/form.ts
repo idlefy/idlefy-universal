@@ -108,7 +108,15 @@ export function makeField(root: SchemaNode, key: string, path: ValuesPath, node:
   };
 }
 
-export function buildFields(root: SchemaNode, node: SchemaNode, basePath: ValuesPath, value: unknown, tier: Tier, opts: { hide?: (key: string) => boolean } = {}): Field[] {
+/**
+ * Absolute values-paths (dotted, `path.join('.')`) locked for a reason no static schema fact can
+ * express — today, only `generic.ingressesGeneral.domain` while any `hosts[].subdomain` /
+ * `hostnames[].subdomain` exists anywhere in the document (`subdomainUsers`, computed by the one
+ * caller — `ReleasePanel` — that can see the whole document, same as `secretRefUsers`). Threaded
+ * through `FieldList`/`ObjectSection` like `hide`, rather than baked into `chartRequired`, because it
+ * is a runtime document fact, not a static path pattern.
+ */
+export function buildFields(root: SchemaNode, node: SchemaNode, basePath: ValuesPath, value: unknown, tier: Tier, opts: { hide?: (key: string) => boolean; lockedPaths?: ReadonlySet<string> } = {}): Field[] {
   const r = resolve(root, node);
   const props: Record<string, SchemaNode> = isObj(r.properties) ? (r.properties as any) : {};
   const required = new Set<string>(r.required ?? []);
@@ -121,7 +129,7 @@ export function buildFields(root: SchemaNode, node: SchemaNode, basePath: Values
     if (opts.hide?.(key)) continue;
     const present = has(key);
     const path = [...basePath, key];
-    const locked = required.has(key) || chartRequired(path) || (present && excl.includes(key) && !siblingSet(key));
+    const locked = required.has(key) || chartRequired(path) || !!opts.lockedPaths?.has(path.map(String).join('.')) || (present && excl.includes(key) && !siblingSet(key));
     // An absent member of an "exactly one of" group is still offered as an "add" chip even while its
     // sibling is set (EnvVar's `valueFrom` while `value` is set; PdbConfig's `minAvailable` while
     // `maxUnavailable` is set) — there would otherwise be no way back to it. `evict` carries the ops

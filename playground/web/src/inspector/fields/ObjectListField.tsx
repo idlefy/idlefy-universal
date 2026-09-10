@@ -9,8 +9,8 @@ import { isObj } from '../../model/guards';
 const leafAt = (v: unknown, leaf: string[]): unknown => leaf.reduce<any>((cur, k) => (isObj(cur) ? cur[k] : undefined), v);
 
 /** A list of objects as rows: pair rows when the item is small, collapsed block rows otherwise. */
-export function ObjectListField(props: FieldProps & { itemLabel?: string }): ReactElement {
-  const { root, field, onEdit, itemLabel } = props;
+export function ObjectListField(props: FieldProps & { itemLabel?: string; removeBlocked?: string }): ReactElement {
+  const { root, field, onEdit, itemLabel, removeBlocked } = props;
   const id = field.path.join('.');
   const item = resolve(root, field.schema).items as SchemaNode;
   const shape = itemShape(root, item);
@@ -47,10 +47,15 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   };
   // deleting one index splices the sequence in place; the expansion map (and any pending drafts) shift
   // down so they keep following the same items
-  // removing the last item takes the whole key with it, which a locked list cannot survive
+  // removing the last item takes the whole key with it, which a locked list cannot survive. A list
+  // whose sole surviving row is still referenced elsewhere (e.g. a secretRefs group a container still
+  // names) is blocked the same way, with the caller's own reason (`removeBlocked`) — MapOfListsField
+  // threads the same `why` its own card × already shows.
   const lastLocked = items.length === 1 && field.locked;
+  const removeDisabled = lastLocked || !!removeBlocked;
+  const removeTitle = removeBlocked ?? (lastLocked ? 'This list must keep at least one entry' : undefined);
   const remove = (i: number) => {
-    if (lastLocked) return;
+    if (removeDisabled) return;
     onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
     setOpen(Object.fromEntries(Object.entries(open).filter(([k]) => Number(k) !== i).map(([k, v]) => [Number(k) > i ? Number(k) - 1 : Number(k), v])));
     setDrafts({});
@@ -138,7 +143,7 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
             )}
             <span className="acts">
               {shape.extras.length > 0 && <button type="button" className="clear" aria-label={`more ${id}.${i}`} title="More settings" onClick={() => setOpen({ ...open, [i]: !isOpen(i, v) })}>…</button>}
-              <button type="button" className="clear" aria-label={`remove ${id}.${i}`} disabled={lastLocked} title={lastLocked ? 'This list must keep at least one entry' : undefined} onClick={() => remove(i)}>×</button>
+              <button type="button" className="clear" aria-label={`remove ${id}.${i}`} disabled={removeDisabled} title={removeTitle} onClick={() => remove(i)}>×</button>
             </span>
           </div>
           {isOpen(i, v) && body(i, v, true)}
@@ -150,7 +155,7 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
               <code>{String((shape.identifying && leafAt(v, [shape.identifying])) ?? `#${i + 1}`)}</code>
               <span className="muted">{isObj(v) ? `${Object.keys(v).length} fields` : ''}</span>
             </button>
-            <button type="button" className="clear" aria-label={`remove ${id}.${i}`} disabled={lastLocked} title={lastLocked ? 'This list must keep at least one entry' : undefined} onClick={() => remove(i)}>×</button>
+            <button type="button" className="clear" aria-label={`remove ${id}.${i}`} disabled={removeDisabled} title={removeTitle} onClick={() => remove(i)}>×</button>
           </div>
           {blockOpen(i) && body(i, v, false)}
         </div>

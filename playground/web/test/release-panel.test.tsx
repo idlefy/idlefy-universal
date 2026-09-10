@@ -66,6 +66,10 @@ describe('ReleasePanel — the section-level secretRefs ×', () => {
     // the per-card × for the referenced group is disabled the same way
     const dbCard = screen.getByLabelText('remove secretRefs.db') as HTMLButtonElement;
     expect(dbCard.disabled).toBe(true);
+    // and so is the object-list row × *inside* the card — the third path to the same silent drop
+    const dbRow = screen.getByLabelText('remove secretRefs.db.0') as HTMLButtonElement;
+    expect(dbRow.disabled).toBe(true);
+    expect(dbRow.title).toBe(`used by ${users.join(', ')} — remove that reference first`);
   });
   it('is enabled once nothing references any group, and still deletes the whole map', () => {
     const p = base(unreferencedYaml);

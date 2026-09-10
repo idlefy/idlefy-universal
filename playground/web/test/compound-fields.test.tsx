@@ -94,6 +94,29 @@ describe('compound widgets', () => {
     fireEvent.change(cp, { target: { value: '9090' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...c, 'ports', 'http', 'containerPort'], value: 9090 }]);
   });
+  it('ports table: the last port is locked while autoCreateService is on — a StatefulSet needs one', () => {
+    const onEdit = vi.fn();
+    const workload = { kindKey: 'deployments', autoCreateService: true };
+    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} workload={workload} />);
+    const removeBtn = screen.getByLabelText('remove deployments.web.containers.main.ports.http') as HTMLButtonElement;
+    expect(removeBtn.disabled).toBe(true);
+    expect(removeBtn.title).toBe('the Service needs at least one container port');
+    fireEvent.click(removeBtn);
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+  it('ports table: without autoCreateService (or with more than one port) the × stays live', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} workload={{ kindKey: 'deployments', autoCreateService: false }} />);
+    expect((screen.getByLabelText('remove deployments.web.containers.main.ports.http') as HTMLButtonElement).disabled).toBe(false);
+    cleanup();
+    const two = { containers: { main: { ...value.containers.main, ports: { http: { containerPort: 80 }, admin: { containerPort: 81 } } } } };
+    const onEdit2 = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={two} tier="basic" onEdit={onEdit2} workload={{ kindKey: 'deployments', autoCreateService: true }} />);
+    const removeBtn = screen.getByLabelText('remove deployments.web.containers.main.ports.http') as HTMLButtonElement;
+    expect(removeBtn.disabled).toBe(false);
+    fireEvent.click(removeBtn);
+    expect(onEdit2).toHaveBeenLastCalledWith([{ op: 'delete', path: [...c, 'ports', 'http'] }]);
+  });
   it('ports table: the add row does not repeat a containerPort the container already uses', () => {
     const onEdit = vi.fn();
     const taken = { containers: { main: { image: 'n', imageTag: '1', ports: { http: { containerPort: 8080 } } } } };

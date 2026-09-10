@@ -99,3 +99,20 @@ export const OWNED_FLAGS: ReadonlySet<string> = new Set(SECONDARY.map((s) => `au
 export function secondariesFor(kindKey: string): Secondary[] {
   return SECONDARY.filter((s) => s.kinds.has(kindKey));
 }
+
+/**
+ * The one toggle-state rule, shared by `AutoCreated.tsx`, `SecondaryPanel.tsx`, and every toggle
+ * on/off check in `test/edit-integrity.test.ts` — previously five identical lines written out in
+ * each of the first two (and the `blocked`/`isOn`-guarded-`blockedOff` pair re-derived a third way in
+ * the sweeps), which is exactly the kind of drift Task 10's review caught (a sweep calling
+ * `blockedOff` without the `isOn` guard). `blocked` still shows as the reason while the switch is
+ * already on (an on-but-blocked Service must keep explaining itself), but only `blockedOff` disables
+ * it there — the direction the switch would move in decides which reason is disabling. Sharing this
+ * one function means the sweeps' exemptions can never drift from the UI's disabled states again.
+ */
+export function toggleState(sec: Secondary, cfg: Cfg, kindKey: string, disabled: boolean): { on: boolean; why?: string; isDisabled: boolean } {
+  const on = sec.isOn(cfg);
+  const blocked = sec.blocked?.(cfg, kindKey);
+  const blockedOff = on ? sec.blockedOff?.(cfg, kindKey) : undefined;
+  return { on, why: blockedOff ?? blocked, isDisabled: disabled || (!on && !!blocked) || !!blockedOff };
+}

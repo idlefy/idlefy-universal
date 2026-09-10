@@ -10,13 +10,13 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { stringify } from 'yaml';
 import examplesJson from '../src/chart-bundle/examples.json';
-import { bootEngine, render, why, root, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
-import { ValuesDocument, type EditOp, type ValuesPath } from '../src/model/ValuesDocument';
+import { bootEngine, render, why, root, workloadHide, walkFields, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
+import { ValuesDocument, type EditOp } from '../src/model/ValuesDocument';
 import { resolve, schemaAt, type SchemaNode } from '../src/inspector/schema';
-import { appendItemValue, buildFields, itemShape, leafEditOps, type Field } from '../src/inspector/form';
+import { appendItemValue, itemShape, leafEditOps, starterValue } from '../src/inspector/form';
 import { ENTITIES, defaultName, uniqueName } from '../src/graph/entities';
 import { addEntityOps, starterBody } from '../src/palette/add';
-import { secondariesFor, OWNED_FLAGS, SEC_IDS, WORKLOAD_KEYS } from '../src/graph/secondary';
+import { secondariesFor, toggleState, WORKLOAD_KEYS } from '../src/graph/secondary';
 import { isObj } from '../src/model/guards';
 
 const examples = examplesJson as { id: string; values: string }[];
@@ -31,42 +31,6 @@ const workloadBases = (kind: string): Base[] => [
   { label: `${kind}/starter`, text: stringify({ [kind]: { app: starterBody(root, kind, 'app') } }, { lineWidth: 0 }) },
 ];
 
-/** The workload keys the group panel owns: hidden from the field list, reached only through switches. */
-const workloadHide = (k: string) => OWNED_FLAGS.has(k) || SEC_IDS.has(k);
-
-/**
- * Every `Field` the inspector can show under `node`, nested the way FieldList/Sections nest:
- * object → its properties, map → each entry, objectList → each row. Depth 2 (a row inside a map
- * inside a panel) is deeper than any shipped panel goes; `yaml` widgets are raw text, not fields.
- * `hide` is honoured at whichever level passes it: the panel's own level (like the real
- * WorkloadPanel), and — for an object-list row — the row's identifying key and its promoted leaves
- * (like `ObjectListField`'s own `hideLeaves`), never deeper than that one level. Those leaves are
- * edited directly as row inputs with their own eviction (`leafEditOps`, exercised separately below);
- * they never reach `buildFields`/`AddChips` in the real widget, so the sweep must not probe them
- * there either — `IngressHost`/`HttpRouteHostname`'s `subdomain` chip would need a global domain to
- * render, which no chip alone can provide, and is not a chip the real UI ever offers.
- */
-function* walkFields(node: SchemaNode, basePath: ValuesPath, value: unknown, hide?: (k: string) => boolean, depth = 0): Generator<Field> {
-  if (depth > 2) return;
-  for (const f of buildFields(root, node, basePath, value, 'advanced', { hide })) {
-    yield f;
-    if (!f.present) continue;
-    const r = resolve(root, f.schema);
-    if (f.widget.kind === 'object') {
-      yield* walkFields(f.schema, f.path, f.value, undefined, depth + 1);
-    } else if (f.widget.kind === 'map' && isObj(f.value)) {
-      for (const [k, v] of Object.entries(f.value)) yield* walkFields(r.additionalProperties as SchemaNode, [...f.path, k], v, undefined, depth + 1);
-    } else if (f.widget.kind === 'objectList' && Array.isArray(f.value)) {
-      const itemNode = r.items as SchemaNode;
-      const rowShape = itemShape(root, itemNode);
-      // mirrors ObjectListField.tsx's `hide = pair ? hideLeaves : undefined` (~line 120): a block row
-      // shows every key in the UI, so only a pair row hides its identifying/leaf keys from the sweep.
-      const hideRowLeaves = rowShape.pair ? (k: string) => k === rowShape.identifying || rowShape.leaves.some((l) => l[0] === k) : undefined;
-      for (let i = 0; i < f.value.length; i++) yield* walkFields(itemNode, [...f.path, i], f.value[i], hideRowLeaves, depth + 1);
-    }
-  }
-}
-
 describe('edit integrity', () => {
   beforeAll(bootEngine);
 
@@ -77,7 +41,7 @@ describe('edit integrity', () => {
         const start = ValuesDocument.parse(base.text);
         for (const s of secondariesFor(kind)) {
           const cfg = (start.toJS() as any)[kind].app as Record<string, any>;
-          if (s.blocked?.(cfg, kind)) continue;   // the switch is disabled and says why
+          if (toggleState(s, cfg, kind, false).isDisabled) continue;   // the switch is disabled and says why
           const r = render(start.apply(s.on([kind, 'app'], cfg, 'app')).toString());
           if (!r.ok) fails.push(`on ${base.label}/${s.id} → ${why(r)}`);
         }
@@ -94,7 +58,7 @@ describe('edit integrity', () => {
       const applied = [] as ReturnType<typeof secondariesFor>;
       for (const s of secondariesFor(kind)) {
         const cfg = (allOn.toJS() as any)[kind].app as Record<string, any>;
-        if (s.blocked?.(cfg, kind)) continue;
+        if (toggleState(s, cfg, kind, false).isDisabled) continue;
         allOn = allOn.apply(s.on([kind, 'app'], cfg, 'app'));
         applied.push(s);
       }
@@ -102,7 +66,7 @@ describe('edit integrity', () => {
       if (!r0.ok) { fails.push(`all-on ${kind} → ${why(r0)}`); continue; }
       const cfgAllOn = (allOn.toJS() as any)[kind].app as Record<string, any>;
       for (const s of applied) {
-        if (s.isOn(cfgAllOn) && s.blockedOff?.(cfgAllOn, kind)) continue;   // the switch is disabled and says why
+        if (toggleState(s, cfgAllOn, kind, false).isDisabled) continue;   // the switch is disabled and says why
         const r = render(allOn.apply(s.off([kind, 'app'])).toString());
         if (!r.ok) fails.push(`off ${kind}/${s.id} (all others on) → ${why(r)}`);
       }
@@ -126,14 +90,14 @@ describe('edit integrity', () => {
         let skip = false;
         for (const s of [a, b]) {
           const cfg = (doc.toJS() as any)[kind].app as Record<string, any>;
-          if (s.blocked?.(cfg, kind)) { skip = true; break; }
+          if (toggleState(s, cfg, kind, false).isDisabled) { skip = true; break; }
           doc = doc.apply(s.on([kind, 'app'], cfg, 'app'));
         }
         if (skip) continue;
         const before = render(doc.toString());
         if (!before.ok) { fails.push(`pair ${kind}/${a.id}+${b.id} → ${why(before)}`); continue; }
         const cfg = (doc.toJS() as any)[kind].app as Record<string, any>;
-        if (b.isOn(cfg) && b.blockedOff?.(cfg, kind)) continue;
+        if (toggleState(b, cfg, kind, false).isDisabled) continue;
         const after = render(doc.apply(b.off([kind, 'app'])).toString());
         if (!after.ok) fails.push(`pair ${kind}/${a.id} on + ${b.id} off → ${why(after)}`);
       }
@@ -165,6 +129,13 @@ describe('edit integrity', () => {
       const name = defaultName(root, key);
       bases.push({ label: `${key}/starter`, text: stringify({ [key]: { [name]: starterBody(root, key, name) } }, { lineWidth: 0 }) });
     }
+    // I-2: every MINIMAL workload above has exactly one container port and autoCreateService unset,
+    // so the ports-map branch below never actually exercises its own exemption there. Add the one
+    // combination that does: autoCreateService on with that same sole port still in place — a
+    // StatefulSet hard-fails without it (`_validation.tpl`), a Deployment silently loses its Service.
+    for (const kind of ['deployments', 'statefulSets']) {
+      bases.push({ label: `${kind}/autoCreateService`, text: stringify({ [kind]: { app: { ...MINIMAL[kind], autoCreateService: true } } }, { lineWidth: 0 }) });
+    }
     for (const base of bases) {
       const start = ValuesDocument.parse(base.text);
       const values = start.toJS() as Record<string, unknown>;
@@ -174,24 +145,39 @@ describe('edit integrity', () => {
           const node = schemaAt(root, [key, name]);
           if (!node) continue;
           const hide = WORKLOAD_KEYS.has(key) ? workloadHide : undefined;
+          const autoCreateService = isObj(body) && (body as Record<string, unknown>).autoCreateService === true;
           for (const f of walkFields(node, [key, name], body, hide)) {
-            if (f.widget.kind !== 'objectList' || !Array.isArray(f.value)) continue;
-            const items = f.value as unknown[];
-            const item = resolve(root, f.schema).items as SchemaNode;
-            // ObjectListField.append: set the next index, never rewrite the array (Task 16 replaces
-            // starterValue here with appendItemValue, the same call the widget makes).
-            const added: EditOp[] = [{ op: 'set', path: [...f.path, items.length], value: appendItemValue(root, item, items) }];
-            const ra = render(start.apply(added).toString());
-            if (!ra.ok) fails.push(`append ${base.label} · ${f.path.join('.')} → ${why(ra)}`);
-            for (let i = 0; i < items.length; i++) {
-              // ObjectListField.remove: the last item takes the whole key with it. When the key is
-              // locked (schema-required or chart-required) the widget disables that × instead.
-              if (items.length === 1 && f.locked) continue;
-              const removed: EditOp[] = items.length === 1
-                ? [{ op: 'delete', path: f.path }]
-                : [{ op: 'delete', path: [...f.path, i] }];
-              const rr = render(start.apply(removed).toString());
-              if (!rr.ok) fails.push(`remove ${base.label} · ${f.path.join('.')}[${i}] → ${why(rr)}`);
+            if ((f.widget.kind === 'objectList' || f.widget.kind === 'list') && Array.isArray(f.value)) {
+              const items = f.value as unknown[];
+              const item = resolve(root, f.schema).items as SchemaNode;
+              // ObjectListField.append: set the next index, never rewrite the array (Task 16 replaces
+              // starterValue here with appendItemValue, the same call the widget makes). ListField.append
+              // uses starterValue directly — a scalar list item has no identity to rename or de-duplicate.
+              const value = f.widget.kind === 'objectList' ? appendItemValue(root, item, items) : starterValue(root, item);
+              const added: EditOp[] = [{ op: 'set', path: [...f.path, items.length], value }];
+              const ra = render(start.apply(added).toString());
+              if (!ra.ok) fails.push(`append ${base.label} · ${f.path.join('.')} → ${why(ra)}`);
+              for (let i = 0; i < items.length; i++) {
+                // ObjectListField/ListField.remove: the last item takes the whole key with it. When the
+                // key is locked (schema-required or chart-required) the widget disables that × instead.
+                if (items.length === 1 && f.locked) continue;
+                const removed: EditOp[] = items.length === 1
+                  ? [{ op: 'delete', path: f.path }]
+                  : [{ op: 'delete', path: [...f.path, i] }];
+                const rr = render(start.apply(removed).toString());
+                if (!rr.ok) fails.push(`remove ${base.label} · ${f.path.join('.')}[${i}] → ${why(rr)}`);
+              }
+            } else if (f.key === 'ports' && f.widget.kind === 'map' && isObj(f.value)) {
+              // PortsTable's per-port ×: a map, not an objectList, so walkFields yields it as a plain
+              // field rather than recursing into per-row remove ops — the last entry disables that ×
+              // the same way, but only while autoCreateService needs a port to build the Service from.
+              const names = Object.keys(f.value);
+              for (const n of names) {
+                if (names.length === 1 && autoCreateService) continue;
+                const removed: EditOp[] = [{ op: 'delete', path: [...f.path, n] }];
+                const rr = render(start.apply(removed).toString());
+                if (!rr.ok) fails.push(`remove ${base.label} · ${f.path.join('.')}.${n} → ${why(rr)}`);
+              }
             }
           }
         }

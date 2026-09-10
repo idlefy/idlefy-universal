@@ -9,7 +9,7 @@ import { OWNED_FLAGS } from '../graph/secondary';
 import { RELEASE_TITLES, hiddenTitle } from './sections';
 import { HiddenNote } from './HiddenNote';
 import { isObj } from '../model/guards';
-import { secretRefUsers } from './summary';
+import { secretRefUsers, subdomainUsers } from './summary';
 
 const RELEASE_SECTIONS = Object.keys(RELEASE_TITLES);
 const hide = (x: string) => OWNED_FLAGS.has(x);
@@ -22,12 +22,19 @@ export function ReleasePanel(p: {
   const rootValue = p.doc.valueAt([]);
   const all = (isObj(rootValue) ? rootValue : {}) as Record<string, unknown>;
 
+  // `generic.ingressesGeneral.domain` cannot express its own lock statically (chartRequired only
+  // matches path shape): `_computed-ingress-host.tpl` needs it only while some `hosts[]`/`hostnames[]`
+  // entry elsewhere in the document sets `subdomain`. ReleasePanel is the one caller with the whole
+  // document in hand — same reasoning as the secretRefs guard just below — so it computes the lock
+  // here and hands it down through buildFields' `lockedPaths` instead of TextField growing its own ×.
+  const lockedPaths = subdomainUsers(all).length > 0 ? new Set(['generic.ingressesGeneral.domain']) : undefined;
+
   // Property-shaped release sections list their fields; `secretRefs` is a bare additionalProperties
   // map that buildFields cannot walk, so it renders through its own widget.
   const releaseSection = (k: string): ReactElement => {
     const node = resolve(p.root, p.root.properties[k]);
     const widget = classify(p.root, node);
-    if (widget.kind === 'object') return <FieldList root={p.root} node={node} basePath={[k]} value={all[k]} tier={p.tier} onEdit={p.onEdit} hide={hide} />;
+    if (widget.kind === 'object') return <FieldList root={p.root} node={node} basePath={[k]} value={all[k]} tier={p.tier} onEdit={p.onEdit} hide={hide} lockedPaths={lockedPaths} />;
     // secretRefs is the one release block whose removal can break another resource: a container that
     // still lists the group renders "referenced secretRef '<g>' not found in .Values.secretRefs",
     // and removing the *last* group skips the chart's check entirely and dangles silently.

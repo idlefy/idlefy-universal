@@ -10,9 +10,52 @@ import chartFiles from '../src/chart-bundle/chart.json';
 import schema from '../src/chart-bundle/schema.json';
 import { toRenderResult } from '../src/engine/client';
 import type { EngineRawResult, RenderResult } from '../src/engine/types';
-import type { SchemaNode } from '../src/inspector/schema';
+import { resolve, type SchemaNode } from '../src/inspector/schema';
+import { buildFields, itemShape, type Field } from '../src/inspector/form';
+import { OWNED_FLAGS, SEC_IDS } from '../src/graph/secondary';
+import type { ValuesPath } from '../src/model/ValuesDocument';
+import { isObj } from '../src/model/guards';
 
 export const root = schema as SchemaNode;
+
+/** The workload keys the group panel owns: hidden from the field list, reached only through switches. */
+export const workloadHide = (k: string) => OWNED_FLAGS.has(k) || SEC_IDS.has(k);
+
+/**
+ * Every `Field` the inspector can show under `node`, nested the way FieldList/Sections nest:
+ * object → its properties, map → each entry, objectList → each row. Depth 2 (a row inside a map
+ * inside a panel) is deeper than any shipped panel goes; `yaml` widgets are raw text, not fields.
+ * `hide` is honoured at whichever level passes it: the panel's own level (like the real
+ * WorkloadPanel), and — for an object-list row — the row's identifying key and its promoted leaves
+ * (like `ObjectListField`'s own `hideLeaves`), never deeper than that one level. Those leaves are
+ * edited directly as row inputs with their own eviction (`leafEditOps`, exercised separately below);
+ * they never reach `buildFields`/`AddChips` in the real widget, so the sweep must not probe them
+ * there either — `IngressHost`/`HttpRouteHostname`'s `subdomain` chip would need a global domain to
+ * render, which no chip alone can provide, and is not a chip the real UI ever offers.
+ * `lockedPaths` mirrors `buildFields`'s own option (the one runtime, document-wide lock — see its
+ * doc comment): forwarded unchanged at every depth, exactly as `ReleasePanel` forwards it through
+ * `FieldList`/`ObjectSection` in the real component tree.
+ */
+export function* walkFields(node: SchemaNode, basePath: ValuesPath, value: unknown, hide?: (k: string) => boolean, lockedPaths?: ReadonlySet<string>, depth = 0): Generator<Field> {
+  if (depth > 2) return;
+  for (const f of buildFields(root, node, basePath, value, 'advanced', { hide, lockedPaths })) {
+    yield f;
+    if (!f.present) continue;
+    const r = resolve(root, f.schema);
+    if (f.widget.kind === 'object') {
+      yield* walkFields(f.schema, f.path, f.value, undefined, lockedPaths, depth + 1);
+    } else if (f.widget.kind === 'map' && isObj(f.value)) {
+      for (const [k, v] of Object.entries(f.value)) yield* walkFields(r.additionalProperties as SchemaNode, [...f.path, k], v, undefined, lockedPaths, depth + 1);
+    } else if (f.widget.kind === 'objectList' && Array.isArray(f.value)) {
+      const itemNode = r.items as SchemaNode;
+      const rowShape = itemShape(root, itemNode);
+      // mirrors ObjectListField.tsx's `hide = pair ? hideLeaves : undefined` (~line 120): a block row
+      // shows every key in the UI, so only a pair row hides its identifying/leaf keys from the sweep.
+      const hideRowLeaves = rowShape.pair ? (k: string) => k === rowShape.identifying || rowShape.leaves.some((l) => l[0] === k) : undefined;
+      for (let i = 0; i < f.value.length; i++) yield* walkFields(itemNode, [...f.path, i], f.value[i], hideRowLeaves, lockedPaths, depth + 1);
+    }
+  }
+}
 
 const pub = path.resolve(__dirname, '..', 'public');
 const wasmPath = path.join(pub, 'helm.wasm');

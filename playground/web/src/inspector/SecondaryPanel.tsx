@@ -9,7 +9,7 @@ import { FieldList } from './fields';
 import { Sections } from './Sections';
 import { OwnerStrip } from './OwnerStrip';
 import type { InspectTarget } from './target';
-import { secondaryById, WORKLOAD_KINDS } from '../graph/secondary';
+import { secondaryById, toggleState, WORKLOAD_KINDS } from '../graph/secondary';
 import { SECONDARY_SECTIONS, SERVICE_OWNER_KEYS } from './sections';
 import { isObj, samePath } from '../model/guards';
 
@@ -25,15 +25,10 @@ export function SecondaryPanel(p: {
   const ownerKind = ownerNode?.kind ?? WORKLOAD_KINDS[kindKey];
   const raw = p.doc.valueAt(owner);
   const cfg = isObj(raw) ? raw : {};
-  const on = sec.isOn(cfg);
-  const blocked = sec.blocked?.(cfg, kindKey);
-  // Same direction rule as AutoCreated: `blocked` keeps explaining an on-but-blocked resource;
-  // only `blockedOff` disables a switch that is currently on.
-  const blockedOff = on ? sec.blockedOff?.(cfg, kindKey) : undefined;
-  const why = blockedOff ?? blocked;
+  const { on, why, isDisabled: disabledByToggle } = toggleState(sec, cfg, kindKey, false);
   // secondary.ts: some `off()` handlers delete the block, others only clear a flag — say which
   const deletes = sec.off(owner).some((o) => o.op === 'delete');
-  const isDisabled = p.disabled || (!on && !!blocked) || !!blockedOff;
+  const isDisabled = p.disabled || disabledByToggle;
   const toggle = (checked: boolean) => {
     // jsdom fires the native `change` event for a disabled checkbox when the click is
     // dispatched programmatically (only the real `.click()` method honors `disabled`), so

@@ -26,8 +26,14 @@ export function ListField(props: FieldProps): ReactElement {
   // leaf (`HostAlias.hostnames[]`) rejects '' outright, and an enum list must still start on its first
   // option — `starterValue` already answers both (LEAF_STARTERS / `r.enum[0]`).
   const append = () => onEdit([{ op: 'set', path: [...field.path, items.length], value: starterValue(root, item) }]);
-  // deleting one index splices the sequence in place (flow style survives); deleting the last item removes the key
-  const remove = (i: number) => onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
+  // deleting one index splices the sequence in place (flow style survives); deleting the last item removes
+  // the key — which a locked list (schema-required or chart-required) cannot survive. Mirrors
+  // ObjectListField's `lastLocked`.
+  const lastLocked = items.length === 1 && field.locked;
+  const remove = (i: number) => {
+    if (lastLocked) return;
+    onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
+  };
   const setOne = (i: number, v: string) => {
     // preserve a numeric item's type when the edited text still parses as a number. parseScalarText only
     // accepts the canonical `-?\d+(\.\d+)?` shape, so a non-canonical numeral (`1e3`, ` 5`, `.5`) falls
@@ -50,7 +56,7 @@ export function ListField(props: FieldProps): ReactElement {
           ) : (
             <input type="text" className="in" data-idx={i} aria-label={`${id}.${i}`} value={v} onChange={(e) => setOne(i, e.target.value)} />
           )}
-          <button type="button" className="clear" aria-label={`remove ${id}.${i}`} onClick={() => remove(i)}>×</button>
+          <button type="button" className="clear" aria-label={`remove ${id}.${i}`} disabled={lastLocked} title={lastLocked ? 'This list must keep at least one entry' : undefined} onClick={() => remove(i)}>×</button>
         </div>
       ))}
       <div className="add">

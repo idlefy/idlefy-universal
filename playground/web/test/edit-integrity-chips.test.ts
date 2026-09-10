@@ -5,42 +5,20 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { stringify } from 'yaml';
 import examplesJson from '../src/chart-bundle/examples.json';
-import { bootEngine, render, why, root, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
+import { bootEngine, render, why, root, workloadHide, walkFields, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
 import { ValuesDocument, type ValuesPath } from '../src/model/ValuesDocument';
-import { resolve, schemaAt, type SchemaNode } from '../src/inspector/schema';
-import { buildFields, chipValue, itemShape, type Field } from '../src/inspector/form';
+import { schemaAt, type SchemaNode } from '../src/inspector/schema';
+import { chipValue } from '../src/inspector/form';
 import { defaultName } from '../src/graph/entities';
 import { starterBody } from '../src/palette/add';
-import { secondariesFor, OWNED_FLAGS, SEC_IDS, WORKLOAD_KEYS } from '../src/graph/secondary';
+import { secondariesFor, WORKLOAD_KEYS } from '../src/graph/secondary';
+import { subdomainUsers } from '../src/inspector/summary';
 import { isFilledObj, isObj } from '../src/model/guards';
 
 const examples = examplesJson as { id: string; values: string }[];
 const STANDALONE = ['configs', 'services', 'ingresses', 'httpRoutes', 'hpas', 'persistentVolumeClaims'];
-const workloadHide = (k: string) => OWNED_FLAGS.has(k) || SEC_IDS.has(k);
 
 type Panel = { label: string; node: SchemaNode; path: ValuesPath; hide?: (k: string) => boolean };
-
-/** Same nesting rule as test/edit-integrity.test.ts; see the comment there. */
-function* walkFields(node: SchemaNode, basePath: ValuesPath, value: unknown, hide?: (k: string) => boolean, depth = 0): Generator<Field> {
-  if (depth > 2) return;
-  for (const f of buildFields(root, node, basePath, value, 'advanced', { hide })) {
-    yield f;
-    if (!f.present) continue;
-    const r = resolve(root, f.schema);
-    if (f.widget.kind === 'object') {
-      yield* walkFields(f.schema, f.path, f.value, undefined, depth + 1);
-    } else if (f.widget.kind === 'map' && isObj(f.value)) {
-      for (const [k, v] of Object.entries(f.value)) yield* walkFields(r.additionalProperties as SchemaNode, [...f.path, k], v, undefined, depth + 1);
-    } else if (f.widget.kind === 'objectList' && Array.isArray(f.value)) {
-      const itemNode = r.items as SchemaNode;
-      const rowShape = itemShape(root, itemNode);
-      // mirrors ObjectListField.tsx's `hide = pair ? hideLeaves : undefined` (~line 120): a block row
-      // shows every key in the UI, so only a pair row hides its identifying/leaf keys from the sweep.
-      const hideRowLeaves = rowShape.pair ? (k: string) => k === rowShape.identifying || rowShape.leaves.some((l) => l[0] === k) : undefined;
-      for (let i = 0; i < f.value.length; i++) yield* walkFields(itemNode, [...f.path, i], f.value[i], hideRowLeaves, depth + 1);
-    }
-  }
-}
 
 /** Every panel the inspector opens on this document: one per `<entity>.<name>`, one per secondary block. */
 function panelsOf(doc: ValuesDocument): Panel[] {
@@ -88,8 +66,13 @@ function sweep(bases: { label: string; text: string }[], fails: string[]): void 
     const start = ValuesDocument.parse(base.text);
     const r0 = render(base.text);
     if (!r0.ok) { fails.push(`BASE ${base.label} does not render → ${why(r0)}`); continue; }
+    const values = start.toJS() as Record<string, unknown>;
+    // Mirrors ReleasePanel's own `lockedPaths`: while any `hosts[]`/`hostnames[]` entry anywhere in
+    // this document sets `subdomain`, `generic.ingressesGeneral.domain` cannot be cleared either —
+    // a runtime lock buildFields cannot express on path shape alone (see buildFields' doc comment).
+    const lockedPaths = subdomainUsers(values).length > 0 ? new Set(['generic.ingressesGeneral.domain']) : undefined;
     for (const panel of panelsOf(start)) {
-      for (const f of walkFields(panel.node, panel.path, start.valueAt(panel.path), panel.hide)) {
+      for (const f of walkFields(panel.node, panel.path, start.valueAt(panel.path), panel.hide, lockedPaths)) {
         const id = `${base.label} · ${f.path.join('.')}`;
         if (!f.present) {
           const value = chipValue(root, f);

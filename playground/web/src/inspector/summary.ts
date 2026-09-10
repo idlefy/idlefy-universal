@@ -70,3 +70,36 @@ export function secretRefUsers(values: Record<string, unknown>, group: string): 
   }
   return out;
 }
+
+/**
+ * Every `hosts[]`/`hostnames[]` entry anywhere in the document that sets `subdomain` — a workload's
+ * auto-created `ingress.hosts` / `httpRoute.hostnames`, or a standalone `ingresses.*.hosts` /
+ * `httpRoutes.*.hostnames`. `_computed-ingress-host.tpl` combines `subdomain` with
+ * `generic.ingressesGeneral.domain` ("Global domain must be specified when a subdomain is used."), so
+ * while any of these exist that domain cannot be cleared without breaking the render. Tolerates any
+ * shape: this walks the live document, mirroring `secretRefUsers`.
+ */
+export function subdomainUsers(values: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  const scan = (label: string, hosts: unknown, hostsKey: string) => {
+    if (!Array.isArray(hosts)) return;
+    hosts.forEach((h, i) => {
+      if (isObj(h) && typeof (h as Record<string, unknown>).subdomain === 'string') out.push(`${label} · ${hostsKey}.${i}.subdomain`);
+    });
+  };
+  for (const mapKey of ['deployments', 'statefulSets', 'daemonSets', 'jobs', 'cronJobs']) {
+    const entries = values[mapKey];
+    if (!isObj(entries)) continue;
+    for (const [name, cfg] of Object.entries(entries)) {
+      if (!isObj(cfg)) continue;
+      const c = cfg as Record<string, unknown>;
+      scan(`${mapKey}/${name}`, isObj(c.ingress) ? (c.ingress as Record<string, unknown>).hosts : undefined, 'ingress.hosts');
+      scan(`${mapKey}/${name}`, isObj(c.httpRoute) ? (c.httpRoute as Record<string, unknown>).hostnames : undefined, 'httpRoute.hostnames');
+    }
+  }
+  const ingresses = values.ingresses;
+  if (isObj(ingresses)) for (const [name, cfg] of Object.entries(ingresses)) if (isObj(cfg)) scan(`ingresses/${name}`, (cfg as Record<string, unknown>).hosts, 'hosts');
+  const httpRoutes = values.httpRoutes;
+  if (isObj(httpRoutes)) for (const [name, cfg] of Object.entries(httpRoutes)) if (isObj(cfg)) scan(`httpRoutes/${name}`, (cfg as Record<string, unknown>).hostnames, 'hostnames');
+  return out;
+}

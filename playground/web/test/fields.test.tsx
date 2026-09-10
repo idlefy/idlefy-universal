@@ -111,15 +111,29 @@ describe('field widgets', () => {
     fireEvent.click(screen.getByLabelText('edit deployments.web.containers.main.args as YAML'));
     expect(screen.getByLabelText('deployments.web.containers.main.args').tagName).toBe('TEXTAREA');
   });
-  it('list: removing the last item deletes the key; enum items are selects', () => {
+  it('list: enum items are selects; removing the sole item of a required list is disabled, not a delete', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ networkPolicy: { policyTypes: ['Ingress'] } }} tier="basic" onEdit={onEdit} />);
     const sel = screen.getByLabelText('deployments.web.networkPolicy.policyTypes.0') as HTMLSelectElement;
     expect(sel.tagName).toBe('SELECT');
     fireEvent.change(sel, { target: { value: 'Egress' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'networkPolicy', 'policyTypes', 0], value: 'Egress' }]);
-    fireEvent.click(screen.getByLabelText('remove deployments.web.networkPolicy.policyTypes.0'));
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'networkPolicy', 'policyTypes'] }]);
+    // NetworkPolicyConfig requires policyTypes — `helm template` fails "missing property
+    // 'policyTypes'" if the sole entry's × emitted its old whole-key delete.
+    const removeBtn = screen.getByLabelText('remove deployments.web.networkPolicy.policyTypes.0') as HTMLButtonElement;
+    expect(removeBtn.disabled).toBe(true);
+    expect(removeBtn.title).toBe('This list must keep at least one entry');
+    onEdit.mockClear();
+    fireEvent.click(removeBtn);
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+  it('list: with two items present, removing one is not disabled', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={{ networkPolicy: { policyTypes: ['Ingress', 'Egress'] } }} tier="basic" onEdit={onEdit} />);
+    const removeBtn = screen.getByLabelText('remove deployments.web.networkPolicy.policyTypes.0') as HTMLButtonElement;
+    expect(removeBtn.disabled).toBe(false);
+    fireEvent.click(removeBtn);
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'networkPolicy', 'policyTypes', 0] }]);
   });
   it('list: a required-but-absent list still renders (no items) and adding the first one creates the array', () => {
     const onEdit = vi.fn();

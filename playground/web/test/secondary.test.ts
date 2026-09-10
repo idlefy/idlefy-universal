@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SECONDARY, secondariesFor, NEEDS_PORT } from '../src/graph/secondary';
+import { SECONDARY, secondariesFor, toggleState, NEEDS_PORT } from '../src/graph/secondary';
 import { buildExpectations } from '../src/graph/expectations';
 
 const base = ['deployments', 'web'];
@@ -98,5 +98,20 @@ describe('secondary resources', () => {
     expect(SECONDARY.filter((s) => s.blockedOff).map((s) => s.id)).toEqual(['serviceAccount']);
     expect(byId('serviceMonitor').blocked!({ containers: { main: {} } })).toBe(NEEDS_PORT);
     expect(byId('serviceMonitor').blocked!({ containers: { main: { ports: { http: { containerPort: 80 } } } } })).toBeUndefined();
+  });
+  it('toggleState: the shared rule AutoCreated and SecondaryPanel both call', () => {
+    // off, and blocked: disabled, `why` explains the blocking direction
+    expect(toggleState(byId('service'), { containers: { main: {} } }, 'deployments', false)).toEqual({ on: false, why: NEEDS_PORT, isDisabled: true });
+    // off, and not blocked: off, not disabled, no reason
+    expect(toggleState(byId('service'), { containers: { main: { ports: { h: { containerPort: 80 } } } } }, 'deployments', false)).toEqual({ on: false, why: undefined, isDisabled: false });
+    // on, and `blocked` would apply: still shows `why` (the on-but-blocked case), but not disabled —
+    // only `blockedOff` disables an already-on switch
+    expect(toggleState(byId('service'), { autoCreateService: true, containers: { main: {} } }, 'deployments', false)).toEqual({ on: true, why: NEEDS_PORT, isDisabled: false });
+    // on, and blockedOff applies: disabled in the off direction
+    expect(toggleState(byId('serviceAccount'), { autoCreateServiceAccount: true, autoCreateRbac: true }, 'deployments', false)).toEqual({
+      on: true, why: 'turn Role + RoleBinding off first (RBAC needs a ServiceAccount)', isDisabled: true,
+    });
+    // the panel's own `disabled` (e.g. a release-wide read-only mode) always wins
+    expect(toggleState(byId('service'), { containers: { main: { ports: { h: { containerPort: 80 } } } } }, 'deployments', true).isDisabled).toBe(true);
   });
 });

@@ -13,10 +13,15 @@ const PORT_MAX = 65535;
 const DEFAULT_PORT = 8080;
 
 /** Map of PortSpec as a table: name | containerPort | servicePort | protocol | ×, plus an add row. */
-export function PortsTable({ field, onEdit }: FieldProps): ReactElement {
+export function PortsTable({ field, onEdit, workload }: FieldProps): ReactElement {
   const id = field.path.join('.');
   const ports = isObj<Record<string, Record<string, unknown>>>(field.value) ? field.value : {};
   const names = Object.keys(ports);
+  // `*.*.containers.*.ports` is chart-required, so FieldRow already hides the block-level × for the
+  // whole map — but the per-port × here is a different control, and removing the *last* port when
+  // autoCreateService is on leaves a StatefulSet failing the render (or a Deployment silently missing
+  // its Service). Mirrors ObjectListField's lastLocked, gated on the owning workload's own flag.
+  const lastPortLocked = names.length === 1 && !!workload?.autoCreateService;
   // text the user is still typing that must not be committed: out of range, unparseable, or an
   // emptied containerPort (PortSpec.required) — deleting that key made the document unrenderable.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -61,7 +66,9 @@ export function PortsTable({ field, onEdit }: FieldProps): ReactElement {
           <select className="in" aria-label={`${id}.${n}.protocol`} value={String(ports[n].protocol ?? 'TCP')} onChange={(e) => onEdit([{ op: 'set', path: [...field.path, n, 'protocol'], value: e.target.value }])}>
             {PROTOCOLS.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
-          <button type="button" className="clear" aria-label={`remove ${id}.${n}`} onClick={() => onEdit([{ op: 'delete', path: [...field.path, n] }])}>×</button>
+          <button type="button" className="clear" aria-label={`remove ${id}.${n}`} disabled={lastPortLocked}
+            title={lastPortLocked ? 'the Service needs at least one container port' : undefined}
+            onClick={() => { if (!lastPortLocked) onEdit([{ op: 'delete', path: [...field.path, n] }]); }}>×</button>
         </span>
       ))}
       <AddKeyRow grid id={id} existing={names} valid={(k) => NAME.test(k) && k.length <= 15} invalidText="lowercase, digits, dashes, ≤15" placeholder="name"
