@@ -4,6 +4,7 @@ import type { GraphModel } from '../graph/types';
 import type { EditorMarker } from '../editor/Editor';
 import { anchorOf } from './selection';
 import { samePath } from '../model/guards';
+import { failText } from './banner';
 
 export type Tier = 'basic' | 'advanced';
 export type DetailTab = 'inspector' | 'yaml';
@@ -86,5 +87,7 @@ export function markersFrom(s: AppState): EditorMarker[] {
     const kindKey: Record<string, string> = { Deployment: 'deployments', StatefulSet: 'statefulSets', DaemonSet: 'daemonSets', Job: 'jobs', CronJob: 'cronJobs', Ingress: 'ingresses', HTTPRoute: 'httpRoutes' };
     if (m) { const kk = kindKey[m[0].split(' ')[0]]; line = s.doc.lineOf([kk, m[1]]) ?? 1; }
   }
-  return [{ line, col: undefined, message: error.message, severity: 'error' }];
+  // the editor's hover shows the same sentence the banner does; the kind/name regex above still
+  // matches, because the name is in the part failText keeps
+  return [{ line, col: undefined, message: failText(error.message), severity: 'error' }];
 }

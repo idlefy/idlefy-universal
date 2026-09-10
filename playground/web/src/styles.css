@@ -304,3 +304,8 @@ code { font-family: var(--mono); font-size: 12px; }
 .empty-card .row { display: flex; justify-content: center; gap: 8px; margin: 14px 0 12px; }
 .empty-card .hint { color: var(--muted); font-size: 11.5px; }
 .name-step .preview pre { margin: 0; font: 11.5px/1.45 var(--mono); white-space: pre; overflow-x: auto; }
+
+/* The full template chain behind the banner's one-sentence summary. */
+.banner details { margin-top: 4px; }
+.banner details summary { cursor: pointer; font-size: 12px; opacity: 0.75; }
+.banner details pre { margin-top: 4px; max-height: 180px; overflow: auto; }

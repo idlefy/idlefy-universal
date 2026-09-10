@@ -8,6 +8,7 @@ import { Canvas } from "../canvas/Canvas";
 import { DetailPanel } from "../canvas/DetailPanel";
 import type { SchemaNode } from "../inspector/schema";
 import { initialState, markersFrom, reducer } from "./state";
+import { failText } from "./banner";
 import { resolveSelection, titleOf } from "./selection";
 import { useRenderPipeline } from "./useRenderPipeline";
 import { usePanes, SplitHandle, Rail } from "./Panes";
@@ -131,7 +132,19 @@ export function App() {
             onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
         )}
         <section className="pane pane-canvas">
-          {error && <div className={`banner ${error.kind}`}><pre>{error.message}</pre></div>}
+          {error && (() => {
+            // a chart `fail` arrives as a five-line Go include chain; only its last sentence is for
+            // the reader, and the chain stays one click away rather than pushing the canvas down
+            const short = failText(error.message);
+            return (
+              <div className={`banner ${error.kind}`}>
+                <pre>{short}</pre>
+                {short !== error.message && (
+                  <details><summary>Full template output</summary><pre>{error.message}</pre></details>
+                )}
+              </div>
+            );
+          })()}
           {!error && warnings.length > 0 && <div className="banner warn">{warnings.map((w) => <div key={w}>{w}</div>)}</div>}
           <div className="canvas-wrap">
             <AddButton disabled={yamlBroken} open={launcher} onOpen={openLauncher} onClose={() => setLauncher(null)} root={schema as SchemaNode} values={values} onAdd={onAdd} />
