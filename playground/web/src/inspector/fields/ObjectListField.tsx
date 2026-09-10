@@ -79,7 +79,7 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   // `null` result means the text is not committable yet, which is exactly what `drafts` is for.
   const setLeaf = (i: number, leaf: string[], text: string) => {
     const draftKey = `${i}.${leaf.join('.')}`;
-    const ops = leafEditOps(root, shape, field.path, i, items[i], leaf, leafSchema(leaf), text);
+    const ops = leafEditOps(root, shape, item, field.path, i, items[i], leaf, leafSchema(leaf), text);
     if (ops === null) { setDrafts((d) => ({ ...d, [draftKey]: text })); return; }
     clearDraft(draftKey);
     onEdit(ops);

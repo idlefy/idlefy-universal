@@ -8,7 +8,7 @@ import examplesJson from '../src/chart-bundle/examples.json';
 import { bootEngine, render, why, root, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
 import { ValuesDocument, type ValuesPath } from '../src/model/ValuesDocument';
 import { resolve, schemaAt, type SchemaNode } from '../src/inspector/schema';
-import { buildFields, chipValue, type Field } from '../src/inspector/form';
+import { buildFields, chipValue, itemShape, type Field } from '../src/inspector/form';
 import { defaultName } from '../src/graph/entities';
 import { starterBody } from '../src/palette/add';
 import { secondariesFor, OWNED_FLAGS, SEC_IDS, WORKLOAD_KEYS } from '../src/graph/secondary';
@@ -23,7 +23,7 @@ type Panel = { label: string; node: SchemaNode; path: ValuesPath; hide?: (k: str
 /** Same nesting rule as test/edit-integrity.test.ts; see the comment there. */
 function* walkFields(node: SchemaNode, basePath: ValuesPath, value: unknown, hide?: (k: string) => boolean, depth = 0): Generator<Field> {
   if (depth > 2) return;
-  for (const f of buildFields(root, node, basePath, value, 'advanced', { hide: depth === 0 ? hide : undefined })) {
+  for (const f of buildFields(root, node, basePath, value, 'advanced', { hide })) {
     yield f;
     if (!f.present) continue;
     const r = resolve(root, f.schema);
@@ -32,7 +32,10 @@ function* walkFields(node: SchemaNode, basePath: ValuesPath, value: unknown, hid
     } else if (f.widget.kind === 'map' && isObj(f.value)) {
       for (const [k, v] of Object.entries(f.value)) yield* walkFields(r.additionalProperties as SchemaNode, [...f.path, k], v, undefined, depth + 1);
     } else if (f.widget.kind === 'objectList' && Array.isArray(f.value)) {
-      for (let i = 0; i < f.value.length; i++) yield* walkFields(r.items as SchemaNode, [...f.path, i], f.value[i], undefined, depth + 1);
+      const itemNode = r.items as SchemaNode;
+      const rowShape = itemShape(root, itemNode);
+      const hideRowLeaves = (k: string) => k === rowShape.identifying || rowShape.leaves.some((l) => l[0] === k);
+      for (let i = 0; i < f.value.length; i++) yield* walkFields(itemNode, [...f.path, i], f.value[i], hideRowLeaves, depth + 1);
     }
   }
 }
@@ -88,7 +91,10 @@ function sweep(bases: { label: string; text: string }[], fails: string[]): void 
         const id = `${base.label} · ${f.path.join('.')}`;
         if (!f.present) {
           const value = chipValue(root, f);
-          const r = render(start.apply([{ op: 'set', path: f.path, value }]).toString());
+          // matches AddChips' own onClick: an absent member of an "exactly one of" group carries
+          // `evict` ops for whichever sibling is currently set (PdbConfig, EnvVar's valueFrom) —
+          // applying only the `set` half would leave the document matching two oneOf/anyOf branches.
+          const r = render(start.apply([{ op: 'set', path: f.path, value }, ...f.evict]).toString());
           if (!r.ok) fails.push(`chip ${id} = ${JSON.stringify(value)} → ${why(r)}`);
         } else if (!f.locked) {
           const r = render(start.apply([{ op: 'delete', path: f.path }]).toString());

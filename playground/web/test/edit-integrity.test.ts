@@ -38,11 +38,17 @@ const workloadHide = (k: string) => OWNED_FLAGS.has(k) || SEC_IDS.has(k);
  * Every `Field` the inspector can show under `node`, nested the way FieldList/Sections nest:
  * object → its properties, map → each entry, objectList → each row. Depth 2 (a row inside a map
  * inside a panel) is deeper than any shipped panel goes; `yaml` widgets are raw text, not fields.
- * `hide` applies at the panel's own level only, like the real WorkloadPanel.
+ * `hide` is honoured at whichever level passes it: the panel's own level (like the real
+ * WorkloadPanel), and — for an object-list row — the row's identifying key and its promoted leaves
+ * (like `ObjectListField`'s own `hideLeaves`), never deeper than that one level. Those leaves are
+ * edited directly as row inputs with their own eviction (`leafEditOps`, exercised separately below);
+ * they never reach `buildFields`/`AddChips` in the real widget, so the sweep must not probe them
+ * there either — `IngressHost`/`HttpRouteHostname`'s `subdomain` chip would need a global domain to
+ * render, which no chip alone can provide, and is not a chip the real UI ever offers.
  */
 function* walkFields(node: SchemaNode, basePath: ValuesPath, value: unknown, hide?: (k: string) => boolean, depth = 0): Generator<Field> {
   if (depth > 2) return;
-  for (const f of buildFields(root, node, basePath, value, 'advanced', { hide: depth === 0 ? hide : undefined })) {
+  for (const f of buildFields(root, node, basePath, value, 'advanced', { hide })) {
     yield f;
     if (!f.present) continue;
     const r = resolve(root, f.schema);
@@ -51,7 +57,10 @@ function* walkFields(node: SchemaNode, basePath: ValuesPath, value: unknown, hid
     } else if (f.widget.kind === 'map' && isObj(f.value)) {
       for (const [k, v] of Object.entries(f.value)) yield* walkFields(r.additionalProperties as SchemaNode, [...f.path, k], v, undefined, depth + 1);
     } else if (f.widget.kind === 'objectList' && Array.isArray(f.value)) {
-      for (let i = 0; i < f.value.length; i++) yield* walkFields(r.items as SchemaNode, [...f.path, i], f.value[i], undefined, depth + 1);
+      const itemNode = r.items as SchemaNode;
+      const rowShape = itemShape(root, itemNode);
+      const hideRowLeaves = (k: string) => k === rowShape.identifying || rowShape.leaves.some((l) => l[0] === k);
+      for (let i = 0; i < f.value.length; i++) yield* walkFields(itemNode, [...f.path, i], f.value[i], hideRowLeaves, depth + 1);
     }
   }
 }
@@ -219,7 +228,7 @@ describe('edit integrity', () => {
                 const leafSchema = resolve(root, (resolve(root, item).properties as Record<string, SchemaNode>)[k]);
                 // only scalar members can be typed into the row; `valueFrom` is added from a chip
                 if (leafSchema.type !== 'string') continue;
-                const ops = leafEditOps(root, shape, f.path, i, row, [k], leafSchema, k === 'subdomain' ? 'api' : 'x');
+                const ops = leafEditOps(root, shape, item, f.path, i, row, [k], leafSchema, k === 'subdomain' ? 'api' : 'x');
                 expect(ops, `${base.label} ${f.path.join('.')}[${i}].${k}`).not.toBeNull();
                 const r = render(start.apply(ops!).toString());
                 if (!r.ok) fails.push(`swap ${base.label} · ${f.path.join('.')}[${i}] → ${k} → ${why(r)}`);
@@ -228,7 +237,7 @@ describe('edit integrity', () => {
               for (const k of shape.exclusive) {
                 if (!isObj(row) || (row as Record<string, unknown>)[k] === undefined) continue;
                 const props = resolve(root, item).properties as Record<string, SchemaNode>;
-                expect(leafEditOps(root, shape, f.path, i, row, [k], resolve(root, props[k]), ''), `${base.label} clear ${k}`).toBeNull();
+                expect(leafEditOps(root, shape, item, f.path, i, row, [k], resolve(root, props[k]), ''), `${base.label} clear ${k}`).toBeNull();
               }
             });
           }

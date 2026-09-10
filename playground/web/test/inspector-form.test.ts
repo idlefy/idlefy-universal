@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import schema from '../src/chart-bundle/schema.json';
-import { buildFields, starterValue, firstSentence, chipValue, itemShape, itemLabelOf, exclusiveKeys, chartRequired } from '../src/inspector/form';
+import { buildFields, starterValue, firstSentence, chipValue, itemShape, itemLabelOf, exclusiveKeys, evictOps, leafEditOps, chartRequired } from '../src/inspector/form';
 import { classify, schemaAt, resolve } from '../src/inspector/schema';
 
 const root = schema as any;
@@ -90,15 +90,25 @@ describe('buildFields', () => {
       }
     }
   });
-  it('does not offer the other half of a oneOf pair, and locks the half that is set', () => {
+  it('still offers the other half of a oneOf pair as a chip wired to evict the one that is set, which stays locked', () => {
+    // Once `buildFields` stopped offering the absent half's chip entirely, there was no way back to
+    // it short of hand-editing YAML — the same dead end EnvVar's `valueFrom` had (finding 9). The chip
+    // stays reachable; `evict` on it is what makes clicking it safe.
     const pdb = schemaAt(root, ['deployments', 'web', 'pdb'])!;
     const p = ['deployments', 'web', 'pdb'];
     const set = buildFields(root, pdb, p, { maxUnavailable: 1 }, 'advanced');
-    expect(set.map((f) => f.key)).not.toContain('minAvailable');
-    expect(set.find((f) => f.key === 'maxUnavailable')).toMatchObject({ present: true, locked: true });
-    // with neither set, both are offered and neither is locked
+    expect(set.map((f) => f.key)).toContain('minAvailable');
+    const minAvailable = set.find((f) => f.key === 'minAvailable')!;
+    expect(minAvailable).toMatchObject({ present: false, locked: false });
+    expect(minAvailable.evict).toEqual([{ op: 'delete', path: [...p, 'maxUnavailable'] }]);
+    const maxUnavailable = set.find((f) => f.key === 'maxUnavailable')!;
+    expect(maxUnavailable).toMatchObject({ present: true, locked: true });
+    expect(maxUnavailable.evict).toEqual([]);   // it is present, not being "added" — nothing to evict
+    // with neither set, both are offered, neither is locked, and neither carries an eviction
     const none = buildFields(root, pdb, p, {}, 'advanced');
-    expect(none.filter((f) => f.key === 'minAvailable' || f.key === 'maxUnavailable').map((f) => f.locked)).toEqual([false, false]);
+    const bothNone = none.filter((f) => f.key === 'minAvailable' || f.key === 'maxUnavailable');
+    expect(bothNone.map((f) => f.locked)).toEqual([false, false]);
+    expect(bothNone.map((f) => f.evict)).toEqual([[], []]);
   });
   it('locks schema-required keys and the keys only the chart requires', () => {
     const dep = schemaAt(root, ['deployments', 'web'])!;
@@ -196,5 +206,45 @@ describe('itemShape', () => {
     expect(itemLabelOf('hosts')).toBe('Host');
     expect(itemLabelOf('tolerations')).toBe('Toleration');
     expect(itemLabelOf('whatever')).toBe('Item');
+  });
+});
+
+describe('evictOps', () => {
+  it('deletes every other present member of the group; nothing when key is not exclusive, or no sibling is set', () => {
+    expect(evictOps(['value', 'valueFrom'], { name: 'A', value: '1' }, ['x', 'env', 0], 'valueFrom'))
+      .toEqual([{ op: 'delete', path: ['x', 'env', 0, 'value'] }]);
+    expect(evictOps(['value', 'valueFrom'], { name: 'A' }, ['x', 'env', 0], 'valueFrom')).toEqual([]);   // no sibling set
+    expect(evictOps(['value', 'valueFrom'], { name: 'A', value: '1' }, ['x', 'env', 0], 'name')).toEqual([]);   // `name` isn't in the group
+  });
+});
+
+describe('leafEditOps', () => {
+  // SecretRefEntry (name + secretKeyRef) is chart-level secretRefs.<group>[i]; $defs.SecretKeyRef
+  // requires both `name` and `key`, and both are promoted into pair leaves by itemShape.
+  const secretRefItem = resolve(root, root.properties.secretRefs.additionalProperties).items;
+  it('a nested required leaf is held, not deleted (secretKeyRef.name / secretKeyRef.key)', () => {
+    const shape = itemShape(root, secretRefItem);
+    const row = { name: 'API_KEY', secretKeyRef: { name: 's', key: 'k' } };
+    const keySchema = resolve(root, root.$defs.SecretKeyRef.properties.key);
+    expect(leafEditOps(root, shape, secretRefItem, ['x', 'refs'], 0, row, ['secretKeyRef', 'key'], keySchema, '')).toBeNull();
+    const nameSchema = resolve(root, root.$defs.SecretKeyRef.properties.name);
+    expect(leafEditOps(root, shape, secretRefItem, ['x', 'refs'], 0, row, ['secretKeyRef', 'name'], nameSchema, '')).toBeNull();
+  });
+  it('a nested non-required leaf is deleted when emptied', () => {
+    const item = {
+      type: 'object', required: ['name'],
+      properties: {
+        name: { type: 'string' },
+        ref: { type: 'object', required: ['a'], properties: { a: { type: 'string' }, b: { type: 'string' } } },
+      },
+    };
+    const shape = itemShape(root, item);
+    const row = { name: 'n', ref: { a: '1', b: '2' } };
+    const bSchema = resolve(root, item.properties.ref.properties.b);
+    expect(leafEditOps(root, shape, item, ['x', 'items'], 0, row, ['ref', 'b'], bSchema, ''))
+      .toEqual([{ op: 'delete', path: ['x', 'items', 0, 'ref', 'b'] }]);
+    // its own required sibling still holds
+    const aSchema = resolve(root, item.properties.ref.properties.a);
+    expect(leafEditOps(root, shape, item, ['x', 'items'], 0, row, ['ref', 'a'], aSchema, '')).toBeNull();
   });
 });

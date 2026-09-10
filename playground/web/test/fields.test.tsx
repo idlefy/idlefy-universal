@@ -205,6 +205,18 @@ describe('field widgets', () => {
     expect(input.className).toContain('invalid');
   });
 
+  it('object section: the other half of a oneOf pair is offered as a chip that evicts the one that is set', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={{ pdb: { maxUnavailable: 1 } }} tier="basic" onEdit={onEdit} />);
+    // maxUnavailable is set, but minAvailable's chip is not a dead end: clicking it swaps the pair
+    const chip = screen.getByLabelText('add field deployments.web.pdb.minAvailable');
+    fireEvent.click(chip);
+    const ops = onEdit.mock.calls.at(-1)![0];
+    expect(ops).toHaveLength(2);
+    expect(ops[0]).toMatchObject({ op: 'set', path: [...base, 'pdb', 'minAvailable'] });
+    expect(ops[1]).toEqual({ op: 'delete', path: [...base, 'pdb', 'maxUnavailable'] });
+  });
+
   it('yaml: valid YAML emits set on blur, invalid shows an error and emits nothing', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ affinity: { nodeAffinity: { x: 1 } } }} tier="advanced" onEdit={onEdit} />);

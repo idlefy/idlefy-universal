@@ -8,7 +8,7 @@ import { classify, resolve } from '../src/inspector/schema';
 const root = schema as any;
 afterEach(cleanup);
 const node = resolve(root, root.properties.secretRefs);
-const field = (value: unknown) => ({ key: 'secretRefs', path: ['secretRefs'], label: 'secretRefs', widget: classify(root, node), schema: node, value, present: value !== undefined, required: false, locked: false, tier: 'basic' as const });
+const field = (value: unknown) => ({ key: 'secretRefs', path: ['secretRefs'], label: 'secretRefs', widget: classify(root, node), schema: node, value, present: value !== undefined, required: false, locked: false, evict: [], tier: 'basic' as const });
 const value = { db: [{ name: 'DB_URL', secretKeyRef: { name: 'db', key: 'url' } }], api: [] };
 
 describe('MapOfListsField', () => {

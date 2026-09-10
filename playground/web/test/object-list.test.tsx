@@ -41,12 +41,18 @@ describe('ObjectListField', () => {
     expect(ops[0].value).toBeTruthy();
     expect(screen.queryByRole('textbox', { name: 'deployments.web.containers.main.env' })).toBeNull();   // no textarea
   });
-  it('env: the expander offers valueFrom only when `value` is unset (EnvVar is a oneOf)', () => {
+  it('env: the expander still offers valueFrom while `value` is set, wired to evict it (EnvVar is a oneOf)', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: [{ name: 'A', value: '1' }, { name: 'B' }, { name: 'S', valueFrom: { secretKeyRef: { name: 'db', key: 'pw' } } }] }} tier="basic" onEdit={onEdit} />);
     fireEvent.click(screen.getByLabelText('more deployments.web.containers.main.env.0'));
-    // row 0 has `value`, so adding `valueFrom` would match both oneOf branches
-    expect(screen.queryByLabelText('add field deployments.web.containers.main.env.0.valueFrom')).toBeNull();
+    // row 0 has `value` — the chip is not hidden away: clicking it swaps the row to valueFrom
+    const chip = screen.getByLabelText('add field deployments.web.containers.main.env.0.valueFrom');
+    fireEvent.click(chip);
+    const ops = onEdit.mock.calls.at(-1)![0];
+    expect(ops).toHaveLength(2);
+    expect(ops[0]).toMatchObject({ op: 'set', path: [...cbase, 'env', 0, 'valueFrom'] });
+    expect(ops[0].value).toBeTruthy();
+    expect(ops[1]).toEqual({ op: 'delete', path: [...cbase, 'env', 0, 'value'] });
     fireEvent.click(screen.getByLabelText('more deployments.web.containers.main.env.1'));
     expect(screen.getByLabelText('add field deployments.web.containers.main.env.1.valueFrom')).toBeTruthy();
     expect(screen.getByLabelText('deployments.web.containers.main.env.2.valueFrom.secretKeyRef.name')).toBeTruthy();

@@ -25,7 +25,7 @@ function AddChips({ root, fields, onEdit }: { root: SchemaNode; fields: Field[];
         const id = f.path.join('.');
         return (
           <button key={f.key} type="button" className="chip" aria-label={`add field ${id}`} title={f.description}
-            onClick={() => onEdit([{ op: 'set', path: f.path, value: chipValue(root, f) }])}>
+            onClick={() => onEdit([{ op: 'set', path: f.path, value: chipValue(root, f) }, ...f.evict])}>
             {humanize(f.label)}
           </button>
         );

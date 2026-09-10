@@ -11,6 +11,11 @@ export type Field = {
    *  member left of a `oneOf`/`anyOf` "exactly one of" group. Widgets hide their clear control; the
    *  edit-integrity test reads it to know the delete op is unreachable. */
   locked: boolean;
+  /** Ops the "add" chip must run alongside its own `set` when this field belongs to an "exactly one
+   *  of" `exclusive` group and a sibling is currently present: deletes that sibling, so setting this
+   *  one never leaves the object matching two `oneOf`/`anyOf` branches at once. Empty for every field
+   *  that is not part of such a group, or whose group has no sibling set. */
+  evict: EditOp[];
   tier: Tier;
 };
 
@@ -73,14 +78,31 @@ export function exclusiveKeys(root: SchemaNode, node: SchemaNode): string[] {
   return out.length >= 2 ? out : [];
 }
 
+/**
+ * Delete ops for every member of `exclusive` (besides `key` itself) that is still present on the
+ * object at `basePath` holding `value`. Empty when `key` is not part of the group, or no sibling is
+ * currently set. The one piece of "evict the sibling" logic, shared by every caller that sets an
+ * exclusive member: `buildFields`' "add" chip (EnvVar's `valueFrom` while `value` is set, inside an
+ * object-list row; PdbConfig's `minAvailable`/`maxUnavailable`, a top-level object panel — both go
+ * through the same chip) and `leafEditOps`' committed-value eviction (`host`/`subdomain`, typed
+ * directly into a row).
+ */
+export function evictOps(exclusive: string[], value: unknown, basePath: ValuesPath, key: string): EditOp[] {
+  if (!exclusive.includes(key)) return [];
+  return exclusive
+    .filter((k) => k !== key && isObj(value) && (value as Record<string, unknown>)[k] !== undefined)
+    .map((k) => ({ op: 'delete' as const, path: [...basePath, k] }));
+}
+
 /** One `Field`, resolved and classified from `node`. The single constructor `buildFields` and every
  *  hand-built field (a release-level bare widget, a `MapOfListsField` card) share. */
-export function makeField(root: SchemaNode, key: string, path: ValuesPath, node: SchemaNode, value: unknown, opts: { tier?: Tier; present?: boolean; required?: boolean; locked?: boolean } = {}): Field {
+export function makeField(root: SchemaNode, key: string, path: ValuesPath, node: SchemaNode, value: unknown, opts: { tier?: Tier; present?: boolean; required?: boolean; locked?: boolean; evict?: EditOp[] } = {}): Field {
   const s = resolve(root, node);
   return {
     key, path, label: key, description: typeof s.description === 'string' ? s.description.trim() : undefined,
     widget: classify(root, node), schema: s, value, present: opts.present ?? value !== undefined, required: opts.required ?? false,
     locked: opts.locked ?? opts.required ?? false,
+    evict: opts.evict ?? [],
     tier: opts.tier ?? (s['x-ui-tier'] === 'basic' ? 'basic' : 'advanced'),
   };
 }
@@ -97,13 +119,15 @@ export function buildFields(root: SchemaNode, node: SchemaNode, basePath: Values
   for (const [key, raw] of Object.entries(props)) {
     if (opts.hide?.(key)) continue;
     const present = has(key);
-    // Adding the other half of an "exactly one of" group makes the object match two branches
-    // (PdbConfig, EnvVar), so it is not offered while a sibling is set — and the sibling that *is*
-    // set is the only one left, so it must not be cleared either.
-    if (!present && excl.includes(key) && siblingSet(key)) continue;
     const path = [...basePath, key];
     const locked = required.has(key) || chartRequired(path) || (present && excl.includes(key) && !siblingSet(key));
-    const field = makeField(root, key, path, raw, v[key], { present, required: required.has(key), locked });
+    // An absent member of an "exactly one of" group is still offered as an "add" chip even while its
+    // sibling is set (EnvVar's `valueFrom` while `value` is set; PdbConfig's `minAvailable` while
+    // `maxUnavailable` is set) — there would otherwise be no way back to it. `evict` carries the ops
+    // that remove the sibling so setting this key never matches two oneOf/anyOf branches at once;
+    // empty (harmless to compute) for every key outside the group.
+    const evict = evictOps(excl, v, basePath, key);
+    const field = makeField(root, key, path, raw, v[key], { present, required: required.has(key), locked, evict });
     if (tier === 'basic' && field.tier !== 'basic' && !field.required && !field.present) continue;
     out.push(field);
   }
@@ -202,7 +226,10 @@ const byIdKeys = (a: string, b: string) => (ID_KEYS.indexOf(a) + 1 || 99) - (ID_
  * are all scalar (`secretKeyRef.name`, `secretKeyRef.key`). Everything else (lists, booleans, deeper
  * objects) is an "extra" reachable through the row's expander; a promoted nested object that also has a
  * boolean (`secretKeyRef.optional`) is both. Pair row = an identifying leaf plus one or two other leaves.
- * `required` lists the item's required top-level keys so an emptied required leaf is set to '' rather than deleted.
+ * `required` lists the item's required top-level keys — `leafEditOps` holds an emptied required leaf
+ * as a local draft instead of deleting it or writing a schema-invalid `''`; a required leaf nested one
+ * level down (`secretKeyRef.key`) is not in this list, but `leafEditOps` resolves its own parent's
+ * `required` to get the same hold.
  * `exclusive` is `exclusiveKeys(root, item)`: the top-level keys a `oneOf`/`anyOf` of single
  * `required` alternatives makes mutually exclusive (HttpRouteHostname and IngressHost: `host` xor
  * `subdomain`; EnvVar: `value` xor `valueFrom`, where `valueFrom` is an extra, not a leaf) —
@@ -232,31 +259,51 @@ export function itemShape(root: SchemaNode, item: SchemaNode): ItemShape {
   return { identifying, leaves: rest, extras, required: Array.isArray(r.required) ? r.required.map(String) : [], pair: identifying !== null && rest.length >= 1 && rest.length <= 2, exclusive };
 }
 
+/** Whether `leaf` (length ≥ 2: a promoted nested leaf like `secretKeyRef.key`) names a key its own
+ *  immediate parent object marks `required` — `$defs.SecretKeyRef` requires `name` and `key`, so
+ *  emptying either must hold rather than delete, the same as a top-level required leaf. Walks `item`'s
+ *  properties down `leaf`'s every segment but the last to find that parent; `false` for a top-level
+ *  leaf (`leaf.length < 2`) or if the walk cannot resolve (defensive — every real `leaf` came from
+ *  `itemShape`, which only promotes keys that exist). */
+function nestedLeafRequired(root: SchemaNode, item: SchemaNode, leaf: string[]): boolean {
+  if (leaf.length < 2) return false;
+  let node: SchemaNode | undefined = item;
+  for (const k of leaf.slice(0, -1)) {
+    const r = resolve(root, node!);
+    const props: Record<string, SchemaNode> = isObj(r.properties) ? (r.properties as any) : {};
+    node = props[k];
+    if (!node) return false;
+  }
+  const r = resolve(root, node!);
+  return Array.isArray(r.required) && r.required.map(String).includes(leaf[leaf.length - 1]);
+}
+
 /**
  * Ops for one edited leaf of an object-list row, or `null` when the caller must hold the text as a
  * local draft and emit nothing. `null` covers two cases: the text does not parse to the leaf's type
- * (the existing draft behaviour), and the leaf is emptied but must not be deleted — a required leaf
- * (`EnvVar.name`, whose pattern rejects `''`, so writing `''` is not an option either) or the last
- * member of an exclusive group still set on the row (`env` with only `value`; a hostname with only
- * `host`). A non-empty value that lands on an exclusive member evicts its siblings, or the item
- * matches two `oneOf` branches at once.
+ * (the existing draft behaviour), and the leaf is emptied but must not be deleted — a required leaf,
+ * top-level (`EnvVar.name`, whose pattern rejects `''`, so writing `''` is not an option either) or
+ * nested (`secretKeyRef.key` — see `nestedLeafRequired`), or the last member of an exclusive group
+ * still set on the row (`env` with only `value`; a hostname with only `host`). A non-empty value that
+ * lands on an exclusive member evicts its siblings (`evictOps`), or the item matches two `oneOf`
+ * branches at once.
  */
 export function leafEditOps(
-  root: SchemaNode, shape: ItemShape, listPath: ValuesPath, index: number,
+  root: SchemaNode, shape: ItemShape, item: SchemaNode, listPath: ValuesPath, index: number,
   row: unknown, leaf: string[], leafSchema: SchemaNode, text: string,
 ): EditOp[] | null {
   const path = [...listPath, index, ...leaf];
   const top = leaf.length === 1 ? leaf[0] : null;
-  const others = top !== null && shape.exclusive.includes(top)
-    ? shape.exclusive.filter((k) => k !== top && isObj(row) && (row as Record<string, unknown>)[k] !== undefined)
-    : [];
+  const evictions = top !== null ? evictOps(shape.exclusive, row, [...listPath, index], top) : [];
   if (text === '') {
-    const mustKeep = top !== null && (shape.required.includes(top) || (shape.exclusive.includes(top) && others.length === 0));
+    const mustKeep = top !== null
+      ? (shape.required.includes(top) || (shape.exclusive.includes(top) && evictions.length === 0))
+      : nestedLeafRequired(root, item, leaf);
     return mustKeep ? null : [{ op: 'delete', path }];
   }
   const value = parseScalarText(text, classify(root, leafSchema));
   if (value === undefined) return null;
-  return [{ op: 'set', path, value }, ...others.map((k) => ({ op: 'delete' as const, path: [...listPath, index, k] }))];
+  return [{ op: 'set', path, value }, ...evictions];
 }
 
 const ITEM_LABELS: Record<string, string> = {
