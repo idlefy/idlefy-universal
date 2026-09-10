@@ -46,7 +46,9 @@ export function namePattern(root: SchemaNode, key: string): RegExp {
   const pat = topLevel(root, key).propertyNames?.pattern;
   // The chart's own pattern for the workload maps *is* the DNS label; return the shared object so
   // callers can tell "DNS label" from a bespoke pattern by identity (spec §3's hint copy).
-  return typeof pat === 'string' && pat !== DNS_LABEL.source ? new RegExp(pat) : DNS_LABEL;
+  // A bespoke pattern is anchored: JSON Schema's `pattern` is a search, but `pattern.test(name)`
+  // here is a whole-name check, and an unanchored regex would accept any name that merely contains a match.
+  return typeof pat === 'string' && pat !== DNS_LABEL.source ? new RegExp(`^(?:${pat})$`) : DNS_LABEL;
 }
 
 /** First key of the top-level map's `examples[0]`; every entity has one (asserted in tests). */

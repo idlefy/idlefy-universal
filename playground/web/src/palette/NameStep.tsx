@@ -20,26 +20,28 @@ export function NameStep(p: { root: SchemaNode; entity: Entity; values: Record<s
   }, [p.values, key]);
   const pattern = useMemo(() => namePattern(p.root, key), [p.root, key]);
   const initial = useMemo(() => uniqueName(defaultName(p.root, key), existing), [p.root, key, existing]);
-  const [draft, setDraft] = useState(initial);
-  const name = draft || initial;
-  const valid = draft !== '' && pattern.test(draft) && !existing.includes(draft);
-  const preview = useMemo(() => previewYaml(key, name, starterBody(p.root, key, name)), [p.root, key, name]);
+  // `null` = the row still holds the prefilled `initial`; anything else is the (trimmed) typed draft,
+  // so a whitespace-only field reads as '' and previews nothing instead of promising the placeholder.
+  const [typed, setTyped] = useState<string | null>(null);
+  const name = typed ?? initial;
+  const valid = name !== '' && pattern.test(name) && !existing.includes(name);
+  const preview = useMemo(() => (name === '' ? null : previewYaml(key, name, starterBody(p.root, key, name))), [p.root, key, name]);
   const fam = familyOf(kind);
   return (
-    <div className="name-step" onKeyDown={(e) => { if (e.key === 'Enter' && valid && !(e.target as HTMLElement).closest('button')) { e.preventDefault(); p.onAdd(draft); } }}>   {/* a focused button already fires onAdd via click activation */}
+    <div className="name-step" onKeyDown={(e) => { if (e.key === 'Enter' && valid && !(e.target as HTMLElement).closest('button')) { e.preventDefault(); p.onAdd(name); } }}>   {/* a focused button already fires onAdd via click activation */}
       <div className="nhead">
         <button type="button" className="icon-btn" aria-label="Back to the list" title="Back to the list" onClick={p.onBack}>‹</button>
         <span className={`tile sm fam-${fam}`}><KindIcon kind={kind} /></span>
         <b>New {label}</b>
         <code>{key}.‹name›</code>
       </div>
-      <AddKeyRow id={key} inputAriaLabel="Name" placeholder={initial} initial={initial} onDraft={setDraft}
+      <AddKeyRow id={key} inputAriaLabel="Name" placeholder={initial} initial={initial} onDraft={setTyped}
         existing={existing} valid={(k) => pattern.test(k)} invalidText={`must match ${pattern.source}`}
         buttonText={`Add ${label}`} buttonAriaLabel={`Add ${label}`} buttonClassName="btn primary" onAdd={p.onAdd} />
       <p className="hint">{pattern.source === DNS_LABEL.source ? 'Lowercase letters, digits and dashes (DNS label).' : `Must match ${pattern.source}`}</p>
       <div className="preview">
         <div className="ph">Inserted from the schema example</div>
-        <pre>{preview}</pre>
+        <pre>{preview ?? 'Type a name to preview the insert.'}</pre>
         <p className="hint">Names in references are placeholders; edit them in the inspector.</p>
       </div>
       <div className="keys"><kbd>Enter</kbd> add <kbd>Esc</kbd> back</div>

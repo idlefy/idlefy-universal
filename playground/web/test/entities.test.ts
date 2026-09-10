@@ -54,4 +54,11 @@ describe('entities', () => {
     expect(uniqueName('web', ['web', 'web-2'])).toBe('web-3');
     expect(uniqueName('web', ['web-2'])).toBe('web');
   });
+  it('a bespoke propertyNames pattern is anchored (a substring match must not pass)', () => {
+    const root = { properties: { widgets: { type: 'object', propertyNames: { pattern: 'ab' }, additionalProperties: {} } } } as any;
+    const p = namePattern(root, 'widgets');
+    expect(p).not.toBe(DNS_LABEL);
+    expect(p.test('ab')).toBe(true);
+    expect(p.test('zabz')).toBe(false);
+  });
 });

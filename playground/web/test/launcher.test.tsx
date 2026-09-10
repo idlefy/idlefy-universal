@@ -147,4 +147,14 @@ describe('Launcher', () => {
     fireEvent.change(input, { target: { value: '  zzz  ' } });
     expect(screen.getByText('No resource matches "zzz"')).toBeTruthy();
   });
+  it('a name that is only whitespace previews nothing rather than the placeholder', () => {
+    const { onAdd } = setup({}, 'deployments');
+    const name = screen.getByLabelText('Name') as HTMLInputElement;
+    expect(document.querySelector('.launcher pre')!.textContent).toContain('backend-api:');
+    fireEvent.change(name, { target: { value: '   ' } });
+    expect((screen.getByLabelText('Add Deployment') as HTMLButtonElement).disabled).toBe(true);
+    expect(document.querySelector('.launcher pre')!.textContent).toBe('Type a name to preview the insert.');
+    fireEvent.keyDown(name, { key: 'Enter' });
+    expect(onAdd).not.toHaveBeenCalled();
+  });
 });

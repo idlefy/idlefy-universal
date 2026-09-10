@@ -288,13 +288,14 @@ code { font-family: var(--mono); font-size: 12px; }
 .launcher .row code { color: var(--muted); font-size: 11px; }
 .launcher .none { margin: 12px 8px; color: var(--muted); }
 .launcher .keys { display: flex; gap: 10px; align-items: center; margin-top: 8px; padding: 6px 8px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }
-.name-step .nhead { display: flex; align-items: center; gap: 8px; padding: 2px 0 10px; }
+.name-step { display: flex; flex-direction: column; min-height: 0; }   /* the launcher caps its height; the preview is the part that gives way */
+.name-step .nhead { display: flex; align-items: center; gap: 8px; padding: 2px 0 10px; flex: none; }
 .name-step .nhead b { font-weight: 600; }
 .name-step .nhead code { margin-left: auto; color: var(--muted); font-size: 11px; }
 .name-step .kv-row.add { margin-top: 0; }
 .name-step .kv-row input.invalid { border-color: var(--err); }   /* the only .invalid rule in the sheet needs a .field ancestor */
 .name-step .hint { margin: 6px 0 0; color: var(--muted); font-size: 11.5px; }
-.name-step .preview { margin-top: 10px; padding: 8px 10px; border-radius: var(--r); background: var(--panel-2); }
+.name-step .preview { margin-top: 10px; padding: 8px 10px; border-radius: var(--r); background: var(--panel-2); flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .name-step .preview .ph { font-size: 11px; font-weight: 600; color: var(--ink-2); margin-bottom: 4px; }
 .empty { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }   /* like .canvas-empty.overlay: never swallow React Flow's pane clicks/controls */
 .empty-card { pointer-events: auto; width: 400px; max-width: calc(100% - 48px); padding: 22px 24px 18px; border-radius: 12px; background: var(--panel); box-shadow: var(--shadow); text-align: center; }
