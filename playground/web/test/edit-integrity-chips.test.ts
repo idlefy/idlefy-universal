@@ -1,5 +1,5 @@
 // The edit-integrity invariant, shard 2 of 2: "Add" chips and clears. Split from
-// test/edit-integrity.test.ts purely for wall-clock — ~450 engine renders ≈ 51 s, and vitest runs
+// test/edit-integrity.test.ts purely for wall-clock — 338 engine renders ≈ 39 s, and vitest runs
 // test files in parallel worker threads. EDIT_INTEGRITY=full adds the same sweep over the five
 // shipped examples (+263 renders).
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -50,8 +50,12 @@ function panelsOf(doc: ValuesDocument): Panel[] {
       out.push({ label: `${key}.${name}`, node, path: [key, name], hide: isWorkload ? workloadHide : undefined });
       if (!isWorkload) continue;
       for (const s of secondariesFor(key)) {
+        // GroupPanel opens a block panel on schema existence alone (AutoCreated.tsx:
+        // `node ?? (p.hasSchema(s.id) ? blockId([...p.base, s.id]) : null)`), and SecondaryPanel
+        // builds its fields from schemaAt(root, path) with doc.valueAt(path) possibly undefined —
+        // so blocks whose on() seeds no body (serviceMonitor, serviceAccount) still show every chip.
         const blockNode = schemaAt(root, [key, name, s.id]);
-        if (!blockNode || doc.valueAt([key, name, s.id]) === undefined) continue;
+        if (!blockNode) continue;
         out.push({ label: `${key}.${name}.${s.id}`, node: blockNode, path: [key, name, s.id] });
       }
     }
