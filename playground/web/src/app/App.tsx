@@ -50,12 +50,13 @@ export function App() {
   const error = state.render && !state.render.ok ? state.render.error : null;
   const warnings = state.graph?.warnings ?? [];
   const { panes, setOpen, setWidth, reset } = usePanes();
-  // Ctrl+Z from the canvas or the inspector drives Monaco's stack: one history, text stays canonical.
   const editorApi = useRef<EditorApi | null>(null);
-  useUndoRedo(editorApi);
   // The token names the group the pill was pressed on, so a later plain selection of a group never inherits the focus request.
   const [addToken, setAddToken] = useState<{ id: string; n: number } | null>(null);
   const [launcher, setLauncher] = useState<LauncherRequest | null>(null);
+  // Ctrl+Z from the canvas or the inspector drives Monaco's stack: one history, text stays canonical.
+  // Disabled while the launcher is open — its own Enter/typing must not also pop an undo behind it.
+  useUndoRedo(editorApi, !launcher);
   const yamlBroken = state.doc.errors.length > 0;
   const openLauncher = useCallback(() => setLauncher({}), []);
   useHotkey("a", openLauncher, !yamlBroken && !launcher);
@@ -144,7 +145,7 @@ export function App() {
             onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
         )}
         <section className="pane pane-canvas">
-          {state.editError && <div className="banner warn" role="alert">{state.editError}</div>}
+          {state.editError && <div key={state.editErrorSeq} className="banner warn" role="alert">{state.editError}</div>}
           {error && (() => {
             // a chart `fail` arrives as a five-line Go include chain; only its last sentence is for
             // the reader, and the chain stays one click away rather than pushing the canvas down

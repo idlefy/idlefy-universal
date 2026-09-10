@@ -15,6 +15,7 @@ export type AppState = {
   engineError: string | null;                   // helm.wasm failed to load → full-page message
   focusPath: ValuesPath | null;                 // one-shot: the next render-done selects the node at this values path (palette add)
   editError: string | null;                     // last edit could not be applied (banner); cleared by the next text/example/successful edit
+  editErrorSeq: number;                          // bumped on every editError set — App.tsx keys the banner on it so a repeated identical failure re-mounts (and role="alert" re-announces) rather than leaving an unchanged DOM node
   ui: { tier: Tier; tab: DetailTab };
 };
 export type Action =
@@ -31,7 +32,7 @@ export type Action =
 export const EDIT_FAILED = 'That change could not be applied to values.yaml, which was left unchanged.';
 
 export function initialState(text: string): AppState {
-  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, engineError: null, focusPath: null, editError: null, ui: { tier: 'basic', tab: 'inspector' } };
+  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, engineError: null, focusPath: null, editError: null, editErrorSeq: 0, ui: { tier: 'basic', tab: 'inspector' } };
 }
 
 export function reducer(s: AppState, a: Action): AppState {
@@ -64,8 +65,10 @@ export function reducer(s: AppState, a: Action): AppState {
     case 'engine-failed': return { ...s, engineError: a.message, focusPath: null };
     case 'edit': {
       // The inspector is disabled while the YAML is invalid. Text is canonical, so the
-      // edited document is serialised and re-parsed rather than kept.
-      if (s.doc.errors.length || a.ops.length === 0) return s;
+      // edited document is serialised and re-parsed rather than kept. A focus-carrying edit (the
+      // palette's Add) must not vanish silently even here — it is the same "the change did not
+      // land" case as the no-op check below, just caught earlier.
+      if (s.doc.errors.length || a.ops.length === 0) return a.focus ? { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 } : s;
       let text: string;
       try {
         text = s.doc.apply(a.ops).toString();
@@ -73,11 +76,11 @@ export function reducer(s: AppState, a: Action): AppState {
         // A throw here would reach React's render phase and unmount the root: no op shape may
         // blank the page. Keep the document and say so.
         console.error('values edit failed', err);
-        return { ...s, focusPath: null, editError: EDIT_FAILED };
+        return { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 };
       }
       // A plain widget edit that resolves to the same text is a silent no-op (Monaco echoes the
       // reducer's own text back); an *add* that changes nothing is a failure the user must see.
-      if (text === s.text) return a.focus ? { ...s, focusPath: null, editError: EDIT_FAILED } : s;
+      if (text === s.text) return a.focus ? { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 } : s;
       return { ...s, text, doc: ValuesDocument.parse(text), focusPath: a.focus ?? null, editError: null };
     }
     case 'tier': return s.ui.tier === a.tier ? s : { ...s, ui: { ...s.ui, tier: a.tier } };

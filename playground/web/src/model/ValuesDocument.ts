@@ -133,9 +133,19 @@ export class ValuesDocument {
     // which `yaml` would otherwise render as the literal text "null\n" —
     // return the original source instead.
     if (this.errors.length || this.doc.contents == null) return this.source;
-    // lineWidth 0 disables folding; flowCollectionPadding false keeps `{a: b}` from becoming
-    // `{ a: b }` on every round-trip, which would make the "minimal" diff span the whole file.
-    return this.doc.toString({ lineWidth: 0, flowCollectionPadding: false });
+    try {
+      // lineWidth 0 disables folding; flowCollectionPadding false keeps `{a: b}` from becoming
+      // `{ a: b }` on every round-trip, which would make the "minimal" diff span the whole file.
+      return this.doc.toString({ lineWidth: 0, flowCollectionPadding: false });
+    } catch {
+      // `yaml` throws stringifying rather than emitting invalid YAML when an edit leaves an alias
+      // unresolved — e.g. deleting an anchored child (`web: &w {}`) whose alias (`*w`) lives
+      // elsewhere. toString() must never throw (same contract as the two fallbacks above: a throw
+      // here reaches React's render phase and unmounts the whole app), so fall back to the source
+      // this document was parsed from. The reducer then sees `text === s.text` and reports the edit
+      // as the no-op it effectively is (EDIT_FAILED when a focus was requested).
+      return this.source;
+    }
   }
 
   clone(): ValuesDocument { return ValuesDocument.parse(this.toString()); }

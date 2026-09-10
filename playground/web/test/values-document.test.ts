@@ -198,6 +198,17 @@ describe('ValuesDocument', () => {
     expect(() => d.toString()).not.toThrow();
     expect(d.toString()).toBe('deployments: &d {}\nother: *d\n');
   });
+  it('toString falls back to the original source instead of throwing when the deleted node itself carries the anchor an alias elsewhere still needs', () => {
+    // Unlike the top-level case above, deleteIn's own anchor guard only protects a top-level key from
+    // being *pruned*; it does not stop a nested delete from removing an anchor an alias elsewhere
+    // relies on. `yaml` throws stringifying that ("Unresolved alias") rather than emitting invalid
+    // YAML — toString() must never throw (same contract as its parse-error/null-contents fallbacks),
+    // so it falls back to the source the document was parsed from, leaving it unchanged.
+    const src = 'deployments:\n  web: &w\n    replicas: 1\nother: *w\n';
+    const d = ValuesDocument.parse(src).apply([{ op: 'delete', path: ['deployments', 'web'] }]);
+    expect(() => d.toString()).not.toThrow();
+    expect(d.toString()).toBe(src);
+  });
   it('setIn un-flows an empty flow sequence so the insert is block style', () => {
     const d = ValuesDocument.parse('env: []\n').apply([{ op: 'set', path: ['env', 0], value: { name: 'A' } }]);
     expect(d.toString()).toBe('env:\n  - name: A\n');
