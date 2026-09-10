@@ -276,7 +276,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .add-btn:disabled { opacity: .5; cursor: default; }
 .add-btn .plus { color: var(--accent); font-size: 15px; line-height: 1; }
 .add-btn kbd, .keys kbd { display: inline-block; min-width: 16px; padding: 0 4px; border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 4px; background: var(--panel-2); color: var(--muted); font: 10.5px var(--mono); text-align: center; }
-.launcher { position: absolute; left: 0; top: 38px; width: 344px; padding: 8px; border-radius: 12px; background: var(--panel); box-shadow: var(--pop); display: flex; flex-direction: column; max-height: calc(100vh - 120px); }   /* 120px ≈ header + the tallest one-line banner + the button row */
+.launcher { position: absolute; left: 0; top: 38px; width: 344px; padding: 8px; border-radius: 12px; background: var(--panel); box-shadow: var(--pop); display: flex; flex-direction: column; max-height: calc(100vh - 200px); }   /* 200px ≈ header + one or two banners + the button row, measured against .pane's overflow:hidden */
 .launcher .search { height: 32px; font: 13px var(--sans); }
 .launcher .list { flex: 1 1 auto; min-height: 0; max-height: 440px; overflow-y: auto; margin-top: 6px; }   /* .pane clips overflow: the flex cap keeps the key footer visible on short windows */
 .launcher .lh { padding: 8px 8px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; color: var(--muted); }

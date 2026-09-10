@@ -36,21 +36,32 @@ export function Launcher(p: { root: SchemaNode; values: Record<string, unknown>;
   const filtered = useMemo(() => ENTITIES.filter((e) => matches(e, q)), [q]);
   const cur = Math.min(active, Math.max(0, filtered.length - 1));
   const list = useRef<HTMLDivElement>(null);
-  // The list is a 440 px scroll container over ~489 px of rows, so an arrow-key move can land the
+  // 'key' means the next active-row change came from a keyboard move and should scroll into view;
+  // mount, a query edit that shifts `cur`, and mouse hover all leave it 'mouse' so hovering a
+  // partially clipped row never rescrolls the list out from under the pointer.
+  const modality = useRef<'key' | 'mouse'>('mouse');
+  // The list is a 440 px scroll container over ~489 px of rows, so a keyboard move can land the
   // active row off-screen. jsdom has no layout and no scrollIntoView (GroupPanel guards it the same way).
-  useEffect(() => { list.current?.querySelector<HTMLElement>('.row.active')?.scrollIntoView?.({ block: 'nearest' }); }, [cur, q, picked]);
+  useEffect(() => {
+    if (modality.current !== 'key') return;
+    modality.current = 'mouse';
+    list.current?.querySelector<HTMLElement>('.row.active')?.scrollIntoView?.({ block: 'nearest' });
+  }, [cur, q, picked]);
   const choose = (e: Entity) => setPicked(e);
   const onKeyDown = (ev: React.KeyboardEvent) => {
     if (ev.key === 'Tab') { trapTab(ev); return; }
     if (ev.key === 'Escape') { ev.preventDefault(); if (picked) setPicked(null); else p.onClose(); return; }
     if (picked || filtered.length === 0) return;
-    if (ev.key === 'ArrowDown') { ev.preventDefault(); setActive((cur + 1) % filtered.length); }
-    else if (ev.key === 'ArrowUp') { ev.preventDefault(); setActive((cur - 1 + filtered.length) % filtered.length); }
+    if (ev.key === 'ArrowDown') { ev.preventDefault(); modality.current = 'key'; setActive((cur + 1) % filtered.length); }
+    else if (ev.key === 'ArrowUp') { ev.preventDefault(); modality.current = 'key'; setActive((cur - 1 + filtered.length) % filtered.length); }
     else if (ev.key === 'Enter') { ev.preventDefault(); choose(filtered[cur]); }
   };
-  // Clicking a heading, a row or the key footer would move focus to the dialog (the nearest
-  // focusable ancestor) and silently stop the search box from filtering. Focusable targets still win.
-  const onMouseDown = (ev: React.MouseEvent) => { if (!(ev.target as HTMLElement).closest(FOCUSABLE)) ev.preventDefault(); };
+  const overRow = (i: number) => { modality.current = 'mouse'; setActive(i); };
+  // Only a row or a group heading may steal the mousedown default (it would otherwise move focus to
+  // the dialog, the nearest focusable ancestor, and silently stop the search box from filtering).
+  // Anywhere else — the preview `<pre>`, a row's `<code>` key, the key-hint footer — a mousedown must
+  // stay free to start a text selection.
+  const onMouseDown = (ev: React.MouseEvent) => { if ((ev.target as HTMLElement).closest('.row, .lh')) ev.preventDefault(); };
   return (
     <div role="dialog" aria-modal="true" aria-label="Add a resource" className="launcher" tabIndex={-1} onKeyDown={onKeyDown} onMouseDown={onMouseDown}>   {/* tabIndex: keys keep working after a click on a non-focusable child (the preview) */}
       {picked ? (
@@ -74,7 +85,7 @@ export function Launcher(p: { root: SchemaNode; values: Record<string, unknown>;
                     const i = filtered.indexOf(e);
                     return (
                       <div key={e.key} id={optId(i)} role="option" aria-selected={i === cur} className={`row ${i === cur ? 'active' : ''}`}
-                        onMouseEnter={() => setActive(i)} onClick={() => choose(e)}>
+                        onMouseEnter={() => overRow(i)} onMouseMove={() => overRow(i)} onClick={() => choose(e)}>
                         <span className={`tile sm fam-${familyOf(e.kind)}`}><KindIcon kind={e.kind} /></span>
                         <span className="txt"><b>{e.label}</b><span className="desc">{e.description}</span></span>
                         <code>{e.key}</code>

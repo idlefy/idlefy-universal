@@ -111,17 +111,23 @@ describe('Launcher', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'web' } });
     expect(screen.queryByText('already exists')).toBeNull();
   });
-  it('keeps the active row in view as the arrows move it', () => {
-    const seen: unknown[] = [];
-    const scroll = vi.fn(function (this: Element, arg: unknown) { seen.push([this.textContent, arg]); });
+  it('scrolls the active row into view only on keyboard moves, never on hover or mount', () => {
+    const seen: string[] = [];
+    const scroll = vi.fn(function (this: Element) { seen.push(this.textContent ?? ''); });
     (Element.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = scroll;
-    setup();
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowUp' });
-    expect(scroll).toHaveBeenCalled();
-    const [text, arg] = seen[seen.length - 1] as [string, unknown];
-    expect(text).toContain('PVC');                       // the wrapped-to row, last in ENTITIES
-    expect(arg).toEqual({ block: 'nearest' });
-    delete (Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
+    try {
+      setup();
+      expect(scroll).not.toHaveBeenCalled();                          // no scroll on mount
+      fireEvent.mouseEnter(screen.getAllByRole('option')[3]);
+      expect(active()).toBe(3);
+      expect(scroll).not.toHaveBeenCalled();                          // hover moves the row but must not scroll
+      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowDown' });
+      expect(active()).toBe(4);
+      expect(scroll).toHaveBeenCalled();
+      expect(seen[seen.length - 1]).toContain('CronJob');
+    } finally {
+      delete (Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
+    }
   });
   it('is an announceable listbox: option ids, activedescendant, aria-modal', () => {
     setup();
@@ -146,6 +152,17 @@ describe('Launcher', () => {
     expect(document.activeElement).toBe(input);          // the only focusable in step 1
     fireEvent.change(input, { target: { value: '  zzz  ' } });
     expect(screen.getByText('No resource matches "zzz"')).toBeTruthy();
+  });
+  it('the mousedown guard is scoped to rows/headings: the preview stays selectable, a row keeps focus on the search box', () => {
+    setup();
+    const input = screen.getByLabelText('Search resources');
+    fireEvent.mouseDown(screen.getAllByRole('option')[0]);
+    expect(document.activeElement).toBe(input);          // focus never leaves the search box
+    cleanup();
+    setup({}, 'ingresses');
+    const pre = document.querySelector('.launcher pre')!;
+    const ev = fireEvent.mouseDown(pre);
+    expect(ev).toBe(true);                                // preventDefault() was NOT called: a selection can start
   });
   it('a name that is only whitespace previews nothing rather than the placeholder', () => {
     const { onAdd } = setup({}, 'deployments');
