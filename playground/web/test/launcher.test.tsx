@@ -3,7 +3,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import schema from '../src/chart-bundle/schema.json';
 import { Launcher } from '../src/palette/Launcher';
-import { ENTITIES } from '../src/graph/entities';
+import { NameStep } from '../src/palette/NameStep';
+import { ENTITIES, entityOf } from '../src/graph/entities';
 
 afterEach(cleanup);
 const root = schema as any;
@@ -95,5 +96,19 @@ describe('Launcher', () => {
     setup({}, 'ingresses');
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'shop' } });
     expect(document.querySelector('.launcher pre')!.textContent).toContain('host: shop.example.com');
+  });
+  it('a workload name already used by another workload map is rejected', () => {
+    const onAdd = vi.fn();
+    render(<NameStep root={root} entity={entityOf('jobs')!} values={{ deployments: { web: {} } }} onBack={vi.fn()} onAdd={onAdd} />);
+    const input = screen.getByLabelText('Name') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'web' } });
+    // _validation.tpl: "Workload key 'web' appears in multiple top-level keys: deployments, jobs."
+    expect(screen.getByText('already exists')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Add Job' }) as HTMLButtonElement).disabled).toBe(true);
+    // a standalone resource is still scoped to its own map
+    cleanup();
+    render(<NameStep root={root} entity={entityOf('configs')!} values={{ deployments: { web: {} } }} onBack={vi.fn()} onAdd={onAdd} />);
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'web' } });
+    expect(screen.queryByText('already exists')).toBeNull();
   });
 });

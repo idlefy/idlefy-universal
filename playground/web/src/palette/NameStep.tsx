@@ -5,12 +5,19 @@ import { KindIcon } from '../canvas/icons';
 import { familyOf } from '../graph/labels';
 import { isObj } from '../model/guards';
 import { DNS_LABEL, defaultName, namePattern, uniqueName, type Entity } from '../graph/entities';
+import { WORKLOAD_KEYS } from '../graph/secondary';
 import { previewYaml, starterBody } from './add';
 
 /** Step 2 of the launcher: name the new entity and preview the insert (spec §3). */
 export function NameStep(p: { root: SchemaNode; entity: Entity; values: Record<string, unknown>; onBack: () => void; onAdd: (name: string) => void }): ReactElement {
   const { key, label, kind } = p.entity;
-  const existing = useMemo(() => Object.keys(isObj(p.values[key]) ? (p.values[key] as object) : {}), [p.values, key]);
+  // The chart's duplicate-key guard spans all five workload maps ("Workload key 'web' appears in
+  // multiple top-level keys: deployments, jobs"), so a Job may not take a Deployment's name. A
+  // standalone resource is scoped to its own map, as the schema is.
+  const existing = useMemo(() => {
+    const keysOf = (k: string) => Object.keys(isObj(p.values[k]) ? (p.values[k] as object) : {});
+    return WORKLOAD_KEYS.has(key) ? [...new Set([...WORKLOAD_KEYS].flatMap(keysOf))] : keysOf(key);
+  }, [p.values, key]);
   const pattern = useMemo(() => namePattern(p.root, key), [p.root, key]);
   const initial = useMemo(() => uniqueName(defaultName(p.root, key), existing), [p.root, key, existing]);
   const [draft, setDraft] = useState(initial);
