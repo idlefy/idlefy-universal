@@ -111,12 +111,44 @@ describe('buildGraph', () => {
     expect(g.warnings).toEqual([]);   // node-level only: no permanent banner
   });
   it('does not warn when the backend Service is rendered, nor on standalone entries', () => {
-    const { manifests, values } = loadFixture('example-01-hello-world');
-    const g = buildGraph(manifests, values, 'default');
-    expect(g.nodes.flatMap((n) => n.warnings)).toEqual([]);
+    // example-02 has an auto-created Ingress backed by a rendered Service; full-features has both an
+    // auto-created Ingress and an auto-created ServiceMonitor, each backed by a rendered Service.
+    const tls = loadFixture('example-02-web-with-tls');
+    const g2 = buildGraph(tls.manifests, tls.values, 'default');
+    expect(g2.nodes.flatMap((n) => n.warnings)).toEqual([]);
+    const ff = loadFixture('full-features');
+    const gf = buildGraph(ff.manifests, ff.values, 'default');
+    expect(gf.nodes.flatMap((n) => n.warnings)).toEqual([]);
     const gw = loadFixture('example-05-gateway-api');
     const g5 = buildGraph(gw.manifests, gw.values, 'default');
     // example 05's HTTPRoute is standalone (no owner) and its backendRef is a placeholder — no warning.
     expect(g5.nodes.find((n) => n.kind === 'HTTPRoute')!.warnings).toEqual([]);
+  });
+  it('warns on an auto-created HTTPRoute whose backend Service is not part of the release', () => {
+    const dep = 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  template:\n    metadata:\n      labels: {app.kubernetes.io/name: web}\n    spec:\n      containers:\n        - name: main\n          image: nginx\n';
+    const route = 'apiVersion: gateway.networking.k8s.io/v1\nkind: HTTPRoute\nmetadata:\n  name: web\nspec:\n  parentRefs:\n    - name: gateway\n  hostnames: [web.example.com]\n  rules:\n    - backendRefs:\n        - name: web\n          port: 80\n';
+    const values = { deployments: { web: { autoCreateHttpRoute: true, containers: { main: { image: 'nginx', imageTag: '1' } }, httpRoute: { parentRefs: [{ name: 'gateway' }], hostnames: [{ host: 'web.example.com' }] } } } };
+    const g = buildGraph([...splitManifests('c/templates/deployment.yaml', dep), ...splitManifests('c/templates/httproute.yaml', route)], values, 'default');
+    const node = g.nodes.find((n) => n.kind === 'HTTPRoute')!;
+    expect(node.provenance?.owner).toEqual(['deployments', 'web']);
+    expect(node.warnings.some((w) => w.includes('no Service in this release backs it'))).toBe(true);
+  });
+  it('warns on an auto-created ServiceMonitor whose selector matches no Service in the release', () => {
+    const dep = 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  template:\n    metadata:\n      labels: {app.kubernetes.io/name: web}\n    spec:\n      containers:\n        - name: main\n          image: nginx\n';
+    const sm = 'apiVersion: monitoring.coreos.com/v1\nkind: ServiceMonitor\nmetadata:\n  name: web\nspec:\n  selector:\n    matchLabels: {app.kubernetes.io/name: web}\n  endpoints:\n    - port: metrics\n';
+    const values = { deployments: { web: { autoCreateServiceMonitor: true, containers: { main: { image: 'nginx', imageTag: '1', ports: { metrics: { containerPort: 9100 } } } } } } };
+    const g = buildGraph([...splitManifests('c/templates/deployment.yaml', dep), ...splitManifests('c/templates/servicemonitor.yaml', sm)], values, 'default');
+    const node = g.nodes.find((n) => n.kind === 'ServiceMonitor')!;
+    expect(node.provenance?.owner).toEqual(['deployments', 'web']);
+    expect(node.warnings.some((w) => w.includes('no Service in this release backs it'))).toBe(true);
+  });
+  it('does not warn on an auto-created HTTPRoute whose backendRef deliberately names a foreign namespace', () => {
+    const dep = 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  template:\n    metadata:\n      labels: {app.kubernetes.io/name: web}\n    spec:\n      containers:\n        - name: main\n          image: nginx\n';
+    const route = 'apiVersion: gateway.networking.k8s.io/v1\nkind: HTTPRoute\nmetadata:\n  name: web\nspec:\n  parentRefs:\n    - name: gateway\n  hostnames: [web.example.com]\n  rules:\n    - backendRefs:\n        - name: web\n          namespace: other\n          port: 80\n';
+    const values = { deployments: { web: { autoCreateHttpRoute: true, containers: { main: { image: 'nginx', imageTag: '1' } }, httpRoute: { parentRefs: [{ name: 'gateway' }], hostnames: [{ host: 'web.example.com' }] } } } };
+    const g = buildGraph([...splitManifests('c/templates/deployment.yaml', dep), ...splitManifests('c/templates/httproute.yaml', route)], values, 'default');
+    const node = g.nodes.find((n) => n.kind === 'HTTPRoute')!;
+    expect(node.provenance?.owner).toEqual(['deployments', 'web']);
+    expect(node.warnings).toEqual([]);
   });
 });

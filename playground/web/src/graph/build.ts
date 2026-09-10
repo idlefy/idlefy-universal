@@ -9,8 +9,8 @@ import { extractRefs } from './edges';
 // not a user-chosen placeholder: if every candidate resolves to an external node, the chart rendered
 // a reference to nothing and said "ok". Warn on the node (a badge + the detail panel), not in the
 // banner — this is a property of one resource, not of the release.
-const BACKED_BY_SERVICE: Record<string, EdgeRelation> = { Ingress: 'routes-to', HTTPRoute: 'routes-to', ServiceMonitor: 'scrapes' };
-const MISSING_BACKEND = 'no Service in this release backs it: autoCreateService is off and no standalone services.* entry matches';
+const BACKED_BY_SERVICE: Partial<Record<string, EdgeRelation>> = { Ingress: 'routes-to', HTTPRoute: 'routes-to', ServiceMonitor: 'scrapes' };
+const MISSING_BACKEND = 'no Service in this release backs it';
 
 export function buildGraph(manifests: Manifest[], values: any, ns: string): GraphModel {
   const warnings: string[] = [];
@@ -64,7 +64,15 @@ export function buildGraph(manifests: Manifest[], values: any, ns: string): Grap
   for (const n of nodes) {
     const relation = n.provenance?.owner ? BACKED_BY_SERVICE[n.kind] : undefined;
     if (!relation) continue;
-    const backends = edges.filter((e) => e.source === n.id && e.relation === relation);
+    // An HTTPRoute backendRef can deliberately name a foreign namespace or a non-Service kind
+    // (Gateway API's cross-namespace/custom-backend support); the graph only holds release-namespace
+    // nodes, so such a ref always resolves to `external` regardless of whether the user meant it.
+    // Every node built for a ref (extractRefs' targetKind/targetNs, carried onto both resolved and
+    // external nodes) records its real kind and namespace, so restrict candidates to same-namespace
+    // Services before judging whether the route/monitor actually lost its backend.
+    const backends = edges
+      .filter((e) => e.source === n.id && e.relation === relation)
+      .filter((e) => { const t = byId.get(e.target); return t?.kind === 'Service' && t?.namespace === n.namespace; });
     if (backends.length > 0 && backends.every((e) => byId.get(e.target)?.external)) n.warnings.push(MISSING_BACKEND);
   }
   const seen = new Set<string>();
