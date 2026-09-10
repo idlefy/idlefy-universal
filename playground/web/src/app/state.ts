@@ -83,11 +83,14 @@ export function reducer(s: AppState, a: Action): AppState {
         console.error('values edit failed', err);
         return { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 };
       }
-      // toString() had to fall back to the pre-edit source (e.g. deleting an anchored child whose
-      // alias lives elsewhere leaves the document unresolvable) — a silent revert, and per review
-      // ruling this must always be surfaced, regardless of `focus`: unlike a genuine no-op it is not
-      // "nothing to apply", it is an edit that was lost.
-      if (applied.stringifyFailed) return { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 };
+      // `applied.lostEdit` covers both ways an edit can be lost without ops.length being zero: toString()
+      // had to fall back to the pre-edit source (e.g. deleting an anchored child whose alias lives
+      // elsewhere leaves the document unresolvable), or setIn/deleteIn bailed on a type-mismatched
+      // intermediate (e.g. a `+ container` chip against a `containers:` sequence the schema expects as a
+      // map). Both are silent reverts, and per review ruling must always be surfaced regardless of
+      // `focus` — including a mixed batch where one op bails but another still lands and changes the
+      // text: unlike a genuine no-op this is not "nothing to apply", it is an edit that was lost.
+      if (applied.lostEdit) return { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 };
       // A plain widget edit that resolves to the same text is a silent no-op (Monaco echoes the
       // reducer's own text back); an *add* that changes nothing is a failure the user must see.
       if (text === s.text) return a.focus ? { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 } : s;

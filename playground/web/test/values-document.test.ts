@@ -223,35 +223,73 @@ describe('ValuesDocument', () => {
     d.toString();
     expect(d.stringifyFailed).toBe(false);
   });
+  it('stringifyFailed is sticky across a clone()/apply() chain, even once the underlying alias problem is behind it', () => {
+    // Same "unresolved alias" document as the fallback test above. The first apply() only discovers
+    // the failure once toString() is actually called; a *second*, unrelated apply() chained off that
+    // lossy document must still carry the failure forward, even though the second link's own tree —
+    // re-parsed from the fallback source, with one clean edit layered on top — has nothing wrong with
+    // it and would stringify cleanly on its own.
+    const src = 'deployments:\n  web: &w\n    replicas: 1\nother: *w\n';
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const lost = ValuesDocument.parse(src).apply([{ op: 'delete', path: ['deployments', 'web'] }]);
+    expect(lost.stringifyFailed).toBe(false);   // toString() has not been called yet — see the test above
+    expect(lost.toString()).toBe(src);
+    expect(lost.stringifyFailed).toBe(true);
+    const chained = lost.apply([{ op: 'set', path: ['a'], value: 1 }]);
+    expect(chained.stringifyFailed).toBe(true);
+    // and it survives a clean stringify on the chained document itself, per the sticky contract
+    expect(chained.toString()).not.toBe(src);
+    expect(chained.stringifyFailed).toBe(true);
+  });
   it('setIn un-flows an empty flow sequence so the insert is block style', () => {
     const d = ValuesDocument.parse('env: []\n').apply([{ op: 'set', path: ['env', 0], value: { name: 'A' } }]);
     expect(d.toString()).toBe('env:\n  - name: A\n');
   });
-  it('setIn leaves a sequence intermediate alone when the next path segment is a key (never throws)', () => {
+  it('setIn leaves a sequence intermediate alone when the next path segment is a key (never throws), and flags bailed', () => {
     const d = ValuesDocument.parse('deployments:\n  - name: api\n');
+    expect(d.bailed).toBe(false);
     expect(() => d.setIn(['deployments', 'web'], { replicas: 1 })).not.toThrow();
     expect(d.toJS()).toEqual({ deployments: [{ name: 'api' }] });
+    expect(d.bailed).toBe(true);   // a type-mismatched intermediate, not a genuine no-op — see F-I1
   });
-  it('setIn leaves a map intermediate alone when the next path segment is an index', () => {
+  it('setIn leaves a map intermediate alone when the next path segment is an index, and flags bailed', () => {
     const d = ValuesDocument.parse('env:\n  a: 1\n');
     expect(() => d.setIn(['env', 0, 'name'], 'N')).not.toThrow();
     expect(d.toJS()).toEqual({ env: { a: 1 } });
+    expect(d.bailed).toBe(true);
   });
-  it('deleteIn is a no-op when a sequence parent is addressed by key', () => {
+  it('deleteIn is a no-op when a sequence parent is addressed by key, and flags bailed', () => {
     const d = ValuesDocument.parse('deployments:\n  - name: api\n');
     expect(() => d.deleteIn(['deployments', 'web'])).not.toThrow();
     expect(d.toJS()).toEqual({ deployments: [{ name: 'api' }] });
+    expect(d.bailed).toBe(true);
   });
-  it('deleteIn is a no-op for a numeric-looking string segment against a sequence, even mid-path', () => {
+  it('deleteIn is a no-op for a numeric-looking string segment against a sequence, even mid-path, and flags bailed', () => {
     // yaml's asItemIndex coerces a numeric string to an index (YAMLSeq.get('0', true) works), so
     // without an explicit type check this would otherwise delete `replicas` via the seq's item 0.
     const d = ValuesDocument.parse('deployments:\n  - name: api\n    replicas: 2\n');
     expect(() => d.deleteIn(['deployments', '0', 'replicas'])).not.toThrow();
     expect(d.toJS()).toEqual({ deployments: [{ name: 'api', replicas: 2 }] });
+    expect(d.bailed).toBe(true);
   });
-  it('deleteIn is a no-op when a map parent is addressed by a numeric index', () => {
+  it('deleteIn is a no-op when a map parent is addressed by a numeric index, and flags bailed', () => {
     const d = ValuesDocument.parse('env:\n  a: 1\n');
     expect(() => d.deleteIn(['env', 0])).not.toThrow();
     expect(d.toJS()).toEqual({ env: { a: 1 } });
+    expect(d.bailed).toBe(true);
+  });
+  it('the non-bail branches of setIn/deleteIn (missing intermediate, superseded scalar, non-map root) never flag bailed', () => {
+    // Contrast with the type-mismatch cases above: these are the "nothing to walk into" (or "superseded,
+    // not superseded-of-the-wrong-shape") cases setIn and deleteIn's own doc comments describe — never
+    // a bail, per F-I1's distinction.
+    const seqRoot = ValuesDocument.parse('- 1\n- 2\n');
+    seqRoot.setIn(['a'], 1);
+    expect(seqRoot.bailed).toBe(false);
+    const missingIntermediate = ValuesDocument.parse('x: 1\n');
+    missingIntermediate.deleteIn(['missing', 'b']);
+    expect(missingIntermediate.bailed).toBe(false);
+    const scalarIntermediate = ValuesDocument.parse('a: 5\n');
+    scalarIntermediate.setIn(['a', 'b'], 1);
+    expect(scalarIntermediate.bailed).toBe(false);
   });
 });

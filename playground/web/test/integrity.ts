@@ -82,15 +82,18 @@ export function renderRaw(values: string): EngineRawResult {
 export const render = (values: string): RenderResult => toRenderResult(renderRaw(values), 0);
 
 /**
- * `render(doc.toString())`, guarded: `ValuesDocument.toString()` never throws, but when `yaml` cannot
- * re-emit the edited tree (e.g. deleting an anchored child whose alias lives elsewhere) it silently
- * falls back to `doc`'s pre-edit source instead. Rendering that fallback would render the *unchanged*
- * document — indistinguishable from a genuinely successful, no-op-producing edit — and let exactly the
- * failure this sweep exists to catch pass silently. Report the fallback as its own failure instead.
+ * `render(doc.toString())`, guarded against both ways `ValuesDocument` can lose an edit without ever
+ * throwing: `toString()` falls back to `doc`'s pre-edit source when `yaml` cannot re-emit the edited
+ * tree (e.g. deleting an anchored child whose alias lives elsewhere), and `setIn`/`deleteIn` bail on a
+ * type-mismatched intermediate rather than throwing out of the edit. Either would otherwise render the
+ * *unchanged* (or only partly changed) document — indistinguishable from a genuinely successful edit —
+ * and let exactly the failure this sweep exists to catch pass silently. Report each as its own failure,
+ * with its own `why()` text, instead.
  */
 export function renderDoc(doc: ValuesDocument): RenderResult {
   const text = doc.toString();
   if (doc.stringifyFailed) return { ok: false, error: { kind: 'template', message: 'edit did not serialize' } };
+  if (doc.bailed) return { ok: false, error: { kind: 'template', message: 'edit did not apply' } };
   return render(text);
 }
 

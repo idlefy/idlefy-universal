@@ -7,7 +7,7 @@
 // Cost: ~113 ms per engine render. This file's default-shard tests together take ~19 s measured on
 // dev hardware; see the plan's Global Constraints for the sharding budget. EDIT_INTEGRITY=full adds
 // the exhaustive ordered-pair off sweep that the all-on/each-off sweep below stands in for.
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { stringify } from 'yaml';
 import examplesJson from '../src/chart-bundle/examples.json';
 import { bootEngine, renderDoc, applyRender, why, root, workloadHide, walkFields, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
@@ -33,6 +33,19 @@ const workloadBases = (kind: string): Base[] => [
 
 describe('edit integrity', () => {
   beforeAll(bootEngine);
+
+  // Not skipIf(SKIP): engine-free (renderDoc returns on `doc.stringifyFailed` before ever calling
+  // render()), so `EDIT_INTEGRITY=off` still runs it — the sweep harness's own serialize-failure path
+  // (B3-3) must stay covered even in the tight edit/run loop that turns the engine sweeps off.
+  it('applyRender reports a serialize failure without reaching the engine', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const src = 'deployments:\n  web: &w\n    replicas: 1\nother: *w\n';
+    const start = ValuesDocument.parse(src);
+    const r = applyRender(start, [{ op: 'delete', path: ['deployments', 'web'] }]);
+    expect(r.ok).toBe(false);
+    expect(why(r)).toBe('edit did not serialize');
+    expect(spy).toHaveBeenCalledWith('values serialize failed', expect.anything());
+  });
 
   it.skipIf(SKIP)('every group-panel toggle can be switched on', () => {
     const fails: string[] = [];

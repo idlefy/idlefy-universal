@@ -178,6 +178,35 @@ describe('app state', () => {
       expect(withoutFocus.focusPath).toBe(null);
       expect(withoutFocus.editError).toBe(EDIT_FAILED);
     });
+    it('a setIn bail (containers is a sequence, not the map the schema expects) reports it even without a focus', () => {
+      // F-I1's repro: ContainersField's `+ container` chip emits `set […, 'containers', 'x']`
+      // expecting `containers` to be a map; here it is a sequence (a differently-shaped document the
+      // playground itself can still parse and open the inspector on), so setIn bails. Without the
+      // `bailed` flag this would have returned `s` silently — the reducer must report it regardless of
+      // `focus`, the same way a stringify failure already does.
+      const src = 'deployments:\n  hello:\n    containers:\n      - name: main\n';
+      const s0 = initialState(src);
+      const s = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'hello', 'containers', 'x'], value: { image: 'nginx' } }] });
+      expect(s.text).toBe(src);
+      expect(s.doc).toBe(s0.doc);
+      expect(s.focusPath).toBe(null);
+      expect(s.editError).toBe(EDIT_FAILED);
+    });
+    it('a mixed batch (one op bails, another lands and changes the text) still reports it', () => {
+      // The bailed set never lands, but the delete in the same batch does — the resulting text differs
+      // from the pre-edit text, which would otherwise look like an ordinary successful edit. `lostEdit`
+      // must catch this even though the `text === s.text` no-op check below it would not.
+      const src = 'deployments:\n  hello:\n    containers:\n      - name: main\n    replicas: 2\n';
+      const s0 = initialState(src);
+      const s = reducer(s0, { type: 'edit', ops: [
+        { op: 'set', path: ['deployments', 'hello', 'containers', 'x'], value: { image: 'nginx' } },
+        { op: 'delete', path: ['deployments', 'hello', 'replicas'] },
+      ] });
+      expect(s.text).toBe(src);   // the whole batch is rejected, not partially applied to state
+      expect(s.doc).toBe(s0.doc);
+      expect(s.focusPath).toBe(null);
+      expect(s.editError).toBe(EDIT_FAILED);
+    });
     it('a focus-carrying edit while the document has parse errors reports it instead of vanishing silently', () => {
       const s0 = initialState('deployments: [\n');
       expect(s0.doc.errors.length).toBeGreaterThan(0);
