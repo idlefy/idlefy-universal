@@ -17,6 +17,10 @@ on:
       - "docs/reference/values.md"
       - ".github/workflows/schema.yaml"
 
+# Read-only token: the job only checks out and runs the schema build.
+permissions:
+  contents: read
+
 jobs:
   schema-source-of-truth:
     runs-on: ubuntu-latest
