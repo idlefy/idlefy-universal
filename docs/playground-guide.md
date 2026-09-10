@@ -21,19 +21,21 @@ The editor folds YAML blocks by indentation (chevrons in the gutter), shows inde
 
 Click a node. The panel header shows the object's icon, name, kind, namespace and the values.yaml line it comes from. **Fields** edits the object; **Manifest** shows the rendered YAML.
 
-Every workload sits in a **group** on the canvas: a dashed frame with a header (`Deployment hello`) and a **+ Add resource** pill. Click the header or the frame to open the **group panel**: a **Workload** row that opens the workload itself, and **Created alongside it**, a switch per resource the chart can create for this workload (Service, Ingress, HPA, …) with a one-line summary and an **Open** button. The **Manifests** tab shows every manifest in the group.
+Every workload sits in a **group** on the canvas: a dashed frame with a header (`Deployment hello`) and a **+ Add resource** pill. Click the header or the frame to open the **group panel**: a **Workload** row that opens the workload itself, and **Created alongside it**, a switch per resource the chart can create for this workload (Service, Ingress, HPA, …) with a one-line summary and an **Open** button. A switch the chart cannot honour is greyed out with the reason in place of the summary — that includes switching one *off*: ServiceAccount stays on while Role + RoleBinding needs it. The **Open** button itself only appears once the switch is on or the block already holds a value; an untouched, switched-off resource has nothing yet to open. The **Manifests** tab shows every manifest in the group.
 
 A **workload panel** shows only the workload: **Workload** (replicas and rollout settings), **Containers** (one card per container with `image:tag`, resources as a cpu/memory grid, ports as a table), **Metadata**, and, with **Show all fields** on, **Placement & security**. Sections hidden on the basic tier are named in a footer with a **Show all fields** link. Each auto-created resource opens its own panel: who it was created for, an **enabled** switch, and only its own settings (an Ingress shows routing, TLS and metadata; a Service shows the owner's service keys and the container ports). A configured block whose resource is not rendered (switch off, or blocked) still opens from the group panel.
 
-A field only gets a control once it exists in values.yaml; everything else is an *Add* chip that inserts the schema's starter value. Clearing a control removes the key.
+A field only gets a control once it exists in values.yaml; everything else is an *Add* chip that inserts the schema's starter value. Clearing a control removes the key — except where the chart cannot render without it. A key the schema requires (`containers`, a StatefulSet's `serviceName`, a CronJob's `schedule`, a Config's `type`), a key only the chart's own validation requires (an Ingress's `hosts`, an HTTPRoute's `hostnames`, `parentRefs` and `rules`) and the last remaining half of an either/or pair have no × at all; emptying their box leaves the text showing and marked invalid, and nothing is written until it is valid again. Where a schema says "provide exactly one of" — `pdb.minAvailable` / `pdb.maxUnavailable`, an env row's `value` / `valueFrom`, a host's `host` / `subdomain` — the chip for the other half disappears while one is set, and typing into one clears the other.
 
 Lists edit as rows: plain string lists (`args`, `policyTypes`) one input per line, lists of objects (`env`, ingress `hosts`, `tolerations`) as a name plus its one or two main values, with a `…` button for the rest, or as a collapsible block when the item is larger. `secretRefs` is one card per group with a row per variable. Only Kubernetes passthrough objects (`affinity`, raw `volumes`, RBAC rules) stay YAML, shown as a two-line preview with an **Edit as YAML** button.
 
 Icons are the official Kubernetes resource icons (© The Kubernetes Authors, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), from [kubernetes/community](https://github.com/kubernetes/community/tree/master/icons)), recolored per resource family.
 
 IntOrString fields (for example `pdb.minAvailable`) accept either a percentage (`50%`) or a whole
-number. Kubernetes label and annotation maps always store their values as strings, even when they
-look numeric or boolean.
+number, and their *Add* chip seeds `1`. Number fields refuse a value outside the schema's range
+(a container port is 1–65535, `replicas` is 0 or more): the box turns red and nothing is written.
+Kubernetes label and annotation maps always store their values as strings, even when they look
+numeric or boolean.
 
 **Known limitation:** the inspector rewrites `values.yaml` through a YAML serializer, so flow
 collections, quoting, block scalars and long lines round-trip byte-for-byte. The exception is the
@@ -49,14 +51,18 @@ canvas, to open the launcher. Type to filter the eleven things the chart can ren
 level — the five workload kinds and the standalone Config, Service, Ingress, HTTPRoute, HPA and
 PVC — pick one with the arrow keys or the mouse, and name it. The name is checked as you type
 against the schema's key pattern (a DNS label for every entry today) and against the names already in
-your document; the panel previews the YAML the insert will produce. **Enter** inserts it into
+your document — for a workload that means all five workload maps at once, because the chart refuses a
+key that appears in more than one of them; the panel previews the YAML the insert will produce. **Enter** inserts it into
 `values.yaml`, selects the new node and opens the inspector on it.
 
 Starter bodies come from the schema's own examples, with a few corrections so a from-scratch
 document renders: a Deployment gets a container port (so its auto-created Service appears), an
 Ingress and an HTTPRoute get `<name>.example.com` as their host, a Service gets a selector
-matching its own name. References inside them (an HPA's target, a route's backend) are
-placeholders — edit them in the inspector.
+matching its own name. The same corrections apply to every *Add* chip and every "add item" button,
+not just the launcher — adding a hostname anywhere writes a `host`, never a bare `subdomain` that
+needs a global domain you have not set. A second container or a second Service port gets a port name
+and number no sibling already uses, so the rendered Service never carries a duplicate. References
+inside a starter (an HPA's target, a route's backend) are placeholders — edit them in the inspector.
 
 The inspector header of a workload, a workload group or a standalone resource has a **🗑 Remove**
 button. It deletes that entry from `values.yaml` (a workload's auto-created resources go with it);
