@@ -4,7 +4,7 @@ import type { ResolvedSelection } from '../app/selection';
 import { plural } from '../inspector/summary';
 
 export type Removal = { ops: EditOp[]; label: string; title: string };
-export const REMOVE_HINT = ' · Ctrl+Z in the editor restores';
+export const REMOVE_HINT = ' · Ctrl+Z restores';   // global now: useUndoRedo routes it into Monaco's stack from anywhere
 
 /**
  * Spec §6: removable = a node (or a group whose owner is such a node) with provenance, no owner,

@@ -21,13 +21,13 @@ describe('removalOf', () => {
     const r = removalOf(resolveSelection(g, dep.id)!)!;
     expect(r.ops).toEqual([{ op: 'delete', path: ['deployments', 'hello'] }]);
     expect(r.label).toBe('Remove Deployment hello');
-    expect(r.title).toBe('Remove Deployment hello · Ctrl+Z in the editor restores');
+    expect(r.title).toBe('Remove Deployment hello · Ctrl+Z restores');
   });
   it('a group: the owner\'s removeAction and the rendered-member count', () => {
     const r = removalOf(resolveSelection(g, groupId(dep.id))!)!;
     expect(r.ops).toEqual([{ op: 'delete', path: ['deployments', 'hello'] }]);
     expect(r.label).toBe('Remove Deployment hello');
-    expect(r.title).toBe('Remove Deployment hello and its 1 rendered resource · Ctrl+Z in the editor restores');
+    expect(r.title).toBe('Remove Deployment hello and its 1 rendered resource · Ctrl+Z restores');
   });
   it('a standalone resource (hpas.*) is removable', () => {
     expect(hpa).toBeTruthy();

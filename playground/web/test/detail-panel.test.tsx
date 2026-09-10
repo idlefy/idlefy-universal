@@ -100,7 +100,7 @@ describe('DetailPanel', () => {
     const p = base();
     render(<DetailPanel {...p} tab="inspector" />);
     const btn = screen.getByLabelText('Remove Deployment hello') as HTMLButtonElement;
-    expect(btn.title).toBe('Remove Deployment hello · Ctrl+Z in the editor restores');
+    expect(btn.title).toBe('Remove Deployment hello · Ctrl+Z restores');
     expect(btn.className).toContain('danger');
     expect(btn.disabled).toBe(false);
     fireEvent.click(btn);

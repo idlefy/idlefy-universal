@@ -66,7 +66,7 @@ inside a starter (an HPA's target, a route's backend) are placeholders — edit 
 
 The inspector header of a workload, a workload group or a standalone resource has a **🗑 Remove**
 button. It deletes that entry from `values.yaml` (a workload's auto-created resources go with it);
-**Ctrl+Z** in the editor restores it. Auto-created resources have no Remove button: switch them
+**Ctrl+Z** restores it, from anywhere on the page. Auto-created resources have no Remove button: switch them
 off from the group panel instead.
 
 When the document renders nothing, the canvas shows a card with **Add a Deployment** and **Load an

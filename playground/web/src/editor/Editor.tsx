@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import * as monaco from 'monaco-editor';
 import schema from '../chart-bundle/schema.json';
 import { setupMonaco } from './monaco';
@@ -12,7 +12,13 @@ setupMonaco(schema);
 
 export type EditorMarker = { line: number; col?: number; message: string; severity: 'error' | 'warning' };
 
-export function Editor({ value, onChange, markers, highlight, visible }: { value: string; onChange: (t: string) => void; markers: EditorMarker[]; highlight: LineRange | null; visible: boolean }) {
+/** The one undo history in the app: Monaco's model stack, which inspector and palette writes also push onto. */
+export type EditorApi = { undo: () => void; redo: () => void };
+// `undo`/`redo` are on TextModel at runtime but not in monaco's public typings; monaco's own
+// CoreEditingCommands.Undo is literally `editor.getModel().undo()`.
+type UndoableModel = monaco.editor.ITextModel & { undo(): void; redo(): void };
+
+export function Editor({ value, onChange, markers, highlight, visible, api }: { value: string; onChange: (t: string) => void; markers: EditorMarker[]; highlight: LineRange | null; visible: boolean; api?: RefObject<EditorApi | null> }) {
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const model = useRef<monaco.editor.ITextModel | null>(null);
@@ -41,11 +47,12 @@ export function Editor({ value, onChange, markers, highlight, visible }: { value
     });
     editor.current = ed;
     decos.current = ed.createDecorationsCollection();
+    if (api) api.current = { undo: () => (m as UndoableModel).undo(), redo: () => (m as UndoableModel).redo() };
     const sub = m.onDidChangeContent(() => { if (!suppress.current) { const t = m.getValue(); lastEmitted.current = t; onChange(t); } });
     // Monaco's theme is a global registry, not per-editor, but there is only ever one Editor mounted.
     const onSchemeChange = (e: MediaQueryListEvent) => monaco.editor.setTheme(e.matches ? 'vs-dark' : 'vs');
     darkMedia?.addEventListener('change', onSchemeChange);
-    return () => { darkMedia?.removeEventListener('change', onSchemeChange); sub.dispose(); decos.current?.clear(); ed.dispose(); m.dispose(); model.current = null; editor.current = null; };
+    return () => { darkMedia?.removeEventListener('change', onSchemeChange); sub.dispose(); decos.current?.clear(); ed.dispose(); m.dispose(); model.current = null; editor.current = null; if (api) api.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

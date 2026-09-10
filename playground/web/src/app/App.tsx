@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import chartMeta from "../chart-bundle/chart-meta.json";
 import examples from "../chart-bundle/examples.json";
 import schema from "../chart-bundle/schema.json";
-import { Editor } from "../editor/Editor";
+import { Editor, type EditorApi } from "../editor/Editor";
 import { Toolbar } from "../editor/Toolbar";
 import { Canvas } from "../canvas/Canvas";
 import { DetailPanel } from "../canvas/DetailPanel";
@@ -16,6 +16,7 @@ import { AddButton, type LauncherRequest } from "../palette/AddButton";
 import { EmptyState } from "../palette/EmptyState";
 import { useHotkey } from "../palette/useHotkey";
 import { addEntityOps } from "../palette/add";
+import { useUndoRedo } from "./useUndoRedo";
 
 const FIRST = (examples as { id: string; values: string }[])[0];
 
@@ -49,6 +50,9 @@ export function App() {
   const error = state.render && !state.render.ok ? state.render.error : null;
   const warnings = state.graph?.warnings ?? [];
   const { panes, setOpen, setWidth, reset } = usePanes();
+  // Ctrl+Z from the canvas or the inspector drives Monaco's stack: one history, text stays canonical.
+  const editorApi = useRef<EditorApi | null>(null);
+  useUndoRedo(editorApi);
   // The token names the group the pill was pressed on, so a later plain selection of a group never inherits the focus request.
   const [addToken, setAddToken] = useState<{ id: string; n: number } | null>(null);
   const [launcher, setLauncher] = useState<LauncherRequest | null>(null);
@@ -130,7 +134,7 @@ export function App() {
             }}
             valuesText={state.text} chartVersion={chartMeta.version} onHide={() => setOpen("editor", false)}
           />
-          <Editor value={state.text} onChange={onChange} markers={markers} highlight={highlight} visible={panes.editor.open} />
+          <Editor value={state.text} onChange={onChange} markers={markers} highlight={highlight} visible={panes.editor.open} api={editorApi} />
         </section>
         {panes.editor.open && (
           <SplitHandle label="Resize values.yaml"
