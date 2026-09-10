@@ -1,7 +1,9 @@
 import { defineConfig } from '@playwright/test';
 // Relative navigations (`page.goto('./')`, `new URL('helm.wasm', baseURL)`) resolve against the
-// last path segment, so a base without the trailing slash would drop the /playground/ prefix.
-const baseURL = (process.env.PLAYGROUND_URL ?? 'http://127.0.0.1:4173/playground/').replace(/\/?$/, '/');
+// last path segment, so a base without the trailing slash would drop the mount prefix. The Vite
+// base is relative ('./'), so `vite preview` serves at `/`; PLAYGROUND_URL can point at any mount
+// (e.g. a nested prefix mirroring GitHub Pages) to run the suite against it.
+const baseURL = (process.env.PLAYGROUND_URL ?? 'http://127.0.0.1:4173/').replace(/\/?$/, '/');
 export default defineConfig({
   testDir: 'e2e', timeout: 60_000,
   // A stray .only must fail CI rather than silently shrink the suite.

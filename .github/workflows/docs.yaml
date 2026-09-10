@@ -44,7 +44,8 @@ concurrency:
 jobs:
   # Toolchain-heavy playground build, kept out of `build` so the docs job stays
   # a pure Python/MkDocs job. Produces the SPA that `build` grafts into the site
-  # under /playground/ (matching the Vite `base`).
+  # under /playground/ (the Vite `base` is relative, so the bundle works at the
+  # project-Pages mount /idlefy-universal/playground/).
   playground:
     runs-on: ubuntu-latest
     # Builds and tests only — it never touches Pages, so it drops the
@@ -208,6 +209,10 @@ jobs:
           test -f site/playground/helm.wasm
           test -f site/playground/wasm_exec.js
           grep -q 'id="root"' site/playground/index.html
+          # Assets must be document-relative: a root-absolute /playground/assets/…
+          # 404s on the project Pages site (it lives under /idlefy-universal/).
+          grep -q 'src="./assets/' site/playground/index.html
+          ! grep -q '"/playground/' site/playground/index.html
           test -f site/playground-guide/index.html
 
       - name: Decide deploy

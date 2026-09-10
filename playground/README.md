@@ -8,7 +8,8 @@ resource dependency graph. User-facing documentation lives at `docs/playground-g
 - `web/` — Vite + React SPA. `npm test` (Vitest), `npm run e2e` (Playwright). Both need
   `public/helm.wasm` (`bash engine/build.sh`); the chart bundler refuses to run without it.
 - `make playground-build` builds everything inside Docker; `make playground-dev` serves the SPA at
-  <http://localhost:5173/playground/> (the Vite `base`, so the bare `/` is a 404).
+  <http://localhost:5173/>. The Vite `base` is relative (`./`), so the same bundle works at the
+  GitHub Pages mount `/idlefy-universal/playground/` without a rebuild.
 
 ## Inspector (Phase 2)
 

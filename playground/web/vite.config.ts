@@ -2,7 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  base: '/playground/',
+  // Relative base: the SPA is deployed under https://idlefy.github.io/idlefy-universal/playground/
+  // (a project Pages site), so a root-absolute '/playground/' would resolve to the wrong origin
+  // path and 404 every asset. './' makes the built index.html reference ./assets/... and the
+  // engine worker/wasm relative to the document, wherever the bundle is mounted.
+  base: './',
   plugins: [react()],
   // ES-module workers are needed by monaco-editor / monaco-yaml.
   // The Helm engine worker is a plain classic script in public/ and is

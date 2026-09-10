@@ -17,7 +17,7 @@ export class EngineClient {
   readonly crashed: Promise<never>;
   private onCrash!: (e: Error) => void;
 
-  constructor(base: string = (import.meta as any).env?.BASE_URL ?? '/playground/') {
+  constructor(base: string = (import.meta as any).env?.BASE_URL ?? './') {
     this.worker = new Worker(`${base}engine-worker.js`);
     this.crashed = new Promise<never>((_, reject) => { this.onCrash = reject; });
     this.ready = new Promise<void>((resolve, reject) => {
