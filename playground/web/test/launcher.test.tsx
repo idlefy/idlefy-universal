@@ -111,4 +111,40 @@ describe('Launcher', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'web' } });
     expect(screen.queryByText('already exists')).toBeNull();
   });
+  it('keeps the active row in view as the arrows move it', () => {
+    const seen: unknown[] = [];
+    const scroll = vi.fn(function (this: Element, arg: unknown) { seen.push([this.textContent, arg]); });
+    (Element.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = scroll;
+    setup();
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowUp' });
+    expect(scroll).toHaveBeenCalled();
+    const [text, arg] = seen[seen.length - 1] as [string, unknown];
+    expect(text).toContain('PVC');                       // the wrapped-to row, last in ENTITIES
+    expect(arg).toEqual({ block: 'nearest' });
+    delete (Element.prototype as unknown as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+  it('is an announceable listbox: option ids, activedescendant, aria-modal', () => {
+    setup();
+    const input = screen.getByLabelText('Search resources');
+    const list = screen.getByRole('listbox');
+    const opts = screen.getAllByRole('option');
+    expect(screen.getByRole('dialog').getAttribute('aria-modal')).toBe('true');
+    expect(input.getAttribute('role')).toBe('combobox');
+    expect(input.getAttribute('aria-expanded')).toBe('true');
+    expect(input.getAttribute('aria-controls')).toBe(list.id);
+    expect(list.id).toBeTruthy();
+    expect(opts[0].id).toBeTruthy();
+    expect(input.getAttribute('aria-activedescendant')).toBe(opts[0].id);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowDown' });
+    expect(input.getAttribute('aria-activedescendant')).toBe(screen.getAllByRole('option')[1].id);
+  });
+  it('Tab stays inside the dialog and the untrimmed query is not echoed', () => {
+    setup();
+    const input = screen.getByLabelText('Search resources') as HTMLInputElement;
+    const ev = fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Tab' });
+    expect(ev).toBe(false);                              // preventDefault() was called
+    expect(document.activeElement).toBe(input);          // the only focusable in step 1
+    fireEvent.change(input, { target: { value: '  zzz  ' } });
+    expect(screen.getByText('No resource matches "zzz"')).toBeTruthy();
+  });
 });
