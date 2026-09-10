@@ -100,4 +100,23 @@ describe('buildGraph', () => {
     expect(g.nodes.find((n) => n.kind === 'Secret')?.provenance?.path).toEqual(['configs', 'app-secrets']);
     expect(g.nodes.find((n) => n.kind === 'PersistentVolumeClaim')?.provenance?.path).toEqual(['persistentVolumeClaims', 'uploads']);
   });
+  it('warns on an auto-created Ingress whose backend Service is not part of the release', () => {
+    const dep = 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  template:\n    metadata:\n      labels: {app.kubernetes.io/name: web}\n    spec:\n      containers:\n        - name: main\n          image: nginx\n';
+    const ing = 'apiVersion: networking.k8s.io/v1\nkind: Ingress\nmetadata:\n  name: web\nspec:\n  rules:\n    - host: web.example.com\n      http:\n        paths:\n          - path: /\n            pathType: Prefix\n            backend: {service: {name: web, port: {number: 80}}}\n';
+    const values = { deployments: { web: { autoCreateService: false, autoCreateIngress: true, containers: { main: { image: 'nginx', imageTag: '1' } }, ingress: { hosts: [{ host: 'web.example.com' }] } } } };
+    const g = buildGraph([...splitManifests('c/templates/deployment.yaml', dep), ...splitManifests('c/templates/ingress.yaml', ing)], values, 'default');
+    const node = g.nodes.find((n) => n.kind === 'Ingress')!;
+    expect(node.provenance?.owner).toEqual(['deployments', 'web']);
+    expect(node.warnings.some((w) => w.includes('no Service in this release backs it'))).toBe(true);
+    expect(g.warnings).toEqual([]);   // node-level only: no permanent banner
+  });
+  it('does not warn when the backend Service is rendered, nor on standalone entries', () => {
+    const { manifests, values } = loadFixture('example-01-hello-world');
+    const g = buildGraph(manifests, values, 'default');
+    expect(g.nodes.flatMap((n) => n.warnings)).toEqual([]);
+    const gw = loadFixture('example-05-gateway-api');
+    const g5 = buildGraph(gw.manifests, gw.values, 'default');
+    // example 05's HTTPRoute is standalone (no owner) and its backendRef is a placeholder — no warning.
+    expect(g5.nodes.find((n) => n.kind === 'HTTPRoute')!.warnings).toEqual([]);
+  });
 });
