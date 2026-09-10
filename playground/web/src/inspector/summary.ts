@@ -103,3 +103,16 @@ export function subdomainUsers(values: Record<string, unknown>): string[] {
   if (isObj(httpRoutes)) for (const [name, cfg] of Object.entries(httpRoutes)) if (isObj(cfg)) scan(`httpRoutes/${name}`, (cfg as Record<string, unknown>).hostnames, 'hostnames');
   return out;
 }
+
+/**
+ * The one runtime (document-wide) `lockedPaths` lock the playground computes today — see
+ * `buildFields`'s own doc comment for why this can't be expressed as static path shape. While
+ * `subdomainUsers` finds a live reference anywhere in the document, `generic.ingressesGeneral.domain`
+ * cannot be cleared (`_computed-ingress-host.tpl` needs it), and neither can the `ingressesGeneral`
+ * block itself — its own clear × would take `domain` with it in one click, the same silent escape the
+ * leaf lock is there to prevent. Empty `Set` (not `undefined`) when no such reference exists, so every
+ * caller can pass the result straight through `lockedPaths?.has(...)` without an extra branch.
+ */
+export function subdomainLockedPaths(values: Record<string, unknown>): Set<string> {
+  return subdomainUsers(values).length > 0 ? new Set(['generic.ingressesGeneral.domain', 'generic.ingressesGeneral']) : new Set();
+}

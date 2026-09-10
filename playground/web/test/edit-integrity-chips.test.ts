@@ -12,7 +12,7 @@ import { chipValue, starterValue } from '../src/inspector/form';
 import { defaultName } from '../src/graph/entities';
 import { starterBody } from '../src/palette/add';
 import { secondariesFor, toggleState, WORKLOAD_KEYS } from '../src/graph/secondary';
-import { secretRefUsers, subdomainUsers } from '../src/inspector/summary';
+import { secretRefUsers, subdomainLockedPaths } from '../src/inspector/summary';
 import { isFilledObj, isObj } from '../src/model/guards';
 
 const examples = examplesJson as { id: string; values: string }[];
@@ -58,7 +58,12 @@ function workloadBase(kind: string): { label: string; text: string } {
     if (toggleState(s, cfg, kind, false).isDisabled) continue;
     doc = doc.apply(s.on([kind, 'app'], cfg, 'app'));
   }
-  return { label: `${kind}/all-on`, text: doc.toString() };
+  const text = doc.toString();
+  // The base itself must not already carry a lost edit: `doc.apply()` chains many toggles in a row
+  // (the sticky `stringifyFailed` this now checks is precisely for catching a failure buried in a
+  // chain like this one instead of only at its final link — see ValuesDocument.apply()'s own comment).
+  expect(doc.stringifyFailed, `${kind}/all-on base did not serialize`).toBe(false);
+  return { label: `${kind}/all-on`, text };
 }
 
 /**
@@ -118,11 +123,12 @@ function sweep(bases: { label: string; text: string }[], fails: string[]): void 
     const r0 = render(base.text);
     if (!r0.ok) { fails.push(`BASE ${base.label} does not render → ${why(r0)}`); continue; }
     const values = start.toJS() as Record<string, unknown>;
-    // Mirrors ReleasePanel's own `lockedPaths`: while any `hosts[]`/`hostnames[]` entry anywhere in
-    // this document sets `subdomain`, `generic.ingressesGeneral.domain` — and the `ingressesGeneral`
-    // block itself, whose own clear × would take `domain` with it — cannot be cleared either, a
-    // runtime lock buildFields cannot express on path shape alone (see buildFields' doc comment).
-    const lockedPaths = subdomainUsers(values).length > 0 ? new Set(['generic.ingressesGeneral.domain', 'generic.ingressesGeneral']) : undefined;
+    // Same lock ReleasePanel itself computes (`subdomainLockedPaths`, shared rather than re-derived
+    // here): while any `hosts[]`/`hostnames[]` entry anywhere in this document sets `subdomain`,
+    // `generic.ingressesGeneral.domain` — and the `ingressesGeneral` block itself, whose own clear ×
+    // would take `domain` with it — cannot be cleared either, a runtime lock buildFields cannot
+    // express on path shape alone (see buildFields' doc comment).
+    const lockedPaths = subdomainLockedPaths(values);
     // `generic.*`'s own block-level clears (see `genericBase`'s doc comment) are not reachable through
     // any panel, so they get their own direct check here rather than through `panelsOf`/`walkFields`.
     if (isObj(values.generic)) {

@@ -11,9 +11,11 @@ export type FieldProps = {
    *  document, so it is the one that can say whether a `secretRefs` group is still referenced. */
   blockedRemove?: (key: string) => string | undefined;
   /** Absolute values-paths locked for a runtime (document-wide) reason `buildFields` cannot see on its
-   *  own — see `buildFields`'s own doc comment. Forwarded unchanged through every nested `FieldList`
-   *  (`ObjectSection`'s own re-render of it, in particular), the same way `hide` would be if it needed
-   *  to survive more than one level. */
+   *  own — see `buildFields`'s own doc comment. Every control that renders a nested `FieldList` must
+   *  forward it unchanged (`ObjectSection`'s own re-render of it, and `MapOfListsField`'s forward to
+   *  `ObjectListField`, in particular), the same way `hide` would be if it needed to survive more than
+   *  one level — only `ReleasePanel` computes a non-empty value today (`subdomainLockedPaths`), but any
+   *  control that drops the forward silently stops honouring a lock a caller further up did set. */
   lockedPaths?: ReadonlySet<string>;
   /** Only `PortsTable` reads this. The owning workload's own flags — `Sections`/`WorkloadPanel` is the
    *  one caller with the whole workload config in hand, so it is the one that can say whether the

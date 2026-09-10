@@ -9,7 +9,7 @@ import { OWNED_FLAGS } from '../graph/secondary';
 import { RELEASE_TITLES, hiddenTitle } from './sections';
 import { HiddenNote } from './HiddenNote';
 import { isObj } from '../model/guards';
-import { secretRefUsers, subdomainUsers } from './summary';
+import { secretRefUsers, subdomainLockedPaths } from './summary';
 
 const RELEASE_SECTIONS = Object.keys(RELEASE_TITLES);
 const hide = (x: string) => OWNED_FLAGS.has(x);
@@ -26,11 +26,9 @@ export function ReleasePanel(p: {
   // matches path shape): `_computed-ingress-host.tpl` needs it only while some `hosts[]`/`hostnames[]`
   // entry elsewhere in the document sets `subdomain`. ReleasePanel is the one caller with the whole
   // document in hand — same reasoning as the secretRefs guard just below — so it computes the lock
-  // here and hands it down through buildFields' `lockedPaths` instead of TextField growing its own ×.
-  // The parent `generic.ingressesGeneral` block is locked the same way: its own clear × (rendered by
-  // FieldRow for the object as a whole) would otherwise take `domain` with it in one click, the same
-  // silent escape a locked leaf is supposed to prevent.
-  const lockedPaths = subdomainUsers(all).length > 0 ? new Set(['generic.ingressesGeneral.domain', 'generic.ingressesGeneral']) : undefined;
+  // (`subdomainLockedPaths`, shared with the edit-integrity sweep's own self-check) and hands it down
+  // through buildFields' `lockedPaths` instead of TextField growing its own ×.
+  const lockedPaths = subdomainLockedPaths(all);
 
   // Property-shaped release sections list their fields; `secretRefs` is a bare additionalProperties
   // map that buildFields cannot walk, so it renders through its own widget.
