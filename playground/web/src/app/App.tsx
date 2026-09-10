@@ -57,10 +57,10 @@ export function App() {
   useHotkey("a", openLauncher, !yamlBroken && !launcher);
   // toJS() walks the whole document; only pay for it while the launcher is open.
   const values = useMemo(() => (launcher ? (inspectorDoc.toJS() as Record<string, unknown>) : {}), [launcher, inspectorDoc]);
-  // Text is canonical: the launcher only produces ops; the reducer's one-shot focusPath selects the new node once it renders.
+  // Text is canonical: the launcher only produces ops; the reducer's one-shot focusPath (carried on
+  // the same action, so a failed insert cannot arm it) selects the new node once it renders.
   const onAdd = useCallback((key: string, name: string) => {
-    dispatch({ type: "edit", ops: addEntityOps(schema as SchemaNode, key, name) });
-    dispatch({ type: "focus-path", path: [key, name] });
+    dispatch({ type: "edit", ops: addEntityOps(schema as SchemaNode, key, name), focus: [key, name] });
   }, []);
   // The editor pane is closed by default and the examples <select> lives inside it: open first, focus on the next frame.
   const loadExample = useCallback(() => {
@@ -132,6 +132,7 @@ export function App() {
             onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
         )}
         <section className="pane pane-canvas">
+          {state.editError && <div className="banner warn" role="alert">{state.editError}</div>}
           {error && (() => {
             // a chart `fail` arrives as a five-line Go include chain; only its last sentence is for
             // the reader, and the chain stays one click away rather than pushing the canvas down

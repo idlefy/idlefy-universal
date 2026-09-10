@@ -14,6 +14,7 @@ export type AppState = {
   render: RenderResult | null; graph: GraphModel | null; selection: string | null;
   engineError: string | null;                   // helm.wasm failed to load → full-page message
   focusPath: ValuesPath | null;                 // one-shot: the next render-done selects the node at this values path (palette add)
+  editError: string | null;                     // last edit could not be applied (banner); cleared by the next text/example/successful edit
   ui: { tier: Tier; tab: DetailTab };
 };
 export type Action =
@@ -21,12 +22,16 @@ export type Action =
   | { type: 'release'; v: string } | { type: 'ns'; v: string }
   | { type: 'render-done'; result: RenderResult; graph: GraphModel | null }
   | { type: 'select'; id: string | null }
-  | { type: 'focus-path'; path: ValuesPath }
   | { type: 'engine-failed'; message: string }
-  | { type: 'edit'; ops: EditOp[] } | { type: 'tier'; tier: Tier } | { type: 'tab'; tab: DetailTab };
+  // `focus` is the palette's one-shot focus request. It rides on the edit rather than on a second
+  // action so an edit that does not land can never leave it armed for a later, unrelated render.
+  | { type: 'edit'; ops: EditOp[]; focus?: ValuesPath } | { type: 'tier'; tier: Tier } | { type: 'tab'; tab: DetailTab };
+
+/** Shown in the canvas banner when an edit could not be applied (a throw, or an insert that changed nothing). */
+export const EDIT_FAILED = 'That change could not be applied to values.yaml, which was left unchanged.';
 
 export function initialState(text: string): AppState {
-  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, engineError: null, focusPath: null, ui: { tier: 'basic', tab: 'inspector' } };
+  return { text, doc: ValuesDocument.parse(text), releaseName: 'demo', namespace: 'default', render: null, graph: null, selection: null, engineError: null, focusPath: null, editError: null, ui: { tier: 'basic', tab: 'inspector' } };
 }
 
 export function reducer(s: AppState, a: Action): AppState {
@@ -35,8 +40,8 @@ export function reducer(s: AppState, a: Action): AppState {
     // Monaco echoes the reducer's own new text back as a `text` action, and the identity check
     // keeps that echo from clearing `focusPath` — removing it would break Add: e2e/palette.spec.ts
     // ("add from the empty state with the keyboard, then remove") asserts the new node becomes selected.
-    case 'text': return a.text === s.text ? s : { ...s, text: a.text, doc: ValuesDocument.parse(a.text), focusPath: null };
-    case 'example': return { ...s, text: a.text, doc: ValuesDocument.parse(a.text), selection: null, focusPath: null };
+    case 'text': return a.text === s.text ? s : { ...s, text: a.text, doc: ValuesDocument.parse(a.text), focusPath: null, editError: null };
+    case 'example': return { ...s, text: a.text, doc: ValuesDocument.parse(a.text), selection: null, focusPath: null, editError: null };
     case 'release': return { ...s, releaseName: a.v };
     case 'ns': return { ...s, namespace: a.v };
     case 'render-done': {
@@ -55,16 +60,25 @@ export function reducer(s: AppState, a: Action): AppState {
       }
       return { ...s, render: a.result, graph, selection, ui, focusPath: null };
     }
-    case 'select': return { ...s, selection: a.id, focusPath: null };
-    case 'focus-path': return { ...s, focusPath: a.path };
+    case 'select': return { ...s, selection: a.id, focusPath: null, editError: null };
     case 'engine-failed': return { ...s, engineError: a.message, focusPath: null };
     case 'edit': {
       // The inspector is disabled while the YAML is invalid. Text is canonical, so the
       // edited document is serialised and re-parsed rather than kept.
       if (s.doc.errors.length || a.ops.length === 0) return s;
-      const text = s.doc.apply(a.ops).toString();
-      if (text === s.text) return s;
-      return { ...s, text, doc: ValuesDocument.parse(text) };
+      let text: string;
+      try {
+        text = s.doc.apply(a.ops).toString();
+      } catch (err) {
+        // A throw here would reach React's render phase and unmount the root: no op shape may
+        // blank the page. Keep the document and say so.
+        console.error('values edit failed', err);
+        return { ...s, focusPath: null, editError: EDIT_FAILED };
+      }
+      // A plain widget edit that resolves to the same text is a silent no-op (Monaco echoes the
+      // reducer's own text back); an *add* that changes nothing is a failure the user must see.
+      if (text === s.text) return a.focus ? { ...s, focusPath: null, editError: EDIT_FAILED } : s;
+      return { ...s, text, doc: ValuesDocument.parse(text), focusPath: a.focus ?? null, editError: null };
     }
     case 'tier': return s.ui.tier === a.tier ? s : { ...s, ui: { ...s.ui, tier: a.tier } };
     case 'tab': return s.ui.tab === a.tab ? s : { ...s, ui: { ...s.ui, tab: a.tab } };

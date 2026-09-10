@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { reducer, initialState, markersFrom, pointerToPath } from '../src/app/state';
+import { describe, it, expect, vi } from 'vitest';
+import { reducer, initialState, markersFrom, pointerToPath, EDIT_FAILED } from '../src/app/state';
 // engine/types.ts has no side effects, so importing SUPERSEDED from it here doesn't pull the
 // engine/WASM code into this test — it stays bundle-free.
 import { SUPERSEDED } from '../src/engine/types';
@@ -100,10 +100,12 @@ describe('app state', () => {
   describe('focusPath', () => {
     const ok = { ok: true as const, manifests: [], durationMs: 1 };
     const node = (id: string, path: (string | number)[]) => ({ id, key: id, kind: 'Deployment', name: id, namespace: 'default', family: 'workload' as const, external: false, conflict: false, hookBadge: false, warnings: [], provenance: { path, governingCondition: '', removeAction: [] } });
-    const armed = () => reducer(reducer(initialState('deployments: {}\n'), { type: 'tab', tab: 'yaml' }), { type: 'focus-path', path: ['deployments', 'web'] });
-    it('starts null and is set by focus-path', () => {
+    const armed = () => reducer(reducer(initialState('deployments: {}\n'), { type: 'tab', tab: 'yaml' }),
+      { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'web'], value: { replicas: 1 } }], focus: ['deployments', 'web'] });
+    it('starts null and is armed by an edit that carries a focus path', () => {
       expect(initialState('').focusPath).toBe(null);
       expect(armed().focusPath).toEqual(['deployments', 'web']);
+      expect(armed().editError).toBe(null);
     });
     it('a matching render-done selects the node, opens the Fields tab and clears the focus', () => {
       const s = reducer(armed(), { type: 'render-done', result: ok, graph: { nodes: [node('default/Service/web', ['deployments', 'web', 'service']), node('default/Deployment/web', ['deployments', 'web'])], edges: [], warnings: [] } });
@@ -124,13 +126,34 @@ describe('app state', () => {
       expect(reducer(initialState(''), { type: 'release', v: 'x' }).releaseName).toBe('x');
       expect(reducer(initialState(''), { type: 'ns', v: 'kube' }).namespace).toBe('kube');
     });
-    it('select, text, example and engine-failed clear it; edit keeps it', () => {
+    it('select, text, example, engine-failed and a focus-less edit all clear it', () => {
       expect(reducer(armed(), { type: 'select', id: 'x' }).focusPath).toBe(null);
       expect(reducer(armed(), { type: 'select', id: null }).focusPath).toBe(null);
       expect(reducer(armed(), { type: 'text', text: 'jobs: {}\n' }).focusPath).toBe(null);
       expect(reducer(armed(), { type: 'example', text: 'jobs: {}\n' }).focusPath).toBe(null);
       expect(reducer(armed(), { type: 'engine-failed', message: 'x' }).focusPath).toBe(null);
-      expect(reducer(armed(), { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'web'], value: { replicas: 1 } }] }).focusPath).toEqual(['deployments', 'web']);
+      expect(reducer(armed(), { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'web', 'replicas'], value: 9 }] }).focusPath).toBe(null);
+    });
+    it('an add that changes nothing reports it instead of arming the focus', () => {
+      // a sequence root: setIn is a documented no-op, so the insert cannot land
+      const s = reducer(initialState('- a\n- b\n'), { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'api'], value: { replicas: 1 } }], focus: ['deployments', 'api'] });
+      expect(s.text).toBe('- a\n- b\n');
+      expect(s.focusPath).toBe(null);
+      expect(s.editError).toBe(EDIT_FAILED);
+      expect(reducer(s, { type: 'text', text: 'a: 1\n' }).editError).toBe(null);
+      expect(reducer(s, { type: 'select', id: null }).editError).toBe(null);
+    });
+    it('a throwing op is swallowed: state is kept and the failure is reported', () => {
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const s0 = initialState('a: 1\n');
+      // A Symbol has no YAML tag, so `apply(...).toString()` throws "Tag not resolved for Symbol value".
+      const s = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['a'], value: Symbol('x') }] });
+      expect(s.text).toBe('a: 1\n');
+      expect(s.doc).toBe(s0.doc);
+      expect(s.editError).toBe(EDIT_FAILED);
+      expect(s.focusPath).toBe(null);
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
     });
   });
 });
