@@ -25,7 +25,7 @@ Every workload sits in a **group** on the canvas: a dashed frame with a header (
 
 A **workload panel** shows only the workload: **Workload** (replicas and rollout settings), **Containers** (one card per container with `image:tag`, resources as a cpu/memory grid, ports as a table), **Metadata**, and, with **Show all fields** on, **Placement & security**. Sections hidden on the basic tier are named in a footer with a **Show all fields** link. Each auto-created resource opens its own panel: who it was created for, an **enabled** switch, and only its own settings (an Ingress shows routing, TLS and metadata; a Service shows the owner's service keys and the container ports). A configured block whose resource is not rendered (switch off, or blocked) still opens from the group panel.
 
-A field only gets a control once it exists in values.yaml; everything else is an *Add* chip that inserts the schema's starter value. Clearing a control removes the key — except where the chart cannot render without it. A key the schema requires (`containers`, a StatefulSet's `serviceName`, a CronJob's `schedule`, a Config's `type`), a key only the chart's own validation requires (an Ingress's `hosts`, an HTTPRoute's `hostnames`, `parentRefs` and `rules`) and the last remaining half of an either/or pair have no × at all; emptying their box leaves the text showing and marked invalid, and nothing is written until it is valid again. Where a schema says "provide exactly one of" — `pdb.minAvailable` / `pdb.maxUnavailable`, an env row's `value` / `valueFrom`, a host's `host` / `subdomain` — the chip for the other half disappears while one is set, and typing into one clears the other.
+A field only gets a control once it exists in values.yaml; everything else is an *Add* chip that inserts the schema's starter value. Clearing a control removes the key — except where the chart cannot render without it. A key the schema requires (`containers`, a StatefulSet's `serviceName`, a CronJob's `schedule`, a Config's `type`), a key only the chart's own validation requires (an Ingress's `hosts`, an HTTPRoute's `hostnames`, `parentRefs` and `rules`) and the last remaining half of an either/or pair have no × at all; emptying their box leaves the box as you typed it, marked invalid with a `required` note, and nothing is written until it is valid again. A list or map entry under a locked key keeps its ×, but disabled, with the reason in its place: "This list must keep at least one entry", "A workload needs at least one container", or "used by … — remove that reference first". Where a schema says "provide exactly one of" — `pdb.minAvailable` / `pdb.maxUnavailable`, an env row's `value` / `valueFrom` — the other half stays offered as a chip; picking it swaps the pair, and typing into one clears the other. A host row's `host` and `subdomain` boxes are both always visible, with no chip at all; filling one empties the other.
 
 Lists edit as rows: plain string lists (`args`, `policyTypes`) one input per line, lists of objects (`env`, ingress `hosts`, `tolerations`) as a name plus its one or two main values, with a `…` button for the rest, or as a collapsible block when the item is larger. `secretRefs` is one card per group with a row per variable. Only Kubernetes passthrough objects (`affinity`, raw `volumes`, RBAC rules) stay YAML, shown as a two-line preview with an **Edit as YAML** button.
 
@@ -52,13 +52,13 @@ level — the five workload kinds and the standalone Config, Service, Ingress, H
 PVC — pick one with the arrow keys or the mouse, and name it. The name is checked as you type
 against the schema's key pattern (a DNS label for every entry today) and against the names already in
 your document — for a workload that means all five workload maps at once, because the chart refuses a
-key that appears in more than one of them; the panel previews the YAML the insert will produce. **Enter** inserts it into
-`values.yaml`, selects the new node and opens the inspector on it.
+key that appears in more than one of them; the panel previews the YAML the insert will produce.
+**Enter** inserts it into `values.yaml`, selects the new node and opens the inspector on it.
 
 Starter bodies come from the schema's own examples, with a few corrections so a from-scratch
 document renders: a Deployment gets a container port (so its auto-created Service appears), an
 Ingress and an HTTPRoute get `<name>.example.com` as their host, a Service gets a selector
-matching its own name. The same corrections apply to every *Add* chip and every "add item" button,
+matching its own name. The hostname correction applies to every *Add* chip and every "add item" button,
 not just the launcher — adding a hostname anywhere writes a `host`, never a bare `subdomain` that
 needs a global domain you have not set. A second container or a second Service port gets a port name
 and number no sibling already uses, so the rendered Service never carries a duplicate. References
