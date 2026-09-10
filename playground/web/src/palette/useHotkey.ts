@@ -7,12 +7,17 @@ export function isTypingTarget(t: EventTarget | null): boolean {
   return t instanceof Element && t.closest(TYPING) !== null;
 }
 
-/** A bare single-key shortcut (spec §3 hotkey guard). React Flow binds no letter keys, so the canvas itself is safe. */
+/**
+ * A bare single-key shortcut (spec §3 hotkey guard). React Flow binds no letter keys, so the canvas
+ * itself is safe. `shiftKey` counts as a modifier — a capital `A` is someone typing — and a key
+ * press that merely commits an IME composition is never a shortcut.
+ */
 export function useHotkey(key: string, handler: () => void, enabled = true): void {
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      if (e.isComposing) return;
       if (e.key.toLowerCase() !== key) return;
       if (isTypingTarget(e.target)) return;
       e.preventDefault();

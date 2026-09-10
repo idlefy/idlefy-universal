@@ -23,6 +23,8 @@ describe('useHotkey', () => {
     fireEvent.keyDown(document.body, { key: 'a', ctrlKey: true });
     fireEvent.keyDown(document.body, { key: 'a', metaKey: true });
     fireEvent.keyDown(document.body, { key: 'a', altKey: true });
+    fireEvent.keyDown(document.body, { key: 'A', shiftKey: true });   // a capital A is typing, not a shortcut
+    fireEvent.keyDown(document.body, { key: 'a', isComposing: true }); // an IME commit, not a shortcut
     fireEvent.keyDown(document.body, { key: 'b' });
     fireEvent.keyDown(getByLabelText('i'), { key: 'a' });
     fireEvent.keyDown(getByLabelText('s'), { key: 'a' });
