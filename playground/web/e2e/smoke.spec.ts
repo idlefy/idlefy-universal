@@ -17,9 +17,8 @@ test('renders, errors, recovers', async ({ page }) => {
   await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
   await openYaml(page);
   await page.getByLabel('examples').selectOption('05-gateway-api');
-  // examples/05: Deployment web, Service web, HTTPRoute web + external Gateway eg + dangling external
-  // Service demo-web (the example's backendRef does not match its own Service) + release node = 6.
-  await expect(page.locator('.rnode')).toHaveCount(6, { timeout: 15_000 });
+  // examples/05: Deployment web, Service web, HTTPRoute web + external Gateway eg + release node = 5.
+  await expect(page.locator('.rnode')).toHaveCount(5, { timeout: 15_000 });
   // Monaco's textarea is an input proxy, not the document: fill() would insert at the caret.
   // keyboard.insertText does replace the selection, but Chromium's CDP-level insertText is
   // processed by Monaco's textarea input controller as if each line were typed with Enter:

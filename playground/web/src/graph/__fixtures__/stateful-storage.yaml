@@ -215,8 +215,8 @@ metadata:
     app.kubernetes.io/instance: demo
     app.kubernetes.io/component: app-secrets
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-10"
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
 type: Opaque
 data:
   DB_PASSWORD: czNjcjN0
@@ -233,8 +233,8 @@ metadata:
     app.kubernetes.io/instance: demo
     app.kubernetes.io/component: app-config
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-10"
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
 data:
   LOG_LEVEL: "info"
 ---

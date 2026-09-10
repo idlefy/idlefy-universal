@@ -487,7 +487,7 @@ metadata:
     app.kubernetes.io/instance: demo
     app.kubernetes.io/component: app-config
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-10"
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
 data:
   log_format: "json"
