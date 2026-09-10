@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { kindOfSecondary, summaryOf, workloadSummary } from '../src/inspector/summary';
+import { kindOfSecondary, summaryOf, workloadSummary, secretRefUsers } from '../src/inspector/summary';
 import { SECONDARY, type SecondaryId } from '../src/graph/secondary';
 
 // satisfies Record<SecondaryId, true>: a new SecondaryId with no entry here fails to compile,
@@ -37,5 +37,22 @@ describe('secondary summaries', () => {
     expect(workloadSummary('daemonSets', { containers: { main: { image: 'fluentd' } } })).toBe('fluentd');
     expect(workloadSummary('cronJobs', { schedule: '*/5 * * * *' })).toBe('*/5 * * * *');
     expect(workloadSummary('jobs', {})).toBe('no image');
+  });
+});
+
+describe('secretRefUsers', () => {
+  const values = {
+    secretRefs: { db: [{ name: 'PW' }], api: [{ name: 'K' }] },
+    deployments: { web: { containers: { main: { secretRefs: ['db', 'api'] }, side: {} } } },
+    cronJobs: { nightly: { initContainers: { wait: { secretRefs: ['db'] } } } },
+  };
+  it('names every container that lists the group', () => {
+    expect(secretRefUsers(values, 'db')).toEqual(['deployments/web · main', 'cronJobs/nightly · wait']);
+    expect(secretRefUsers(values, 'api')).toEqual(['deployments/web · main']);
+    expect(secretRefUsers(values, 'unused')).toEqual([]);
+  });
+  it('survives a partially typed document', () => {
+    expect(secretRefUsers({ deployments: 'nonsense' } as any, 'db')).toEqual([]);
+    expect(secretRefUsers({}, 'db')).toEqual([]);
   });
 });

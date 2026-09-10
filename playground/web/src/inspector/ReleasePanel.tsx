@@ -9,6 +9,7 @@ import { OWNED_FLAGS } from '../graph/secondary';
 import { RELEASE_TITLES, hiddenTitle } from './sections';
 import { HiddenNote } from './HiddenNote';
 import { isObj } from '../model/guards';
+import { secretRefUsers } from './summary';
 
 const RELEASE_SECTIONS = Object.keys(RELEASE_TITLES);
 const hide = (x: string) => OWNED_FLAGS.has(x);
@@ -27,7 +28,14 @@ export function ReleasePanel(p: {
     const node = resolve(p.root, p.root.properties[k]);
     const widget = classify(p.root, node);
     if (widget.kind === 'object') return <FieldList root={p.root} node={node} basePath={[k]} value={all[k]} tier={p.tier} onEdit={p.onEdit} hide={hide} />;
-    return <FieldRow root={p.root} field={makeField(p.root, k, [k], node, all[k])} tier={p.tier} onEdit={p.onEdit} bare />;
+    // secretRefs is the one release block whose removal can break another resource: a container that
+    // still lists the group renders "referenced secretRef '<g>' not found in .Values.secretRefs",
+    // and removing the *last* group skips the chart's check entirely and dangles silently.
+    const blockedRemove = k !== 'secretRefs' ? undefined : (group: string) => {
+      const users = secretRefUsers(all, group);
+      return users.length ? `used by ${users.join(', ')} — remove that reference first` : undefined;
+    };
+    return <FieldRow root={p.root} field={makeField(p.root, k, [k], node, all[k])} tier={p.tier} onEdit={p.onEdit} bare blockedRemove={blockedRemove} />;
   };
 
   const hidden: string[] = [];

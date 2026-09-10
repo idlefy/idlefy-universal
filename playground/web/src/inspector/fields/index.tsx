@@ -5,7 +5,12 @@ import type { SchemaNode } from '../schema';
 import { buildFields, chipValue, humanize, type Field } from '../form';
 import { FieldRow } from './FieldRow';
 
-export type FieldProps = { root: SchemaNode; field: Field; tier: Tier; onEdit: (ops: EditOp[]) => void };
+export type FieldProps = {
+  root: SchemaNode; field: Field; tier: Tier; onEdit: (ops: EditOp[]) => void;
+  /** Only `MapOfListsField` reads this. The Release panel is the one caller that can see the whole
+   *  document, so it is the one that can say whether a `secretRefs` group is still referenced. */
+  blockedRemove?: (key: string) => string | undefined;
+};
 export { FieldRow };
 
 /** More chips than this collapse behind a "+N more" chip, so a section with many optional keys stays a row, not a wall. */

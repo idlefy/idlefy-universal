@@ -10,7 +10,7 @@ import { ObjectListField } from './ObjectListField';
 import { YamlField } from './YamlField';
 
 /** A map whose values are object lists — today only `secretRefs`: one card per key. */
-export function MapOfListsField({ root, field, tier, onEdit }: FieldProps): ReactElement {
+export function MapOfListsField({ root, field, tier, onEdit, blockedRemove }: FieldProps): ReactElement {
   const id = field.path.join('.');
   const r = resolve(root, field.schema);
   const listNode = r.additionalProperties as SchemaNode;
@@ -24,9 +24,12 @@ export function MapOfListsField({ root, field, tier, onEdit }: FieldProps): Reac
         const items = Array.isArray(v) ? v : [];
         // `tier` on a Field means its x-ui-tier; the list itself is always shown once its key exists
         const sub = makeField(root, key, [...field.path, key], listNode, v, { present: true, tier: 'basic' });
+        const why = blockedRemove?.(key);
         return (
           <Card key={key} code={key} aside={<span className="muted">{plural(items.length, label.toLowerCase())}</span>}
-            removeLabel={`remove ${id}.${key}`} removeTitle="Remove this group" removeText="×" onRemove={() => onEdit([{ op: 'delete', path: [...field.path, key] }])}>
+            removeLabel={`remove ${id}.${key}`} removeDisabled={!!why}
+            removeTitle={why ?? 'Remove this group'} removeText="×"
+            onRemove={() => { if (!why) onEdit([{ op: 'delete', path: [...field.path, key] }]); }}>
             <div className="card-body">{Array.isArray(v) ? <ObjectListField root={root} field={sub} tier={tier} onEdit={onEdit} itemLabel={label} /> : <YamlField root={root} field={sub} tier={tier} onEdit={onEdit} />}</div>
           </Card>
         );

@@ -44,3 +44,29 @@ export function workloadSummary(kindKey: string, cfg: Record<string, any>): stri
   if (kindKey === 'jobs' || kindKey === 'daemonSets') return image;
   return `${plural(typeof cfg.replicas === 'number' ? cfg.replicas : 1, 'replica')} · ${image}`;
 }
+
+/**
+ * Every `<mapKey>/<name> · <container>` whose `secretRefs` list names `group`, in document order.
+ * `_validation.tpl` fails a container that references a group `.Values.secretRefs` does not hold —
+ * and skips the check entirely when `secretRefs` is empty, so removing the *last* group leaves a
+ * dangling reference that renders "successfully". Tolerates any shape: this walks the live document.
+ */
+export function secretRefUsers(values: Record<string, unknown>, group: string): string[] {
+  const out: string[] = [];
+  for (const mapKey of ['deployments', 'statefulSets', 'daemonSets', 'jobs', 'cronJobs']) {
+    const entries = values[mapKey];
+    if (!isObj(entries)) continue;
+    for (const [name, cfg] of Object.entries(entries)) {
+      if (!isObj(cfg)) continue;
+      for (const listKey of ['containers', 'initContainers']) {
+        const containers = (cfg as Record<string, unknown>)[listKey];
+        if (!isObj(containers)) continue;
+        for (const [cn, c] of Object.entries(containers)) {
+          const refs = isObj(c) ? (c as Record<string, unknown>).secretRefs : undefined;
+          if (Array.isArray(refs) && refs.includes(group)) out.push(`${mapKey}/${name} · ${cn}`);
+        }
+      }
+    }
+  }
+  return out;
+}
