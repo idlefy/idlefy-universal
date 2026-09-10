@@ -115,6 +115,44 @@ tests:
           path: spec.hostnames[0]
           value: web-app.example.org
 
+  - it: should render a match with no path (headers-only match) with the default path and headers preserved
+    set:
+      generic:
+        ingressesGeneral:
+          domain: "example.org"
+        httpRoutesGeneral:
+          parentRefs:
+            - name: gw
+              namespace: gw-ns
+      deployments:
+        my-app:
+          autoCreateHttpRoute: true
+          containers:
+            main:
+              image: nginx
+              imageTag: latest
+              ports:
+                http:
+                  containerPort: 8080
+          httpRoute:
+            hostnames:
+              - subdomain: my-app
+            rules:
+              - matches:
+                  - headers:
+                      - name: x-env
+                        value: staging
+    asserts:
+      - equal:
+          path: spec.rules[0].matches[0].path.type
+          value: PathPrefix
+      - equal:
+          path: spec.rules[0].matches[0].path.value
+          value: /
+      - equal:
+          path: spec.rules[0].matches[0].headers[0].name
+          value: x-env
+
   - it: should fail clearly when autoCreateHttpRoute has no hostnames and no global domain
     template: httproute.yaml
     set:

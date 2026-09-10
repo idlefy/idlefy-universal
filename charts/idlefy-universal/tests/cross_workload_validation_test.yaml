@@ -128,3 +128,41 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "Deployment web: containers must not be empty — at least one container is required"
+
+  - it: fails a daemonSet whose containers map is empty
+    set:
+      daemonSets:
+        agent:
+          containers: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "DaemonSet agent: containers must not be empty — at least one container is required"
+
+  - it: fails a job whose containers map is empty
+    set:
+      jobs:
+        worker:
+          containers: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "Job worker: containers must not be empty — at least one container is required"
+
+  - it: fails a cronJob whose containers map is empty
+    set:
+      cronJobs:
+        sweeper:
+          schedule: "*/5 * * * *"
+          containers: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "CronJob sweeper: containers must not be empty — at least one container is required"
+
+  - it: fails a statefulSet whose containers map is empty
+    set:
+      statefulSets:
+        db:
+          serviceName: db-headless
+          containers: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "StatefulSet db: containers must not be empty — at least one container is required"
