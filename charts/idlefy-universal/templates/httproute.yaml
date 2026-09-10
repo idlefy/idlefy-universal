@@ -22,9 +22,12 @@ spec:
     {{- range $rule := $defaultedRoute.rules }}
     - matches:
         {{- range $match := $rule.matches }}
+        {{- /* HttpRouteMatch.path is optional (a match can be headers/queryParams/method only);
+               `.path.type` on a nil path is a template error, so default it once, next to the range. */}}
+        {{- $path := $match.path | default dict }}
         - path:
-            type: {{ $match.path.type | default "PathPrefix" }}
-            value: {{ $match.path.value | default "/" }}
+            type: {{ $path.type | default "PathPrefix" }}
+            value: {{ $path.value | default "/" }}
           {{- if $match.headers }}
           headers:
             {{- range $header := $match.headers }}

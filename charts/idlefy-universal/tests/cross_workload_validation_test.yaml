@@ -120,3 +120,11 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "Workload key 'sweeper' appears in multiple top-level keys: deployments, cronJobs. Same-named keys produce colliding component labels."
+  - it: fails a workload whose containers map is empty
+    set:
+      deployments:
+        web:
+          containers: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "Deployment web: containers must not be empty — at least one container is required"

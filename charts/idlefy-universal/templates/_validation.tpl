@@ -541,6 +541,20 @@ Main validation entrypoint
 {{- end -}}
 {{- end -}}
 
+{{/* WL-1: every workload needs at least one container. The schema requires the `containers` key but
+     accepts an empty map, and the pod spec then renders `containers: null`, which the API server
+     rejects while `helm template` reports success. */}}
+{{- $workloadKinds := dict "deployments" "Deployment" "statefulSets" "StatefulSet" "daemonSets" "DaemonSet" "jobs" "Job" "cronJobs" "CronJob" -}}
+{{- range $mapKey, $kindName := $workloadKinds -}}
+{{- range $name, $config := (get $root.Values $mapKey | default dict) -}}
+{{- if $config -}}
+{{- if not $config.containers -}}
+{{- fail (printf "%s %s: containers must not be empty — at least one container is required" $kindName $name) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
 {{/* Deployments validation */}}
 {{- if $root.Values.deployments -}}
 {{- range $deploymentName, $deploymentConfig := $root.Values.deployments -}}
