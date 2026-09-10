@@ -26,6 +26,22 @@ describe('compound widgets', () => {
     // the sole container's remove is disabled — `containers: {}` renders `containers: null`
     expect((screen.getByLabelText('remove deployments.web.containers.main') as HTMLButtonElement).disabled).toBe(true);
   });
+  it('a sole init container stays removable — initContainers is not schema-required', () => {
+    const onEdit = vi.fn();
+    const v = { containers: value.containers, initContainers: { wait: { image: 'busybox', imageTag: '1.36' } } };
+    render(<FieldList root={root} node={dep} basePath={base} value={v} tier="basic" onEdit={onEdit} />);
+    const initRemove = screen.getByLabelText('remove deployments.web.initContainers.wait') as HTMLButtonElement;
+    expect(initRemove.disabled).toBe(false);
+    fireEvent.click(initRemove);
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'initContainers', 'wait'] }]);
+  });
+  it('with two containers, removing one emits delete for just that one', () => {
+    const onEdit = vi.fn();
+    const v = { containers: { main: value.containers.main, sidecar: { image: 'busybox', imageTag: '1.36' } } };
+    render(<FieldList root={root} node={dep} basePath={base} value={v} tier="basic" onEdit={onEdit} />);
+    fireEvent.click(screen.getByLabelText('remove deployments.web.containers.sidecar'));
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'containers', 'sidecar'] }]);
+  });
   it('adds a container with a validated name and the starter value', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} />);

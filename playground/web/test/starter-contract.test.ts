@@ -4,9 +4,10 @@
 // path, and 550 engine renders would cost ~62 s for a check that needs no templates at all.
 import { describe, it, expect } from 'vitest';
 import { root } from './integrity';
-import { classify, resolve, type SchemaNode } from '../src/inspector/schema';
-import { starterValue } from '../src/inspector/form';
+import { classify, resolve, isObjectListItem, type SchemaNode } from '../src/inspector/schema';
+import { starterValue, appendItemValue, containerStarterValue } from '../src/inspector/form';
 import { PATTERN_STARTERS, LEAF_STARTERS, leafStarters } from '../src/inspector/starters';
+import { isObj } from '../src/model/guards';
 
 /** JSON-Schema subset this chart's leaf nodes actually use. Returns one message per violation. */
 function violations(value: unknown, node: SchemaNode, where: string): string[] {
@@ -36,6 +37,26 @@ function violations(value: unknown, node: SchemaNode, where: string): string[] {
   // "exactly one of these keys" shape is the exclusivity rule, checked by test/inspector-form.test.ts.
   if (Array.isArray(alts) && alts.length > 0 && alts.every((a) => a.type)) {
     if (!alts.some((a) => violations(value, a, where).length === 0)) out.push(`${where}: ${JSON.stringify(value)} matches no oneOf/anyOf branch`);
+  }
+  return out;
+}
+
+/** `violations` checks one value against one node; a second append's row is only unrenderable
+ *  through a *nested* leaf (`appendItemValue`'s renamed `name`, `containerStarterValue`'s bumped
+ *  `ports.<n>.containerPort`) — so this walks into `value`'s own properties/map entries/array items,
+ *  running `violations` at every level `value` actually reaches into the schema. */
+function deepViolations(value: unknown, node: SchemaNode, where: string, depth = 0): string[] {
+  const out = violations(value, node, where);
+  if (depth > 4) return out;
+  const r = resolve(root, node);
+  if (isObj(value) && isObj(r.properties)) {
+    for (const [k, propSchema] of Object.entries(r.properties as Record<string, SchemaNode>)) {
+      if (k in (value as Record<string, unknown>)) out.push(...deepViolations((value as Record<string, unknown>)[k], propSchema, `${where}.${k}`, depth + 1));
+    }
+  } else if (isObj(value) && isObj(r.additionalProperties)) {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out.push(...deepViolations(v, r.additionalProperties as SchemaNode, `${where}.${k}`, depth + 1));
+  } else if (Array.isArray(value) && isObj(r.items)) {
+    value.forEach((v, i) => out.push(...deepViolations(v, r.items as SchemaNode, `${where}[${i}]`, depth + 1)));
   }
   return out;
 }
@@ -87,5 +108,33 @@ describe('starter contract', () => {
     for (const [defName, def] of Object.entries(root.$defs as Record<string, SchemaNode>)) walk(def, defName);
     expect([...missing]).toEqual([]);
     expect(missingLeaf).toEqual([]);
+  });
+
+  it('appendItemValue never emits a second row its own item schema rejects', () => {
+    // A first row already exists (starterValue(item)) — appendItemValue is the *second* "add item",
+    // the one that has to deconflict against something. This is what would have caught the
+    // pattern-violating rename (EnvVar.name -> 'LOG_LEVEL-2', which fails
+    // `^[A-Za-z_][A-Za-z0-9_]*$`) before it shipped.
+    const bad: string[] = [];
+    for (const [defName, def] of Object.entries(root.$defs as Record<string, SchemaNode>)) {
+      const r = resolve(root, def);
+      if (!r.properties) continue;
+      for (const [key, propSchema] of Object.entries(r.properties as Record<string, SchemaNode>)) {
+        const p = resolve(root, propSchema);
+        if (p.type !== 'array' || !isObjectListItem(root, p.items)) continue;
+        const item = p.items as SchemaNode;
+        const existing = [starterValue(root, item)];
+        const appended = appendItemValue(root, item, existing);
+        bad.push(...deepViolations(appended, item, `${defName}.${key}[1]`));
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it('containerStarterValue never emits a second container its own schema rejects', () => {
+    const item = root.$defs.ContainerSpec as SchemaNode;
+    const siblings = { main: starterValue(root, item) };
+    const appended = containerStarterValue(root, item, siblings as Record<string, unknown>);
+    expect(deepViolations(appended, item, 'ContainerSpec[sidecar]')).toEqual([]);
   });
 });

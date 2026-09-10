@@ -314,10 +314,44 @@ export function leafEditOps(
   return [{ op: 'set', path, value }, ...evictions];
 }
 
+/** Identifying leaves that name or point at something else rather than owning an identity: renaming
+ *  (or bumping) them silently redirects the reference instead of protecting the user from a
+ *  collision. `HostAlias.ip` is a lookup key, not a name the row owns; `VolumeMount.name` names a
+ *  volume the deployment already declared, and `HttpRouteBackendRef.name`/`.port` name an existing
+ *  Service and its port — a renamed volume or a bumped backend port would misroute silently. A
+ *  duplicate `mountPath` or `port` on these rows stays as a byte copy, same as before this fix: the
+ *  duplicate renders, and it is the user's own to notice and fix.
+ */
+const REFERENCE_ID_KEYS = new Set(['ip']);
+const REFERENCE_NAME_REFS = new Set(['VolumeMount', 'HttpRouteBackendRef']);
+/** `x-ref-name`s whose numeric `port` is a leaf `appendItemValue` owns and may bump — everything
+ *  else with a `port` (`HttpRouteBackendRef`) is a reference to a port that already exists elsewhere. */
+const OWNED_PORT_REFS = new Set(['ServicePort']);
+
+/** Whether `value` still satisfies a leaf schema's `pattern`/`minLength`/`maxLength` — the checks
+ *  `appendItemValue` needs before it can hand back a renamed identifying leaf. */
+function fitsLeaf(value: string, schema: SchemaNode | undefined): boolean {
+  if (!schema) return true;
+  if (typeof schema.pattern === 'string' && !new RegExp(schema.pattern).test(value)) return false;
+  if (typeof schema.minLength === 'number' && value.length < schema.minLength) return false;
+  if (typeof schema.maxLength === 'number' && value.length > schema.maxLength) return false;
+  return true;
+}
+
+/** Mirrors `uniqueName`'s loop, but joins with `_` — for a pattern like EnvVar's/SecretRefEntry's
+ *  (`^[A-Za-z_][A-Za-z0-9_]*$`) that a `-2` suffix cannot satisfy. */
+function uniqueNameUnderscore(base: string, existing: readonly string[]): string {
+  if (!existing.includes(base)) return base;
+  for (let i = 2; ; i++) { const n = `${base}_${i}`; if (!existing.includes(n)) return n; }
+}
+
 /**
  * The value one "add item" writes into an object list. `starterValue` returns the item schema's own
  * example, so a second Service port used to be a byte copy of the first — same `name`, same `port` —
- * which renders happily and Kubernetes then rejects. The identifying leaf gets `uniqueName`, and a
+ * which renders happily and Kubernetes then rejects. The identifying leaf gets a pattern-safe unique
+ * name (dash suffix first, then underscore, then the byte copy if neither fits the leaf's own
+ * pattern/length — an EnvVar/SecretRefEntry `name` rejects `-2` but accepts `_2`), and — only for a
+ * `port` the item actually owns (`ServicePort`, not a lookup like `HttpRouteBackendRef.port`) — a
  * numeric `port` moves to the first number the list does not already use.
  */
 export function appendItemValue(root: SchemaNode, item: SchemaNode, items: readonly unknown[]): unknown {
@@ -327,14 +361,24 @@ export function appendItemValue(root: SchemaNode, item: SchemaNode, items: reado
   const rows = items.filter(isObj) as Record<string, unknown>[];
   const shape = itemShape(root, item);
   const id = shape.identifying;
+  const r = resolve(root, item);
+  const refName = String(r['x-ref-name'] ?? '');
   // `type` is an ID_KEY, so an HpaMetric row's identifying leaf is its enum — renaming `Resource`
   // to `Resource-2` makes the item schema-invalid. Only a free-text identifier is uniquified.
-  const idSchema = id ? resolve(root, (resolve(root, item).properties as Record<string, SchemaNode>)[id]) : undefined;
-  if (id && typeof out[id] === 'string' && !Array.isArray(idSchema?.enum)) {
-    out[id] = uniqueName(out[id] as string, rows.map((r) => r[id]).filter((x): x is string => typeof x === 'string'));
+  const idSchema = id ? resolve(root, (r.properties as Record<string, SchemaNode>)[id]) : undefined;
+  const skipRename = id !== null && (REFERENCE_ID_KEYS.has(id) || (id === 'name' && REFERENCE_NAME_REFS.has(refName)));
+  if (id && typeof out[id] === 'string' && !Array.isArray(idSchema?.enum) && !skipRename) {
+    const base = out[id] as string;
+    const existing = rows.map((row) => row[id]).filter((x): x is string => typeof x === 'string');
+    const dash = uniqueName(base, existing);
+    if (fitsLeaf(dash, idSchema)) out[id] = dash;
+    else {
+      const underscore = uniqueNameUnderscore(base, existing);
+      out[id] = fitsLeaf(underscore, idSchema) ? underscore : base;
+    }
   }
-  if (typeof out.port === 'number') {
-    out.port = nextFreeNumber(out.port, new Set(rows.map((r) => r.port).filter((x): x is number => typeof x === 'number')));
+  if (typeof out.port === 'number' && OWNED_PORT_REFS.has(refName)) {
+    out.port = nextFreeNumber(out.port, new Set(rows.map((row) => row.port).filter((x): x is number => typeof x === 'number')));
   }
   return out;
 }

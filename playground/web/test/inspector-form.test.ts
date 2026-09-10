@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import schema from '../src/chart-bundle/schema.json';
-import { buildFields, starterValue, firstSentence, chipValue, itemShape, itemLabelOf, exclusiveKeys, evictOps, leafEditOps, chartRequired } from '../src/inspector/form';
+import { buildFields, starterValue, firstSentence, chipValue, itemShape, itemLabelOf, exclusiveKeys, evictOps, leafEditOps, chartRequired, appendItemValue } from '../src/inspector/form';
 import { classify, schemaAt, resolve } from '../src/inspector/schema';
 
 const root = schema as any;
@@ -206,6 +206,38 @@ describe('itemShape', () => {
     expect(itemLabelOf('hosts')).toBe('Host');
     expect(itemLabelOf('tolerations')).toBe('Toleration');
     expect(itemLabelOf('whatever')).toBe('Item');
+  });
+});
+
+describe('appendItemValue', () => {
+  it('a pattern-constrained identifying leaf falls back to an underscore suffix (EnvVar.name)', () => {
+    const item = resolve(root, schemaAt(root, ['deployments', 'web', 'containers', 'main', 'env'])!).items;
+    const appended = appendItemValue(root, item, [{ name: 'LOG_LEVEL', value: 'info' }]) as Record<string, unknown>;
+    // a dash suffix ('LOG_LEVEL-2') would fail EnvVar.name's `^[A-Za-z_][A-Za-z0-9_]*$` pattern
+    expect(appended.name).toBe('LOG_LEVEL_2');
+  });
+  it('a plain DNS-style identifying leaf keeps the dash suffix (ServicePort.name)', () => {
+    const item = resolve(root, schemaAt(root, ['services', 'x', 'ports'])!).items;
+    const appended = appendItemValue(root, item, [{ name: 'http', port: 80, targetPort: 8080 }]) as Record<string, unknown>;
+    expect(appended.name).toBe('http-2');
+    // ServicePort.port is an owned identity — bumped off the first row's port
+    expect(appended.port).toBe(81);
+  });
+  it('HostAlias.ip is a lookup key, not an owned identity — left as a byte copy', () => {
+    const item = resolve(root, schemaAt(root, ['deployments', 'web', 'hostAliases'])!).items;
+    const appended = appendItemValue(root, item, [{ ip: '10.0.0.1', hostnames: ['a.internal'] }]) as Record<string, unknown>;
+    expect(appended.ip).toBe('10.0.0.1');
+  });
+  it('HttpRouteBackendRef.name/.port reference an existing Service — left as a byte copy', () => {
+    const item = resolve(root, schemaAt(root, ['httpRoutes', 'x', 'rules', 0, 'backendRefs'])!).items;
+    const appended = appendItemValue(root, item, [{ name: 'api-stable', port: 8080, weight: 90 }]) as Record<string, unknown>;
+    expect(appended.name).toBe('api-stable');
+    expect(appended.port).toBe(8080);
+  });
+  it('VolumeMount.name references an existing volume — left as a byte copy', () => {
+    const item = resolve(root, schemaAt(root, ['deployments', 'web', 'containers', 'main', 'volumeMounts'])!).items;
+    const appended = appendItemValue(root, item, [{ name: 'config-volume', mountPath: '/etc/app', readOnly: true }]) as Record<string, unknown>;
+    expect(appended.name).toBe('config-volume');
   });
 });
 

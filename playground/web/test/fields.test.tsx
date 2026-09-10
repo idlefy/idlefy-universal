@@ -325,4 +325,14 @@ describe('field widgets', () => {
     render(<FieldList root={root} node={dep} basePath={base} value={two} tier="basic" onEdit={onEdit} />);
     expect((screen.getByLabelText('remove deployments.web.containers.main') as HTMLButtonElement).disabled).toBe(false);
   });
+  it('list: add writes a schema-valid starter, not an empty string (HostAlias.hostnames[])', () => {
+    const onEdit = vi.fn();
+    const value = { hostAliases: [{ ip: '10.0.0.1', hostnames: ['legacy-db.internal'] }] };
+    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="advanced" onEdit={onEdit} />);
+    fireEvent.click(screen.getByLabelText('expand deployments.web.hostAliases.0'));
+    fireEvent.click(screen.getByLabelText('add deployments.web.hostAliases.0.hostnames'));
+    // hostnames[] has `minLength: 1` and no example of its own — '' would be schema-invalid;
+    // LEAF_STARTERS answers it. An enum list (unaffected by this fix) still starts on its first option.
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'hostAliases', 0, 'hostnames', 1], value: 'legacy-db.internal' }]);
+  });
 });

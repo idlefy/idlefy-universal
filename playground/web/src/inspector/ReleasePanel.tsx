@@ -38,6 +38,20 @@ export function ReleasePanel(p: {
     return <FieldRow root={p.root} field={makeField(p.root, k, [k], node, all[k])} tier={p.tier} onEdit={p.onEdit} bare blockedRemove={blockedRemove} />;
   };
 
+  // The section-level × deletes the whole `secretRefs` map in one click — every group, regardless of
+  // whether a container still names it — bypassing the per-card guard entirely. It is blocked by the
+  // same reasoning as the card's own ×: the first group any container still references, named the
+  // same way (`secretRefUsers`, joined with ", ").
+  const secretRefsBlockedReason = (): string | undefined => {
+    const groups = all.secretRefs;
+    if (!isObj(groups)) return undefined;
+    for (const group of Object.keys(groups)) {
+      const users = secretRefUsers(all, group);
+      if (users.length) return `used by ${users.join(', ')} — remove that reference first`;
+    }
+    return undefined;
+  };
+
   const hidden: string[] = [];
   const secs = RELEASE_SECTIONS.map((k) => {
     const node = resolve(p.root, p.root.properties[k]);
@@ -48,11 +62,16 @@ export function ReleasePanel(p: {
       if (name !== null) { if (name) hidden.push(name); return null; }
     }
     const bareBlock = widget.kind !== 'object' && all[k] !== undefined;
+    const blockedReason = k === 'secretRefs' ? secretRefsBlockedReason() : undefined;
     return (
       <div key={k} className="sec">
         <h3>
           {RELEASE_TITLES[k]} <span className="k">{k}</span>
-          {bareBlock && <button type="button" className="clear more" aria-label={`clear ${k}`} title="Remove this block from values.yaml" onClick={() => p.onEdit([{ op: 'delete', path: [k] }])}>×</button>}
+          {bareBlock && (
+            <button type="button" className="clear more" aria-label={`clear ${k}`} disabled={!!blockedReason}
+              title={blockedReason ?? 'Remove this block from values.yaml'}
+              onClick={() => { if (!blockedReason) p.onEdit([{ op: 'delete', path: [k] }]); }}>×</button>
+          )}
         </h3>
         {releaseSection(k)}
       </div>

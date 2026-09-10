@@ -18,15 +18,18 @@ export function ContainersField({ root, field, tier, onEdit }: FieldProps): Reac
   const pattern = (field.widget as { keyPattern?: string }).keyPattern ?? NAME.source;
   const containers = isObj<Record<string, Record<string, unknown>>>(field.value) ? field.value : {};
   const names = Object.keys(containers);
+  // `containers` is schema-required — emptying it leaves `containers: {}`, which renders `containers:
+  // null`. `initContainers` is not: a workload with none is normal, so its sole entry stays removable.
+  const soleAndRequired = names.length === 1 && field.required;
   return (
     <div className="containers">
       {names.map((n) => {
         const base = [...field.path, n];
         const c = containers[n] ?? {};
         return (
-          <Card key={n} code={n} removeLabel={`remove ${id}.${n}`} removeDisabled={names.length === 1}
-            removeTitle={names.length === 1 ? 'A workload needs at least one container' : 'Remove this container'}
-            removeText="remove" onRemove={() => { if (names.length > 1) onEdit([{ op: 'delete', path: base }]); }}>
+          <Card key={n} code={n} removeLabel={`remove ${id}.${n}`} removeDisabled={soleAndRequired}
+            removeTitle={soleAndRequired ? 'A workload needs at least one container' : 'Remove this container'}
+            removeText="remove" onRemove={() => { if (!soleAndRequired) onEdit([{ op: 'delete', path: base }]); }}>
             <ImageField base={base} image={c.image as string | undefined} imageTag={c.imageTag as string | undefined} onEdit={onEdit} />
             <FieldList root={root} node={item} basePath={base} value={c} tier={tier} onEdit={onEdit} hide={(x) => x === 'image' || x === 'imageTag'} />
           </Card>
