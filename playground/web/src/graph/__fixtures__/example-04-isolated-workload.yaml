@@ -5,7 +5,7 @@ kind: NetworkPolicy
 metadata:
   name: controller
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: controller
     app.kubernetes.io/instance: demo
@@ -48,7 +48,7 @@ kind: ServiceAccount
 metadata:
   name: controller
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: controller
     app.kubernetes.io/instance: demo
@@ -60,7 +60,7 @@ kind: Role
 metadata:
   name: controller
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: controller
     app.kubernetes.io/instance: demo
@@ -81,7 +81,7 @@ kind: RoleBinding
 metadata:
   name: controller
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: controller
     app.kubernetes.io/instance: demo
@@ -101,7 +101,7 @@ kind: Deployment
 metadata:
   name: controller
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: controller
     app.kubernetes.io/instance: demo
@@ -116,7 +116,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.2.0
+        helm.sh/chart: idlefy-universal-1.2.1
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: controller
         app.kubernetes.io/instance: demo

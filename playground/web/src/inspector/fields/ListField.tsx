@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { YamlField } from './YamlField';
-import { parseScalarText } from '../form';
+import { parseScalarText, starterValue } from '../form';
+import { resolve, type SchemaNode } from '../schema';
 import { isScalar } from '../../model/guards';
 
 /** One row per item. Add appends an item and focuses it; removing the last item deletes the key. */
 export function ListField(props: FieldProps): ReactElement {
-  const { field, onEdit } = props;
+  const { root, field, onEdit } = props;
   const id = field.path.join('.');
   const w = field.widget as { enum?: string[] };
+  const item = resolve(root, field.schema).items as SchemaNode;
   const items = Array.isArray(field.value) ? field.value.map(String) : [];
   const [focusIdx, setFocusIdx] = useState<number | null>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -19,10 +21,19 @@ export function ListField(props: FieldProps): ReactElement {
     box.current?.querySelector<HTMLElement>(`[data-idx="${focusIdx}"]`)?.focus();
     setFocusIdx(null);
   }, [focusIdx, items.length]);
-  // appending sets the next index rather than rewriting the whole array, so flow style and untouched item types survive
-  const append = (v: string) => onEdit([{ op: 'set', path: [...field.path, items.length], value: v }]);
-  // deleting one index splices the sequence in place (flow style survives); deleting the last item removes the key
-  const remove = (i: number) => onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
+  // appending sets the next index rather than rewriting the whole array, so flow style and untouched item
+  // types survive. The starter comes from `starterValue`, not a bare `''`: a pattern-/minLength-constrained
+  // leaf (`HostAlias.hostnames[]`) rejects '' outright, and an enum list must still start on its first
+  // option — `starterValue` already answers both (LEAF_STARTERS / `r.enum[0]`).
+  const append = () => onEdit([{ op: 'set', path: [...field.path, items.length], value: starterValue(root, item) }]);
+  // deleting one index splices the sequence in place (flow style survives); deleting the last item removes
+  // the key — which a locked list (schema-required or chart-required) cannot survive. Mirrors
+  // ObjectListField's `lastLocked`.
+  const lastLocked = items.length === 1 && field.locked;
+  const remove = (i: number) => {
+    if (lastLocked) return;
+    onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
+  };
   const setOne = (i: number, v: string) => {
     // preserve a numeric item's type when the edited text still parses as a number. parseScalarText only
     // accepts the canonical `-?\d+(\.\d+)?` shape, so a non-canonical numeral (`1e3`, ` 5`, `.5`) falls
@@ -45,11 +56,11 @@ export function ListField(props: FieldProps): ReactElement {
           ) : (
             <input type="text" className="in" data-idx={i} aria-label={`${id}.${i}`} value={v} onChange={(e) => setOne(i, e.target.value)} />
           )}
-          <button type="button" className="clear" aria-label={`remove ${id}.${i}`} onClick={() => remove(i)}>×</button>
+          <button type="button" className="clear" aria-label={`remove ${id}.${i}`} disabled={lastLocked} title={lastLocked ? 'This list must keep at least one entry' : undefined} onClick={() => remove(i)}>×</button>
         </div>
       ))}
       <div className="add">
-        <button type="button" className="chip" aria-label={`add ${id}`} onClick={() => { append(w.enum ? w.enum[0] : ''); setFocusIdx(items.length); }}>Item</button>
+        <button type="button" className="chip" aria-label={`add ${id}`} onClick={() => { append(); setFocusIdx(items.length); }}>Item</button>
       </div>
     </div>
   );

@@ -7,10 +7,12 @@
   --mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --r: 7px; --rail: 30px; --handle: 7px;
   --banner-err-bg: #fee2e2; --banner-err-fg: #7f1d1d; --banner-warn-bg: #fef3c7; --banner-warn-fg: #78350f;
+  --shadow: 0 1px 2px rgba(23,25,31,.08), 0 0 0 1px rgba(23,25,31,.06); --pop: 0 12px 32px rgba(23,25,31,.16), 0 0 0 1px rgba(23,25,31,.06);
 }
 @media (prefers-color-scheme: dark) {
   :root { --ground: #101216; --panel: #1a1d24; --panel-2: #20242c; --ink: #e8eaef; --ink-2: #b8bdc9; --muted: #858c9b; --line: #2a2f39; --line-2: #3a4050; --accent: #7ba3f5; --accent-soft: #24345a;
-    --banner-err-bg: #4c1116; --banner-err-fg: #fca5a5; --banner-warn-bg: #4a3105; --banner-warn-fg: #fcd34d; }
+    --banner-err-bg: #4c1116; --banner-err-fg: #fca5a5; --banner-warn-bg: #4a3105; --banner-warn-fg: #fcd34d;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(0,0,0,.35); --pop: 0 12px 32px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.4); }
 }
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -27,6 +29,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .app-shell > header { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .app-shell > header .status { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 12px; }
 .app-shell > header .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 4px; }
+.app-shell > header .dot.bad { background: var(--err); }
 .app-shell > header a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line-2); }
 .pane-buttons { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--r); overflow: hidden; }
 .pane-buttons button { height: 22px; padding: 0 9px; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
@@ -47,10 +50,15 @@ code { font-family: var(--mono); font-size: 12px; }
 .rail-text { writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--mono); font-size: 12px; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .icon-btn { width: 28px; height: 28px; border: 0; border-radius: var(--r); background: transparent; color: var(--muted); display: grid; place-items: center; font-size: 14px; }
 .icon-btn:hover { background: var(--panel-2); color: var(--ink); }
+.icon-btn.danger:hover:not(:disabled) { background: var(--banner-err-bg); color: var(--banner-err-fg); }
+.icon-btn:disabled { opacity: .45; cursor: default; }
 .btn { height: 30px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--panel); color: var(--ink-2); white-space: nowrap; font-weight: 500; }
 .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .btn:disabled { opacity: .5; cursor: default; }
 .btn.small { height: 26px; font-size: 12px; }
+.btn.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+.btn.primary:hover:not(:disabled) { color: #fff; filter: brightness(1.08); }
+@media (prefers-color-scheme: dark) { .btn.primary, .btn.primary:hover:not(:disabled) { color: #10131a; } }   /* white on the dark accent (#7ba3f5) is ~2.5:1 */
 
 /* ---------- editor pane ---------- */
 .toolbar { border-bottom: 1px solid var(--line); background: var(--panel-2); }
@@ -59,6 +67,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .toolbar-row label { display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .toolbar input { height: 24px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--panel); font-family: var(--mono); font-size: 12px; }
 .toolbar .examples { flex: 1; min-width: 0; max-width: 100%; height: 28px; padding: 0 6px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--panel); text-overflow: ellipsis; }
+.toolbar input.invalid { border-color: var(--err); }
 .editor { flex: 1; min-height: 200px; }
 .editor .sel-block { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .editor .sel-head { background: var(--accent-soft); }
@@ -73,7 +82,7 @@ code { font-family: var(--mono); font-size: 12px; }
 .canvas.stale { opacity: .4; }
 .canvas-empty { display: grid; place-items: center; height: 100%; color: var(--muted); }
 .canvas-empty.overlay { position: absolute; inset: 0; pointer-events: none; }
-.canvas-error { position: absolute; left: 12px; top: 12px; z-index: 5; padding: 6px 10px; border: 1px solid var(--err); border-radius: 6px; background: var(--panel); color: var(--err); font-size: 12px; }
+.canvas-error { position: absolute; left: 12px; top: 52px; z-index: 5; padding: 6px 10px; border: 1px solid var(--err); border-radius: 6px; background: var(--panel); color: var(--err); font-size: 12px; }
 .rnode { display: flex; align-items: center; gap: 8px; width: 178px; height: 48px; padding: 0 8px 0 6px; border: 1.5px solid var(--fam); border-radius: 8px; background: var(--panel); color: var(--ink); --fam: var(--external); }
 .rnode.external { border-style: dashed; } .rnode.external .kicon { opacity: .6; }
 .rnode.conflict { border-color: var(--warn); box-shadow: 0 0 0 2px var(--warn); }
@@ -260,3 +269,46 @@ code { font-family: var(--mono); font-size: 12px; }
 .mol .card > h4 .muted { font-size: 11.5px; }
 .yaml-collapsed { display: flex; align-items: flex-start; gap: 10px; }
 .yaml-preview { flex: 1; min-width: 0; margin: 0; padding: 6px 9px; border: 1px dashed var(--line-2); border-radius: var(--r); font: 12px/1.5 var(--mono); color: var(--ink-2); white-space: pre-wrap; overflow: hidden; }
+
+/* ---------- palette (Add launcher) ---------- */
+.canvas-wrap { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.add-wrap { position: absolute; left: 12px; top: 12px; z-index: 6; }
+.add-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px 0 8px; border: 1px solid var(--line-2); border-radius: var(--r); background: var(--panel); color: var(--ink); font-weight: 500; box-shadow: var(--shadow); }
+.add-btn:hover:not(:disabled) { border-color: var(--accent); }
+.add-btn:disabled { opacity: .5; cursor: default; }
+.add-btn .plus { color: var(--accent); font-size: 15px; line-height: 1; }
+.add-btn kbd, .keys kbd { display: inline-block; min-width: 16px; padding: 0 4px; border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 4px; background: var(--panel-2); color: var(--muted); font: 10.5px var(--mono); text-align: center; }
+.launcher { position: absolute; left: 0; top: 38px; width: 344px; padding: 8px; border-radius: 12px; background: var(--panel); box-shadow: var(--pop); display: flex; flex-direction: column; max-height: calc(100vh - 200px); }   /* 200px ≈ header + one or two banners + the button row, measured against .pane's overflow:hidden */
+.launcher .search { height: 32px; font: 13px var(--sans); }
+.launcher .list { flex: 1 1 auto; min-height: 0; max-height: 440px; overflow-y: auto; margin-top: 6px; }   /* .pane clips overflow: the flex cap keeps the key footer visible on short windows */
+.launcher .lh { padding: 8px 8px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; color: var(--muted); }
+.launcher .row { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 8px; border-radius: var(--r); cursor: pointer; }
+.launcher .row.active { background: var(--accent-soft); }
+.launcher .row .txt { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.2; }
+.launcher .row .txt b { font-weight: 500; }
+.launcher .row .desc { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.launcher .row code { color: var(--muted); font-size: 11px; }
+.launcher .none { margin: 12px 8px; color: var(--muted); }
+.launcher .keys { display: flex; gap: 10px; align-items: center; margin-top: 8px; padding: 6px 8px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }
+.name-step { display: flex; flex-direction: column; min-height: 0; }   /* the launcher caps its height; the preview is the part that gives way */
+.name-step .nhead { display: flex; align-items: center; gap: 8px; padding: 2px 0 10px; flex: none; }
+.name-step .nhead b { font-weight: 600; }
+.name-step .nhead code { margin-left: auto; color: var(--muted); font-size: 11px; }
+.name-step .kv-row.add { margin-top: 0; }
+.name-step .kv-row input.invalid { border-color: var(--err); }   /* the only .invalid rule in the sheet needs a .field ancestor */
+.name-step .hint { margin: 6px 0 0; color: var(--muted); font-size: 11.5px; }
+.name-step .preview { margin-top: 10px; padding: 8px 10px; border-radius: var(--r); background: var(--panel-2); flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.name-step .preview .ph { font-size: 11px; font-weight: 600; color: var(--ink-2); margin-bottom: 4px; }
+.empty { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }   /* like .canvas-empty.overlay: never swallow React Flow's pane clicks/controls */
+.empty-card { pointer-events: auto; width: 400px; max-width: calc(100% - 48px); padding: 22px 24px 18px; border-radius: 12px; background: var(--panel); box-shadow: var(--shadow); text-align: center; }
+.empty-card .glyph { width: 40px; height: 40px; margin: 0 auto 10px; display: grid; place-items: center; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 22px; }
+.empty-card h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+.empty-card p { margin: 0; color: var(--ink-2); }
+.empty-card .row { display: flex; justify-content: center; gap: 8px; margin: 14px 0 12px; }
+.empty-card .hint { color: var(--muted); font-size: 11.5px; }
+.name-step .preview pre { margin: 0; font: 11.5px/1.45 var(--mono); white-space: pre; overflow-x: auto; }
+
+/* The full template chain behind the banner's one-sentence summary. */
+.banner details { margin-top: 4px; }
+.banner details summary { cursor: pointer; font-size: 12px; opacity: 0.75; }
+.banner details pre { margin-top: 4px; max-height: 180px; overflow: auto; }

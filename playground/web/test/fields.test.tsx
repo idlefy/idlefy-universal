@@ -15,7 +15,7 @@ const cbase = [...base, 'containers', 'main'];
 const showAllChips = () => screen.queryAllByRole('button', { name: /^show \d+ more fields$/ }).forEach((b) => fireEvent.click(b));
 
 describe('field widgets', () => {
-  it('number: change emits set, empty emits delete, junk emits nothing', () => {
+  it('number: change emits set, empty emits delete, junk and out-of-range emit nothing', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ replicas: 2 }} tier="advanced" onEdit={onEdit} />);
     const input = screen.getByLabelText('deployments.web.replicas') as HTMLInputElement;
@@ -27,6 +27,11 @@ describe('field widgets', () => {
     onEdit.mockClear();
     fireEvent.change(input, { target: { value: 'abc' } });
     expect(onEdit).not.toHaveBeenCalled();
+    // DeploymentSpec.replicas declares minimum: 0; the browser ignores min/max on type="text"
+    fireEvent.change(input, { target: { value: '-1' } });
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(input.className).toContain('invalid');
+    expect(screen.getByText(/must be at least 0/)).toBeTruthy();
   });
 
   it('boolean and enum: absent fields are chips, present ones are controls', () => {
@@ -106,15 +111,29 @@ describe('field widgets', () => {
     fireEvent.click(screen.getByLabelText('edit deployments.web.containers.main.args as YAML'));
     expect(screen.getByLabelText('deployments.web.containers.main.args').tagName).toBe('TEXTAREA');
   });
-  it('list: removing the last item deletes the key; enum items are selects', () => {
+  it('list: enum items are selects; removing the sole item of a required list is disabled, not a delete', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ networkPolicy: { policyTypes: ['Ingress'] } }} tier="basic" onEdit={onEdit} />);
     const sel = screen.getByLabelText('deployments.web.networkPolicy.policyTypes.0') as HTMLSelectElement;
     expect(sel.tagName).toBe('SELECT');
     fireEvent.change(sel, { target: { value: 'Egress' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'networkPolicy', 'policyTypes', 0], value: 'Egress' }]);
-    fireEvent.click(screen.getByLabelText('remove deployments.web.networkPolicy.policyTypes.0'));
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'networkPolicy', 'policyTypes'] }]);
+    // NetworkPolicyConfig requires policyTypes — `helm template` fails "missing property
+    // 'policyTypes'" if the sole entry's × emitted its old whole-key delete.
+    const removeBtn = screen.getByLabelText('remove deployments.web.networkPolicy.policyTypes.0') as HTMLButtonElement;
+    expect(removeBtn.disabled).toBe(true);
+    expect(removeBtn.title).toBe('This list must keep at least one entry');
+    onEdit.mockClear();
+    fireEvent.click(removeBtn);
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+  it('list: with two items present, removing one is not disabled', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={{ networkPolicy: { policyTypes: ['Ingress', 'Egress'] } }} tier="basic" onEdit={onEdit} />);
+    const removeBtn = screen.getByLabelText('remove deployments.web.networkPolicy.policyTypes.0') as HTMLButtonElement;
+    expect(removeBtn.disabled).toBe(false);
+    fireEvent.click(removeBtn);
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'networkPolicy', 'policyTypes', 0] }]);
   });
   it('list: a required-but-absent list still renders (no items) and adding the first one creates the array', () => {
     const onEdit = vi.fn();
@@ -184,7 +203,7 @@ describe('field widgets', () => {
     expect((el as HTMLTextAreaElement).value).toBe('team:\n  nested: 1\n');
   });
 
-  it('string: an IntOrString field emits a number for digits and a string otherwise', () => {
+  it('string: an IntOrString field emits a number for digits and a string otherwise, and a locked one is never cleared', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={{ pdb: { minAvailable: 1 } }} tier="basic" onEdit={onEdit} />);
     const input = screen.getByLabelText('deployments.web.pdb.minAvailable') as HTMLInputElement;
@@ -193,8 +212,23 @@ describe('field widgets', () => {
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'pdb', 'minAvailable'], value: 2 }]);
     fireEvent.change(input, { target: { value: '50%' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'pdb', 'minAvailable'], value: '50%' }]);
+    // it is the only half of PdbConfig's oneOf that is set, so emptying it must not delete it
+    onEdit.mockClear();
     fireEvent.change(input, { target: { value: '' } });
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'pdb', 'minAvailable'] }]);
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(input.className).toContain('invalid');
+  });
+
+  it('object section: the other half of a oneOf pair is offered as a chip that evicts the one that is set', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={{ pdb: { maxUnavailable: 1 } }} tier="basic" onEdit={onEdit} />);
+    // maxUnavailable is set, but minAvailable's chip is not a dead end: clicking it swaps the pair
+    const chip = screen.getByLabelText('add field deployments.web.pdb.minAvailable');
+    fireEvent.click(chip);
+    const ops = onEdit.mock.calls.at(-1)![0];
+    expect(ops).toHaveLength(2);
+    expect(ops[0]).toMatchObject({ op: 'set', path: [...base, 'pdb', 'minAvailable'] });
+    expect(ops[1]).toEqual({ op: 'delete', path: [...base, 'pdb', 'maxUnavailable'] });
   });
 
   it('yaml: valid YAML emits set on blur, invalid shows an error and emits nothing', () => {
@@ -246,8 +280,11 @@ describe('field widgets', () => {
     fireEvent.change(screen.getByLabelText('new key deployments.web.containers'), { target: { value: 'sidecar' } });
     fireEvent.click(screen.getByLabelText('add deployments.web.containers'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'containers', 'sidecar'], value: expect.objectContaining({ image: expect.any(String) }) }]);
+    // one container left: removing it would leave `containers: {}`, which renders `containers: null`
+    expect((screen.getByLabelText('remove deployments.web.containers.main') as HTMLButtonElement).disabled).toBe(true);
+    onEdit.mockClear();
     fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main'));
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'containers', 'main'] }]);
+    expect(onEdit).not.toHaveBeenCalled();
   });
 
   it('object section: nested fields render with full paths and a clear button deletes the block', () => {
@@ -256,5 +293,60 @@ describe('field widgets', () => {
     expect(screen.getByLabelText('deployments.web.pdb.minAvailable')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('clear deployments.web.pdb'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'pdb'] }]);
+  });
+
+  it('a locked block shows no clear ×', () => {
+    const dep = schemaAt(root, ['deployments', 'web'])!;
+    render(<FieldList root={root} node={dep} basePath={['deployments', 'web']} value={{ containers: { main: { image: 'n', imageTag: '1' } } }} tier="advanced" onEdit={vi.fn()} />);
+    expect(screen.queryByLabelText('clear deployments.web.containers')).toBeNull();
+  });
+  it('string: an unlocked field still deletes its key when emptied', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={{ priorityClassName: 'high' }} tier="advanced" onEdit={onEdit} />);
+    fireEvent.change(screen.getByLabelText('deployments.web.priorityClassName'), { target: { value: '' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'priorityClassName'] }]);
+  });
+  it('string: a locked enum offers no "(unset)" option', () => {
+    const onEdit = vi.fn();
+    const cfg = schemaAt(root, ['configs', 'app'])!;
+    render(<FieldList root={root} node={cfg} basePath={['configs', 'app']} value={{ type: 'configMap', data: { k: 'v' } }} tier="advanced" onEdit={onEdit} />);
+    const sel = screen.getByLabelText('configs.app.type') as HTMLSelectElement;
+    expect([...sel.options].map((o) => o.value)).toEqual(['configMap', 'secret']);
+  });
+  it('string: an unlocked enum still offers "(unset)" and deletes on it', () => {
+    const onEdit = vi.fn();
+    // DeploymentSpec's only top-level enum; it is not required, so it stays clearable
+    render(<FieldList root={root} node={dep} basePath={base} value={{ serviceType: 'ClusterIP' }} tier="advanced" onEdit={onEdit} />);
+    const sel = screen.getByLabelText('deployments.web.serviceType') as HTMLSelectElement;
+    expect([...sel.options].map((o) => o.value)).toContain('');
+    fireEvent.change(sel, { target: { value: '' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'serviceType'] }]);
+  });
+  it('a second container gets free port names and numbers, and both are then removable', () => {
+    const onEdit = vi.fn();
+    const value = { containers: { main: { image: 'n', imageTag: '1', ports: { http: { containerPort: 8080 } } } } };
+    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} />);
+    fireEvent.change(screen.getByLabelText('new key deployments.web.containers'), { target: { value: 'sidecar' } });
+    fireEvent.click(screen.getByLabelText('add deployments.web.containers'));
+    const added = onEdit.mock.calls.at(-1)![0][0].value;
+    // ContainerSpec's example declares ports.http = {containerPort: 8080, servicePort: 80}; `main`
+    // already uses 8080 as both its container port and (by default) its service port.
+    expect(Object.keys(added.ports)).toEqual(['http-2']);
+    expect(added.ports['http-2'].containerPort).toBe(8081);
+    expect(added.ports['http-2'].servicePort).toBe(80);
+    cleanup();
+    const two = { containers: { main: value.containers.main, sidecar: added } };
+    render(<FieldList root={root} node={dep} basePath={base} value={two} tier="basic" onEdit={onEdit} />);
+    expect((screen.getByLabelText('remove deployments.web.containers.main') as HTMLButtonElement).disabled).toBe(false);
+  });
+  it('list: add writes a schema-valid starter, not an empty string (HostAlias.hostnames[])', () => {
+    const onEdit = vi.fn();
+    const value = { hostAliases: [{ ip: '10.0.0.1', hostnames: ['legacy-db.internal'] }] };
+    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="advanced" onEdit={onEdit} />);
+    fireEvent.click(screen.getByLabelText('expand deployments.web.hostAliases.0'));
+    fireEvent.click(screen.getByLabelText('add deployments.web.hostAliases.0.hostnames'));
+    // hostnames[] has `minLength: 1` and no example of its own — '' would be schema-invalid;
+    // LEAF_STARTERS answers it. An enum list (unaffected by this fix) still starts on its first option.
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'hostAliases', 0, 'hostnames', 1], value: 'legacy-db.internal' }]);
   });
 });

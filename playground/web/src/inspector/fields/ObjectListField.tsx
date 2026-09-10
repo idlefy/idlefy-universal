@@ -1,16 +1,16 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { FieldList } from './index';
-import { resolve, classify, type SchemaNode } from '../schema';
-import { itemShape, itemLabelOf, parseScalarText, starterValue } from '../form';
+import { resolve, type SchemaNode } from '../schema';
+import { itemShape, itemLabelOf, leafEditOps, appendItemValue } from '../form';
 import { YamlField } from './YamlField';
 import { isObj } from '../../model/guards';
 
 const leafAt = (v: unknown, leaf: string[]): unknown => leaf.reduce<any>((cur, k) => (isObj(cur) ? cur[k] : undefined), v);
 
 /** A list of objects as rows: pair rows when the item is small, collapsed block rows otherwise. */
-export function ObjectListField(props: FieldProps & { itemLabel?: string }): ReactElement {
-  const { root, field, onEdit, itemLabel } = props;
+export function ObjectListField(props: FieldProps & { itemLabel?: string; removeBlocked?: string }): ReactElement {
+  const { root, field, onEdit, itemLabel, removeBlocked, lockedPaths, workload } = props;
   const id = field.path.join('.');
   const item = resolve(root, field.schema).items as SchemaNode;
   const shape = itemShape(root, item);
@@ -43,12 +43,21 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   const blockOpen = (i: number) => open[i] ?? false;
   // appending sets the next index rather than rewriting the whole array, so flow style and untouched item types survive
   const append = () => {
-    const v = starterValue(root, item);
-    onEdit([{ op: 'set', path: [...field.path, items.length], value: v }]);
+    onEdit([{ op: 'set', path: [...field.path, items.length], value: appendItemValue(root, item, items) }]);
   };
   // deleting one index splices the sequence in place; the expansion map (and any pending drafts) shift
   // down so they keep following the same items
+  // removing the last item takes the whole key with it, which a locked list cannot survive. A list
+  // whose sole surviving row is still referenced elsewhere (e.g. a secretRefs group a container still
+  // names) is blocked the same way, with the caller's own reason (`removeBlocked`) — MapOfListsField
+  // threads the same `why` its own card × already shows. `removeBlocked` only matters for the *last*
+  // row: removing any other row leaves the group (and the reference) intact, so only the sole
+  // remaining row needs to stay put.
+  const lastLocked = items.length === 1 && field.locked;
+  const removeDisabled = lastLocked || (items.length === 1 && !!removeBlocked);
+  const removeTitle = lastLocked ? 'This list must keep at least one entry' : (items.length === 1 ? removeBlocked : undefined);
   const remove = (i: number) => {
+    if (removeDisabled) return;
     onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);
     setOpen(Object.fromEntries(Object.entries(open).filter(([k]) => Number(k) !== i).map(([k, v]) => [Number(k) > i ? Number(k) - 1 : Number(k), v])));
     setDrafts({});
@@ -72,19 +81,14 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   }
   const leafSchema = (leaf: string[]): SchemaNode => leafSchemas.get(leaf.join('.'))!;
   const clearDraft = (key: string) => setDrafts((d) => { if (!(key in d)) return d; const next = { ...d }; delete next[key]; return next; });
+  // `leafEditOps` owns the whole decision (evict an exclusive sibling, delete, or emit nothing); a
+  // `null` result means the text is not committable yet, which is exactly what `drafts` is for.
   const setLeaf = (i: number, leaf: string[], text: string) => {
     const draftKey = `${i}.${leaf.join('.')}`;
-    const path = [...field.path, i, ...leaf];
-    // an emptied required leaf (the identifying `name`) is set to '' so the item never turns schema-invalid mid-typing
-    if (text === '') {
-      clearDraft(draftKey);
-      onEdit(leaf.length === 1 && shape.required.includes(leaf[0]) ? [{ op: 'set', path, value: '' }] : [{ op: 'delete', path }]);
-      return;
-    }
-    const value = parseScalarText(text, classify(root, leafSchema(leaf)));
-    if (value === undefined) { setDrafts((d) => ({ ...d, [draftKey]: text })); return; }
+    const ops = leafEditOps(root, shape, item, field.path, i, items[i], leaf, leafSchema(leaf), text);
+    if (ops === null) { setDrafts((d) => ({ ...d, [draftKey]: text })); return; }
     clearDraft(draftKey);
-    onEdit([{ op: 'set', path, value }]);
+    onEdit(ops);
   };
   const leafInput = (i: number, v: unknown, leaf: string[], cls: string) => {
     const s = leafSchema(leaf);
@@ -123,9 +127,9 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
     const anyVisible = !pair || itemKeys.some((k) => !hideLeaves(k));
     return (
       <div className="field-body">
-        {anyVisible && <FieldList root={root} node={item} basePath={[...field.path, i]} value={v} tier="advanced" onEdit={onEdit} hide={hide} />}
+        {anyVisible && <FieldList root={root} node={item} basePath={[...field.path, i]} value={v} tier="advanced" onEdit={onEdit} hide={hide} lockedPaths={lockedPaths} workload={workload} />}
         {pair && mixedKeys.map((k) => (
-          <FieldList key={k} root={root} node={leafSchema([k])} basePath={[...field.path, i, k]} value={leafAt(v, [k])} tier="advanced" onEdit={onEdit} hide={(sk) => promotedSubKeys(k).includes(sk)} />
+          <FieldList key={k} root={root} node={leafSchema([k])} basePath={[...field.path, i, k]} value={leafAt(v, [k])} tier="advanced" onEdit={onEdit} hide={(sk) => promotedSubKeys(k).includes(sk)} lockedPaths={lockedPaths} workload={workload} />
         ))}
       </div>
     );
@@ -141,7 +145,7 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
             )}
             <span className="acts">
               {shape.extras.length > 0 && <button type="button" className="clear" aria-label={`more ${id}.${i}`} title="More settings" onClick={() => setOpen({ ...open, [i]: !isOpen(i, v) })}>…</button>}
-              <button type="button" className="clear" aria-label={`remove ${id}.${i}`} onClick={() => remove(i)}>×</button>
+              <button type="button" className="clear" aria-label={`remove ${id}.${i}`} disabled={removeDisabled} title={removeTitle} onClick={() => remove(i)}>×</button>
             </span>
           </div>
           {isOpen(i, v) && body(i, v, true)}
@@ -153,7 +157,7 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
               <code>{String((shape.identifying && leafAt(v, [shape.identifying])) ?? `#${i + 1}`)}</code>
               <span className="muted">{isObj(v) ? `${Object.keys(v).length} fields` : ''}</span>
             </button>
-            <button type="button" className="clear" aria-label={`remove ${id}.${i}`} onClick={() => remove(i)}>×</button>
+            <button type="button" className="clear" aria-label={`remove ${id}.${i}`} disabled={removeDisabled} title={removeTitle} onClick={() => remove(i)}>×</button>
           </div>
           {blockOpen(i) && body(i, v, false)}
         </div>

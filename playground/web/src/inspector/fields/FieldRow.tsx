@@ -50,7 +50,9 @@ export function FieldRow(p: FieldProps & { bare?: boolean }): ReactElement {
     <div className={className}>
       {!p.bare && <div className="field-head">
         <label htmlFor={id} data-key={field.key} title={field.description ? `${id} — ${field.description}` : id}>{humanize(field.label)}{field.required && <span className="req" title="required">*</span>}</label>
-        {field.present && block && (
+        {/* a locked key (schema-required, chart-required, or the last member of a oneOf pair) has no
+            clear control at all: one click on it used to make the document unrenderable */}
+        {field.present && block && !field.locked && (
           <button type="button" className="clear" aria-label={`clear ${id}`} title="Remove this block from values.yaml" onClick={() => p.onEdit([{ op: 'delete', path: field.path }])}>×</button>
         )}
       </div>}

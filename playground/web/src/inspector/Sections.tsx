@@ -6,6 +6,7 @@ import { buildFields } from './form';
 import { FieldList } from './fields';
 import { partition, OTHER_SECTION, hiddenTitle, type Section } from './sections';
 import { HiddenNote } from './HiddenNote';
+import type { FieldProps } from './fields';
 
 /**
  * Titled sections over one object node's keys, in table order, unknown keys last under `other`
@@ -15,6 +16,13 @@ import { HiddenNote } from './HiddenNote';
 export function Sections(p: {
   root: SchemaNode; node: SchemaNode; base: ValuesPath; value: unknown; tier: Tier; tables: readonly Section[]; other?: Section;
   hide?: (key: string) => boolean; onEdit: (ops: EditOp[]) => void; onTier: (t: Tier) => void;
+  /** The owning workload's own flags, for `PortsTable` — see `FieldProps.workload`. Only meaningful
+   *  when `p.value` is itself a workload config (WorkloadPanel is the caller that passes it). */
+  workload?: FieldProps['workload'];
+  // No `lockedPaths` prop here: neither caller (WorkloadPanel, SecondaryPanel) has one to pass — the
+  // one runtime lock the playground computes (`subdomainLockedPaths`) is release-level and only
+  // ReleasePanel, which renders through `FieldList` directly rather than through `Sections`, has the
+  // whole-document context to compute it.
 }): ReactElement {
   const keys = Object.keys(resolve(p.root, p.node).properties ?? {}).filter((k) => !p.hide?.(k));
   const parts = partition(keys, p.tables).map((x) => (x.section === OTHER_SECTION && p.other ? { ...x, section: p.other } : x));
@@ -31,7 +39,7 @@ export function Sections(p: {
     return (
       <div key={section.id} className="sec">
         <h3>{section.title}</h3>
-        <FieldList root={p.root} node={p.node} basePath={p.base} value={p.value} tier={p.tier} onEdit={p.onEdit} hide={hide} order={mine} />
+        <FieldList root={p.root} node={p.node} basePath={p.base} value={p.value} tier={p.tier} onEdit={p.onEdit} hide={hide} order={mine} workload={p.workload} />
       </div>
     );
   });

@@ -5,10 +5,11 @@ import type { DetailTab, Tier } from '../app/state';
 import type { ResolvedSelection } from '../app/selection';
 import type { SchemaNode } from '../inspector/schema';
 import type { SecondaryId } from '../graph/secondary';
-import { Inspector } from '../inspector/Inspector';
+import { Inspector, DISABLED_NOTICE } from '../inspector/Inspector';
 import { kindOfSecondary, plural } from '../inspector/summary';
 import { familyOf } from '../graph/labels';
 import { KindIcon, GroupGlyph } from './icons';
+import { removalOf } from './remove';
 
 const manifestOf = (node: GraphNode): string =>
   node.manifest?.raw ??
@@ -50,6 +51,9 @@ export function DetailPanel(p: {
   const pathText = head.path ? (head.path.length ? head.path.join('.') : '(root)') : null;
   const tab: DetailTab = head.manifest === null ? 'inspector' : p.tab;
   const title = sel.kind === 'node' ? sel.node.provenance?.governingCondition : undefined;
+  const removal = removalOf(sel);
+  const removeTitle = p.disabled ? DISABLED_NOTICE : removal?.title;
+  const remove = () => { if (!removal || p.disabled) return; p.onEdit(removal.ops); p.onClose(); };
   return (
     <aside className={`detail fam-${head.fam}`}>
       <div className="head">
@@ -66,6 +70,7 @@ export function DetailPanel(p: {
           {warnings.map((w) => <p key={w} className="warn">{w}</p>)}
         </div>
         <div className="acts">
+          {removal && <button type="button" className="icon-btn danger" onClick={remove} disabled={p.disabled} aria-label={removal.label} title={removeTitle}>🗑</button>}
           <button type="button" className="icon-btn" onClick={p.onHide} aria-label="Hide the inspector" title="Hide the inspector">›</button>
           <button type="button" className="icon-btn" onClick={p.onClose} aria-label="close" title="Deselect">×</button>
         </div>

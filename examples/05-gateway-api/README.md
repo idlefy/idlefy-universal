@@ -6,7 +6,7 @@ classic Ingress.
 ## What it shows
 
 - The top-level `httpRoutes:` key.
-- `backendRefs` pointing at an auto-created Service (`demo-web`).
+- `backendRefs` pointing at the Service the Deployment auto-creates (`web`).
 - Gateway API v1.5.1 standard channel.
 
 ## Prerequisites

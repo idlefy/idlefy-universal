@@ -2,15 +2,21 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import chartMeta from "../chart-bundle/chart-meta.json";
 import examples from "../chart-bundle/examples.json";
 import schema from "../chart-bundle/schema.json";
-import { Editor } from "../editor/Editor";
+import { Editor, type EditorApi } from "../editor/Editor";
 import { Toolbar } from "../editor/Toolbar";
 import { Canvas } from "../canvas/Canvas";
 import { DetailPanel } from "../canvas/DetailPanel";
 import type { SchemaNode } from "../inspector/schema";
 import { initialState, markersFrom, reducer } from "./state";
+import { failText } from "./banner";
 import { resolveSelection, titleOf } from "./selection";
 import { useRenderPipeline } from "./useRenderPipeline";
 import { usePanes, SplitHandle, Rail } from "./Panes";
+import { AddButton, type LauncherRequest } from "../palette/AddButton";
+import { EmptyState } from "../palette/EmptyState";
+import { useHotkey } from "../palette/useHotkey";
+import { addEntityOps } from "../palette/add";
+import { useUndoRedo } from "./useUndoRedo";
 
 const FIRST = (examples as { id: string; values: string }[])[0];
 
@@ -44,8 +50,36 @@ export function App() {
   const error = state.render && !state.render.ok ? state.render.error : null;
   const warnings = state.graph?.warnings ?? [];
   const { panes, setOpen, setWidth, reset } = usePanes();
+  const editorApi = useRef<EditorApi | null>(null);
   // The token names the group the pill was pressed on, so a later plain selection of a group never inherits the focus request.
   const [addToken, setAddToken] = useState<{ id: string; n: number } | null>(null);
+  const [launcher, setLauncher] = useState<LauncherRequest | null>(null);
+  // Ctrl+Z from the canvas or the inspector drives Monaco's stack: one history, text stays canonical.
+  // Disabled while the launcher is open — its own Enter/typing must not also pop an undo behind it.
+  useUndoRedo(editorApi, !launcher);
+  const yamlBroken = state.doc.errors.length > 0;
+  const openLauncher = useCallback(() => setLauncher({}), []);
+  useHotkey("a", openLauncher, !yamlBroken && !launcher);
+  // AddButton renders the popover on `open && !disabled`, so a launcher left open while the YAML is
+  // broken would silently re-appear — with pre-break state — the moment the user fixed the typo.
+  useEffect(() => { if (yamlBroken) setLauncher(null); }, [yamlBroken]);
+  // toJS() walks the whole document; only pay for it while the launcher is open.
+  const values = useMemo(() => (launcher ? (inspectorDoc.toJS() as Record<string, unknown>) : {}), [launcher, inspectorDoc]);
+  // Text is canonical: the launcher only produces ops; the reducer's one-shot focusPath (carried on
+  // the same action, so a failed insert cannot arm it) selects the new node once it renders.
+  const onAdd = useCallback((key: string, name: string) => {
+    dispatch({ type: "edit", ops: addEntityOps(schema as SchemaNode, key, name), focus: [key, name] });
+  }, []);
+  // The editor pane is closed by default and the examples <select> lives inside it: open first, focus on the next frame.
+  const loadExample = useCallback(() => {
+    setOpen("editor", true);
+    requestAnimationFrame(() => document.querySelector<HTMLSelectElement>('select[aria-label="examples"]')?.focus());
+  }, [setOpen]);
+  // Not while the YAML is broken (the banner covers that) or the render failed (the canvas error covers that);
+  // Canvas itself only shows the slot when the graph has zero manifest nodes, and shows nothing before the first render.
+  const emptyState = !error && !yamlBroken
+    ? <EmptyState onAddDeployment={() => setLauncher({ key: "deployments" })} onLoadExample={loadExample} />
+    : undefined;
   // A node click always shows the inspector, even after the user collapsed it for the previous node.
   useEffect(() => { if (state.selection) setOpen("inspector", true); }, [state.selection, setOpen]);
   const dragStart = useRef<{ editor: number; inspector: number }>({ editor: 0, inspector: 0 });
@@ -82,7 +116,10 @@ export function App() {
             onClick={() => setOpen("inspector", !panes.inspector.open)}>Inspector</button>
         </div>
         <span className="status">
-          {state.render?.ok && <><span className="dot ok" aria-hidden="true" /> rendered {state.render.manifests.length} objects in {state.render.durationMs} ms</>}
+          {/* A syntax error freezes the pipeline: without this the header keeps advertising the stale render. */}
+          {yamlBroken
+            ? <><span className="dot bad" aria-hidden="true" /> YAML has a syntax error</>
+            : state.render?.ok && <><span className="dot ok" aria-hidden="true" /> rendered {state.render.manifests.length} objects in {state.render.durationMs} ms</>}
           <a className="muted" href="../">docs</a>
         </span>
       </header>
@@ -95,22 +132,41 @@ export function App() {
             onRelease={(v) => dispatch({ type: "release", v })} onNs={(v) => dispatch({ type: "ns", v })}
             onPickExample={(id) => {
               const ex = (examples as { id: string; values: string }[]).find((e) => e.id === id);
-              if (ex) dispatch({ type: "example", text: ex.values });
+              if (!ex) return;
+              setLauncher(null);   // an open launcher would keep previewing an insert into the old document
+              dispatch({ type: "example", text: ex.values });
             }}
             valuesText={state.text} chartVersion={chartMeta.version} onHide={() => setOpen("editor", false)}
           />
-          <Editor value={state.text} onChange={onChange} markers={markers} highlight={highlight} visible={panes.editor.open} />
+          <Editor value={state.text} onChange={onChange} markers={markers} highlight={highlight} visible={panes.editor.open} api={editorApi} />
         </section>
         {panes.editor.open && (
           <SplitHandle label="Resize values.yaml"
             onDrag={(dx) => setWidth("editor", dragStart.current.editor + dx)} onReset={() => reset("editor")} />
         )}
         <section className="pane pane-canvas">
-          {error && <div className={`banner ${error.kind}`}><pre>{error.message}</pre></div>}
+          {state.editError && <div key={state.editErrorSeq} className="banner warn" role="alert">{state.editError}</div>}
+          {error && (() => {
+            // a chart `fail` arrives as a five-line Go include chain; only its last sentence is for
+            // the reader, and the chain stays one click away rather than pushing the canvas down
+            const short = failText(error.message);
+            return (
+              <div className={`banner ${error.kind}`}>
+                <pre>{short}</pre>
+                {short !== error.message && (
+                  <details><summary>Full template output</summary><pre>{error.message}</pre></details>
+                )}
+              </div>
+            );
+          })()}
           {!error && warnings.length > 0 && <div className="banner warn">{warnings.map((w) => <div key={w}>{w}</div>)}</div>}
-          <Canvas model={state.graph} stale={!!error || state.doc.errors.length > 0} selection={state.selection}
-            onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }}
-            onAddResource={(id) => { dispatch({ type: "select", id }); setOpen("inspector", true); setAddToken((t) => ({ id, n: (t?.n ?? 0) + 1 })); }} />
+          <div className="canvas-wrap">
+            <AddButton disabled={yamlBroken} open={launcher} onOpen={openLauncher} onClose={() => setLauncher(null)} root={schema as SchemaNode} values={values} onAdd={onAdd} />
+            <Canvas model={state.graph} booting={!state.render} stale={!!error || yamlBroken} selection={state.selection}
+              onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }}
+              onAddResource={(id) => { dispatch({ type: "select", id }); setOpen("inspector", true); setAddToken((t) => ({ id, n: (t?.n ?? 0) + 1 })); }}
+              emptyState={emptyState} />
+          </div>
         </section>
         {sel && panes.inspector.open && (
           <>
@@ -119,7 +175,7 @@ export function App() {
             <section className="pane" style={{ width: panes.inspector.width }}>
               <DetailPanel
                 sel={sel} nodes={state.graph?.nodes ?? []} tab={state.ui.tab} tier={state.ui.tier} doc={inspectorDoc} root={schema as SchemaNode}
-                disabled={state.doc.errors.length > 0} focusToken={addToken && addToken.id === state.selection ? addToken.n : 0}
+                disabled={yamlBroken} focusToken={addToken && addToken.id === state.selection ? addToken.n : 0}
                 onTab={(tab) => dispatch({ type: "tab", tab })} onTier={(tier) => dispatch({ type: "tier", tier })}
                 onEdit={(ops) => dispatch({ type: "edit", ops })}
                 onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); setOpen("inspector", true); }}

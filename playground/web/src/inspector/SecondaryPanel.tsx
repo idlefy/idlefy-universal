@@ -9,7 +9,7 @@ import { FieldList } from './fields';
 import { Sections } from './Sections';
 import { OwnerStrip } from './OwnerStrip';
 import type { InspectTarget } from './target';
-import { secondaryById, WORKLOAD_KINDS } from '../graph/secondary';
+import { secondaryById, toggleState, WORKLOAD_KINDS } from '../graph/secondary';
 import { SECONDARY_SECTIONS, SERVICE_OWNER_KEYS } from './sections';
 import { isObj, samePath } from '../model/guards';
 
@@ -25,11 +25,15 @@ export function SecondaryPanel(p: {
   const ownerKind = ownerNode?.kind ?? WORKLOAD_KINDS[kindKey];
   const raw = p.doc.valueAt(owner);
   const cfg = isObj(raw) ? raw : {};
-  const on = sec.isOn(cfg);
-  const blocked = sec.blocked?.(cfg, kindKey);
+  const { on, why, isDisabled: disabledByToggle } = toggleState(sec, cfg, kindKey, false);
   // secondary.ts: some `off()` handlers delete the block, others only clear a flag — say which
   const deletes = sec.off(owner).some((o) => o.op === 'delete');
+  const isDisabled = p.disabled || disabledByToggle;
   const toggle = (checked: boolean) => {
+    // jsdom fires the native `change` event for a disabled checkbox when the click is
+    // dispatched programmatically (only the real `.click()` method honors `disabled`), so
+    // guard here too rather than trusting the DOM attribute alone.
+    if (isDisabled) return;
     if (checked) { p.onEdit(sec.on(owner, cfg, name)); return; }
     p.onEdit(sec.off(owner));
     // the node (and with it this panel's subject) may vanish: hand the selection to the group
@@ -84,9 +88,9 @@ export function SecondaryPanel(p: {
       <div className="enabled">
         <div>
           <div className="nm">{sec.label} enabled</div>
-          <div className={`sub ${blocked ? 'why' : ''}`}>{blocked ?? (deletes ? 'turning off removes its settings from values.yaml' : 'turning off keeps the settings in values.yaml')}</div>
+          <div className={`sub ${why ? 'why' : ''}`}>{why ?? (deletes ? 'turning off removes its settings from values.yaml' : 'turning off keeps the settings in values.yaml')}</div>
         </div>
-        <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${sec.label}`} checked={on} disabled={p.disabled || (!on && !!blocked)} onChange={(e) => toggle(e.target.checked)} />
+        <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${sec.label}`} checked={on} disabled={isDisabled} onChange={(e) => toggle(e.target.checked)} />
       </div>
       <fieldset disabled={p.disabled}>{fields}</fieldset>
     </>

@@ -30,6 +30,14 @@ Field tiers come from the `x-ui-tier` vendor keyword in `values.schema.json`; se
 - `web/src/inspector/fields/*` — compound widgets (`ContainersField`, `ImageField`, `ResourcesField`, `PortsTable`, …) alongside the primitive ones.
 - `web/src/inspector/AutoCreated.tsx`, `web/src/inspector/summary.ts` — the auto-created-resources switch list (group panel), one-line summaries, `Open` links to nodes or nodeless blocks.
 
+## Palette (Phase 3)
+
+- `web/src/graph/entities.ts` — the one table of top-level entities the launcher can add (`ENTITIES`, `namePattern`, `defaultName`, `uniqueName`); a test keeps it equal to the schema's `$ref`-bearing top-level maps.
+- `web/src/palette/add.ts` — `starterBody` (schema example + name-aware fixups so a from-scratch document renders), `addEntityOps`, `previewYaml`; `test/engine-node.test.ts` renders all eleven starter bodies through helm.wasm.
+- `web/src/palette/AddButton.tsx`, `Launcher.tsx`, `NameStep.tsx`, `useHotkey.ts`, `EmptyState.tsx` — the Add trigger (`A`), two-step popover, and the zero-objects card.
+- `web/src/app/state.ts` — `focusPath`: a one-shot request consumed by the next `render-done`, which selects the node whose provenance path matches (node ids are not predictable before a render).
+- `web/src/canvas/remove.ts` — `removalOf(selection)`: Remove is offered for nodes with provenance, no owner and a non-empty `removeAction`; auto-created resources are switched off from the group panel instead.
+
 ## monaco-yaml coverage
 
 Checked against `src/chart-bundle/schema.json` (draft-07, 156 `$defs`) with the editor from

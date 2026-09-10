@@ -10,13 +10,14 @@ metadata:
     {{- if $extraLabels }}
     {{- $extraLabels | nindent 4 }}
     {{- end }}
+  {{- /* One dict, emitted once: appending the user's annotations after literal hook keys produced a
+         duplicate map key whenever the user set one of them (and ConfigSpec.annotations.examples[0]
+         is exactly those two keys). `merge dst src` never overwrites dst, so the user's value wins
+         and the chart's install ordering is the default, not a hard-coded override. */}}
+  {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $config.annotations) | fromYaml }}
+  {{- $hookAnnotations := dict "helm.sh/hook" "pre-install,pre-upgrade" "helm.sh/hook-weight" "-10" }}
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-10"
-    {{- $mergedAnnotations := include "idlefy-universal.mergeAnnotations" (dict "root" $ "resourceAnnotations" $config.annotations) }}
-    {{- if $mergedAnnotations }}
-    {{- $mergedAnnotations | nindent 4 }}
-    {{- end }}
+    {{- toYaml (merge (dict) $mergedAnnotations $hookAnnotations) | nindent 4 }}
 {{- if eq $config.type "secret" }}
 type: Opaque
 data:

@@ -1,0 +1,64 @@
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, cleanup, fireEvent } from '@testing-library/react';
+import { useRef } from 'react';
+import { useUndoRedo } from '../src/app/useUndoRedo';
+import type { EditorApi } from '../src/editor/Editor';
+
+afterEach(cleanup);
+function Host(p: { api: EditorApi; enabled?: boolean }) {
+  const ref = useRef<EditorApi | null>(p.api);
+  useUndoRedo(ref, p.enabled);
+  return <div><input aria-label="i" /><button>b</button></div>;
+}
+
+describe('useUndoRedo', () => {
+  it('routes Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y to the editor and prevents the default', () => {
+    const api = { undo: vi.fn(), redo: vi.fn() };
+    render(<Host api={api} />);
+    const ev = new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true });
+    document.body.dispatchEvent(ev);
+    expect(api.undo).toHaveBeenCalledTimes(1);
+    expect(ev.defaultPrevented).toBe(true);
+    fireEvent.keyDown(document.body, { key: 'z', metaKey: true });
+    expect(api.undo).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(document.body, { key: 'Z', ctrlKey: true, shiftKey: true });
+    expect(api.redo).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document.body, { key: 'z', metaKey: true, shiftKey: true });
+    expect(api.redo).toHaveBeenCalledTimes(2);
+    // Monaco's own primary redo binding on Windows/Linux: Ctrl/Cmd+Y, no Shift.
+    fireEvent.keyDown(document.body, { key: 'y', ctrlKey: true });
+    expect(api.redo).toHaveBeenCalledTimes(3);
+    fireEvent.keyDown(document.body, { key: 'y', metaKey: true });
+    expect(api.redo).toHaveBeenCalledTimes(4);
+  });
+  it('Ctrl/Cmd+Shift+Y is not a redo binding: it does nothing (and does not prevent the default)', () => {
+    const api = { undo: vi.fn(), redo: vi.fn() };
+    render(<Host api={api} />);
+    const ev = new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true });
+    document.body.dispatchEvent(ev);
+    fireEvent.keyDown(document.body, { key: 'y', metaKey: true, shiftKey: true });
+    expect(api.undo).not.toHaveBeenCalled();
+    expect(api.redo).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+  });
+  it('leaves text fields (Monaco included) to their own undo, and ignores a bare or alt-ed z', () => {
+    const api = { undo: vi.fn(), redo: vi.fn() };
+    const { getByLabelText } = render(<Host api={api} />);
+    fireEvent.keyDown(getByLabelText('i'), { key: 'z', ctrlKey: true });
+    fireEvent.keyDown(document.body, { key: 'z' });
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true, altKey: true });
+    fireEvent.keyDown(getByLabelText('i'), { key: 'y', ctrlKey: true });
+    expect(api.undo).not.toHaveBeenCalled();
+    expect(api.redo).not.toHaveBeenCalled();
+  });
+  it('disabled (the modal launcher is open) → nothing fires, not even the listener', () => {
+    const api = { undo: vi.fn(), redo: vi.fn() };
+    render(<Host api={api} enabled={false} />);
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true });
+    fireEvent.keyDown(document.body, { key: 'z', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(document.body, { key: 'y', ctrlKey: true });
+    expect(api.undo).not.toHaveBeenCalled();
+    expect(api.redo).not.toHaveBeenCalled();
+  });
+});

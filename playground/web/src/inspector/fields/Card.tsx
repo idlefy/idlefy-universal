@@ -4,11 +4,11 @@ import type { ReactElement, ReactNode } from 'react';
  *  `MapOfListsField` (one card per key): a heading with a code label, an optional aside, a remove
  *  button, and the card body. */
 export function Card(p: {
-  code: string; aside?: ReactElement; removeLabel: string; removeTitle: string; removeText: string; onRemove: () => void; children: ReactNode;
+  code: string; aside?: ReactElement; removeLabel: string; removeTitle: string; removeText: string; removeDisabled?: boolean; onRemove: () => void; children: ReactNode;
 }): ReactElement {
   return (
     <div className="card">
-      <h4><code>{p.code}</code>{p.aside}<button type="button" className="clear" aria-label={p.removeLabel} title={p.removeTitle} onClick={p.onRemove}>{p.removeText}</button></h4>
+      <h4><code>{p.code}</code>{p.aside}<button type="button" className="clear" aria-label={p.removeLabel} title={p.removeTitle} disabled={p.removeDisabled} onClick={p.onRemove}>{p.removeText}</button></h4>
       {p.children}
     </div>
   );

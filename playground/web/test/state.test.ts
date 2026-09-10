@@ -1,8 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { reducer, initialState, markersFrom, pointerToPath } from '../src/app/state';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { reducer, initialState, markersFrom, pointerToPath, EDIT_FAILED } from '../src/app/state';
 // engine/types.ts has no side effects, so importing SUPERSEDED from it here doesn't pull the
 // engine/WASM code into this test — it stays bundle-free.
 import { SUPERSEDED } from '../src/engine/types';
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('app state', () => {
   it('keeps the last good graph when a render fails', () => {
@@ -96,5 +98,143 @@ describe('app state', () => {
     s = reducer(s, { type: 'tier', tier: 'advanced' });
     s = reducer(s, { type: 'tab', tab: 'yaml' });
     expect(s.ui).toEqual({ tier: 'advanced', tab: 'yaml' });
+  });
+  describe('focusPath', () => {
+    const ok = { ok: true as const, manifests: [], durationMs: 1 };
+    const node = (id: string, path: (string | number)[]) => ({ id, key: id, kind: 'Deployment', name: id, namespace: 'default', family: 'workload' as const, external: false, conflict: false, hookBadge: false, warnings: [], provenance: { path, governingCondition: '', removeAction: [] } });
+    const armed = () => reducer(reducer(initialState('deployments: {}\n'), { type: 'tab', tab: 'yaml' }),
+      { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'web'], value: { replicas: 1 } }], focus: ['deployments', 'web'] });
+    it('starts null and is armed by an edit that carries a focus path', () => {
+      expect(initialState('').focusPath).toBe(null);
+      expect(armed().focusPath).toEqual(['deployments', 'web']);
+      expect(armed().editError).toBe(null);
+    });
+    it('a matching render-done selects the node, opens the Fields tab and clears the focus', () => {
+      const s = reducer(armed(), { type: 'render-done', result: ok, graph: { nodes: [node('default/Service/web', ['deployments', 'web', 'service']), node('default/Deployment/web', ['deployments', 'web'])], edges: [], warnings: [] } });
+      expect(s.selection).toBe('default/Deployment/web');
+      expect(s.ui.tab).toBe('inspector');
+      expect(s.focusPath).toBe(null);
+    });
+    it('a non-matching render-done also clears it (one-shot) and leaves the selection alone', () => {
+      const s = reducer(armed(), { type: 'render-done', result: ok, graph: { nodes: [node('default/Deployment/other', ['deployments', 'other'])], edges: [], warnings: [] } });
+      expect(s.selection).toBe(null);
+      expect(s.focusPath).toBe(null);
+    });
+    it('a failed render-done clears it; a superseded one is ignored', () => {
+      expect(reducer(armed(), { type: 'render-done', result: { ok: false, error: { kind: 'template', message: 'boom' } }, graph: null }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'render-done', result: { ok: false, error: { kind: 'template', message: SUPERSEDED } }, graph: null }).focusPath).toEqual(['deployments', 'web']);
+    });
+    it('release and ns still work (guard against a dropped switch case)', () => {
+      expect(reducer(initialState(''), { type: 'release', v: 'x' }).releaseName).toBe('x');
+      expect(reducer(initialState(''), { type: 'ns', v: 'kube' }).namespace).toBe('kube');
+    });
+    it('select, text, example, engine-failed and a focus-less edit all clear it', () => {
+      expect(reducer(armed(), { type: 'select', id: 'x' }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'select', id: null }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'text', text: 'jobs: {}\n' }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'example', text: 'jobs: {}\n' }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'engine-failed', message: 'x' }).focusPath).toBe(null);
+      expect(reducer(armed(), { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'web', 'replicas'], value: 9 }] }).focusPath).toBe(null);
+    });
+    it('an add that changes nothing reports it instead of arming the focus', () => {
+      // a sequence root: setIn is a documented no-op, so the insert cannot land
+      const s = reducer(initialState('- a\n- b\n'), { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'api'], value: { replicas: 1 } }], focus: ['deployments', 'api'] });
+      expect(s.text).toBe('- a\n- b\n');
+      expect(s.focusPath).toBe(null);
+      expect(s.editError).toBe(EDIT_FAILED);
+      expect(reducer(s, { type: 'text', text: 'a: 1\n' }).editError).toBe(null);
+      expect(reducer(s, { type: 'select', id: null }).editError).toBe(null);
+    });
+    it('an op that cannot be stringified (no YAML tag) reports it even without a focus path — a serialize failure is never silent', () => {
+      // A Symbol has no YAML tag; `ValuesDocument.toString()` catches that throw internally (see
+      // values-document.test.ts), falls back to the source, and sets `stringifyFailed`. Per the
+      // review ruling the reducer surfaces *any* failed apply/serialize regardless of `focus` — only
+      // a genuine no-op (text === s.text without a stringify failure) stays silent.
+      const s0 = initialState('a: 1\n');
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const s = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['a'], value: Symbol('x') }] });
+      expect(s.text).toBe('a: 1\n');
+      expect(s.doc).toBe(s0.doc);
+      expect(s.editError).toBe(EDIT_FAILED);
+      expect(s.focusPath).toBe(null);
+      const withFocus = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['a'], value: Symbol('x') }], focus: ['a'] });
+      expect(withFocus.editError).toBe(EDIT_FAILED);
+      expect(withFocus.focusPath).toBe(null);
+    });
+    it('an edit that leaves toString unable to stringify (unresolved alias) reports it, focus or not', () => {
+      // deleteIn removes the anchored `web` node outright; the alias `*w` elsewhere is left dangling,
+      // so ValuesDocument.toString() catches yaml's throw, returns the pre-edit source unchanged, and
+      // sets `stringifyFailed` — the reducer reports EDIT_FAILED unconditionally on that flag, not
+      // only when a focus was requested (a silent revert is never a plain no-op).
+      const src = 'deployments:\n  web: &w\n    replicas: 1\nother: *w\n';
+      const s0 = initialState(src);
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const s = reducer(s0, { type: 'edit', ops: [{ op: 'delete', path: ['deployments', 'web'] }], focus: ['deployments', 'web'] });
+      expect(s.text).toBe(src);
+      expect(s.focusPath).toBe(null);
+      expect(s.editError).toBe(EDIT_FAILED);
+      const withoutFocus = reducer(s0, { type: 'edit', ops: [{ op: 'delete', path: ['deployments', 'web'] }] });
+      expect(withoutFocus.text).toBe(src);
+      expect(withoutFocus.focusPath).toBe(null);
+      expect(withoutFocus.editError).toBe(EDIT_FAILED);
+    });
+    it('a setIn bail (containers is a sequence, not the map the schema expects) reports it even without a focus', () => {
+      // F-I1's repro: ContainersField's `+ container` chip emits `set […, 'containers', 'x']`
+      // expecting `containers` to be a map; here it is a sequence (a differently-shaped document the
+      // playground itself can still parse and open the inspector on), so setIn bails. Without the
+      // `bailed` flag this would have returned `s` silently — the reducer must report it regardless of
+      // `focus`, the same way a stringify failure already does.
+      const src = 'deployments:\n  hello:\n    containers:\n      - name: main\n';
+      const s0 = initialState(src);
+      const s = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'hello', 'containers', 'x'], value: { image: 'nginx' } }] });
+      expect(s.text).toBe(src);
+      expect(s.doc).toBe(s0.doc);
+      expect(s.focusPath).toBe(null);
+      expect(s.editError).toBe(EDIT_FAILED);
+    });
+    it('a mixed batch (one op bails, another lands and changes the text) still reports it', () => {
+      // The bailed set never lands, but the delete in the same batch does — the resulting text differs
+      // from the pre-edit text, which would otherwise look like an ordinary successful edit. `lostEdit`
+      // must catch this even though the `text === s.text` no-op check below it would not.
+      const src = 'deployments:\n  hello:\n    containers:\n      - name: main\n    replicas: 2\n';
+      const s0 = initialState(src);
+      const s = reducer(s0, { type: 'edit', ops: [
+        { op: 'set', path: ['deployments', 'hello', 'containers', 'x'], value: { image: 'nginx' } },
+        { op: 'delete', path: ['deployments', 'hello', 'replicas'] },
+      ] });
+      expect(s.text).toBe(src);   // the whole batch is rejected, not partially applied to state
+      expect(s.doc).toBe(s0.doc);
+      expect(s.focusPath).toBe(null);
+      expect(s.editError).toBe(EDIT_FAILED);
+    });
+    it('a focus-carrying edit while the document has parse errors reports it instead of vanishing silently', () => {
+      const s0 = initialState('deployments: [\n');
+      expect(s0.doc.errors.length).toBeGreaterThan(0);
+      const s = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'web'], value: { replicas: 1 } }], focus: ['deployments', 'web'] });
+      expect(s.text).toBe(s0.text);
+      expect(s.focusPath).toBe(null);
+      expect(s.editError).toBe(EDIT_FAILED);
+    });
+    it('bumps editErrorSeq on every failure, even a repeated identical one, so the banner can re-key', () => {
+      const s0 = initialState('- a\n- b\n');
+      expect(s0.editErrorSeq).toBe(0);
+      const fail = { type: 'edit' as const, ops: [{ op: 'set' as const, path: ['deployments', 'api'], value: { replicas: 1 } }], focus: ['deployments', 'api'] };
+      const s1 = reducer(s0, fail);
+      expect(s1.editError).toBe(EDIT_FAILED);
+      expect(s1.editErrorSeq).toBe(1);
+      const s2 = reducer(s1, fail);
+      expect(s2.editError).toBe(EDIT_FAILED);
+      expect(s2.editErrorSeq).toBe(2);
+    });
+    it('example and a successful edit both clear a previously set editError', () => {
+      const s0 = initialState('- a\n- b\n');
+      const failed = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'api'], value: { replicas: 1 } }], focus: ['deployments', 'api'] });
+      expect(failed.editError).toBe(EDIT_FAILED);
+      expect(reducer(failed, { type: 'example', text: 'deployments: {}\n' }).editError).toBe(null);
+      const okDoc = initialState('deployments: {}\n');
+      const withError = { ...okDoc, editError: EDIT_FAILED, editErrorSeq: 1 };
+      const succeeded = reducer(withError, { type: 'edit', ops: [{ op: 'set', path: ['deployments', 'web'], value: { replicas: 1 } }] });
+      expect(succeeded.editError).toBe(null);
+    });
   });
 });

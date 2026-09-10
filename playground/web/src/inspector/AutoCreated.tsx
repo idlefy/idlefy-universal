@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import type { EditOp, ValuesPath } from '../model/ValuesDocument';
-import { secondariesFor, type SecondaryId } from '../graph/secondary';
+import { secondariesFor, toggleState, type SecondaryId } from '../graph/secondary';
 import { KindIcon } from '../canvas/icons';
 import { summaryOf } from './summary';
 import { familyOf } from '../graph/labels';
@@ -17,24 +17,29 @@ export function AutoCreated(p: {
   return (
     <div className="list">
       {list.map((s) => {
-        const on = s.isOn(p.cfg);
-        const blocked = s.blocked?.(p.cfg, p.kindKey);
+        const { on, why, isDisabled: disabledByToggle } = toggleState(s, p.cfg, p.kindKey, false);
         const kind = s.kind;
         const node = on ? p.nodeFor(s.id) : null;
-        // a rendered node opens itself; a block with a schema node opens as `block:<path>` even without a node
-        const target = node ?? (p.hasSchema(s.id) ? blockId([...p.base, s.id]) : null);
         const configured = !on && isFilledObj(p.cfg[s.id]);
-        const sub = blocked ?? (on ? summaryOf(s.id, p.cfg) : configured ? 'configured, not created' : s.hint);
+        // a rendered node opens itself; a block with a schema node opens as `block:<path>` when the
+        // secondary is on or already has a body — off + empty means the switch is the only affordance,
+        // since opening an off block whose autoCreate* flag is false fails the chart on any edit
+        const target = node ?? (p.hasSchema(s.id) && (on || configured) ? blockId([...p.base, s.id]) : null);
+        const sub = why ?? (on ? summaryOf(s.id, p.cfg) : configured ? 'configured, not created' : s.hint);
+        const isDisabled = p.disabled || disabledByToggle;
         return (
           <div key={s.id} className={`it ${on ? 'on' : ''}`}>
             <span className={`tile sm fam-${familyOf(kind)}`}><KindIcon kind={kind} /></span>
             <div className="txt">
               <div className="nm">{s.label}</div>
-              <div className={`sub ${blocked ? 'why' : ''}`}>{sub}</div>
+              <div className={`sub ${why ? 'why' : ''}`}>{sub}</div>
             </div>
             {target ? <button type="button" className="link" aria-label={`open ${s.label}`} onClick={() => p.onSelect(target)}>Open</button> : <span />}
-            <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${s.label}`} checked={on} disabled={p.disabled || (!on && !!blocked)}
-              onChange={(e) => p.onEdit(e.target.checked ? s.on(p.base, p.cfg, p.name) : s.off(p.base))} />
+            {/* jsdom fires the native `change` event for a disabled checkbox when the click is
+                dispatched programmatically (only the real `.click()` method honors `disabled`), so
+                guard here too rather than trusting the DOM attribute alone. */}
+            <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${s.label}`} checked={on} disabled={isDisabled}
+              onChange={(e) => { if (isDisabled) return; p.onEdit(e.target.checked ? s.on(p.base, p.cfg, p.name) : s.off(p.base)); }} />
           </div>
         );
       })}

@@ -15,4 +15,16 @@ tests:
           pdb:
             maxUnavailable: 1
     asserts:
-      - matchSnapshot: {} 
+      - matchSnapshot: {}
+  - it: renders an auto-created PDB when no pdb block is given
+    set:
+      deployments:
+        p:
+          autoCreatePdb: true
+          containers:
+            main: {image: nginx, imageTag: "1"}
+    template: pdb.yaml
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1

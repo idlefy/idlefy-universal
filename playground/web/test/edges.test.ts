@@ -57,11 +57,12 @@ describe('extractRefs', () => {
     expect(rel(refs, 'runs-as')).toEqual(['CronJob/beat->ServiceAccount/beat-sa']);
     expect(rel(refs, 'reads')).toEqual(['CronJob/beat->ConfigMap/cfg']);
   });
-  it('gateway example attaches to an external Gateway and flags the dangling backend', () => {
+  it('gateway example attaches to an external Gateway and routes to its own Service', () => {
     const refs = refsOf('example-05-gateway-api');
     expect(refs.find((r) => r.relation === 'attaches-to')!.targetKind).toBe('Gateway');
-    // examples/05 routes to backend "demo-web", which no Service in the release provides.
-    expect(rel(refs, 'routes-to')).toEqual(['HTTPRoute/web->Service/demo-web']);
+    // The Gateway is genuinely external (no `gateways:` key in the chart); the backend is not —
+    // the HTTPRoute's backendRef names the Service the example's own Deployment auto-creates.
+    expect(rel(refs, 'routes-to')).toEqual(['HTTPRoute/web->Service/web']);
   });
   // example-02 is the only fixture with an Ingress TLS block; it also pins the Ingress path label.
   it('Ingress TLS secret and path-labelled backend', () => {

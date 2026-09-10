@@ -5,7 +5,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: uploads
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: uploads
     app.kubernetes.io/instance: demo
@@ -23,7 +23,7 @@ kind: Service
 metadata:
   name: web
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: web
     app.kubernetes.io/instance: demo
@@ -46,7 +46,7 @@ kind: Service
 metadata:
   name: cache-headless
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: cache-headless
     app.kubernetes.io/instance: demo
@@ -70,7 +70,7 @@ kind: Deployment
 metadata:
   name: files
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: files
     app.kubernetes.io/instance: demo
@@ -85,7 +85,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.2.0
+        helm.sh/chart: idlefy-universal-1.2.1
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: files
         app.kubernetes.io/instance: demo
@@ -115,7 +115,7 @@ kind: Deployment
 metadata:
   name: web
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: web
     app.kubernetes.io/instance: demo
@@ -130,7 +130,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.2.0
+        helm.sh/chart: idlefy-universal-1.2.1
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: web
         app.kubernetes.io/instance: demo
@@ -162,7 +162,7 @@ kind: StatefulSet
 metadata:
   name: cache
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: cache
     app.kubernetes.io/instance: demo
@@ -179,7 +179,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.2.0
+        helm.sh/chart: idlefy-universal-1.2.1
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: cache
         app.kubernetes.io/instance: demo
@@ -209,14 +209,14 @@ kind: Secret
 metadata:
   name: app-secrets
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: app-secrets
     app.kubernetes.io/instance: demo
     app.kubernetes.io/component: app-secrets
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-10"
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
 type: Opaque
 data:
   DB_PASSWORD: czNjcjN0
@@ -227,14 +227,14 @@ kind: ConfigMap
 metadata:
   name: app-config
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: app-config
     app.kubernetes.io/instance: demo
     app.kubernetes.io/component: app-config
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-10"
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
 data:
   LOG_LEVEL: "info"
 ---
@@ -245,7 +245,7 @@ kind: Job
 metadata:
   name: web-migrations
   labels:
-    helm.sh/chart: idlefy-universal-1.2.0
+    helm.sh/chart: idlefy-universal-1.2.1
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: web-migrations
     app.kubernetes.io/instance: demo
@@ -259,7 +259,7 @@ spec:
   template:
     metadata:
       labels:
-        helm.sh/chart: idlefy-universal-1.2.0
+        helm.sh/chart: idlefy-universal-1.2.1
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/name: web-migrations
         app.kubernetes.io/instance: demo

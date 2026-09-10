@@ -8,7 +8,7 @@ import { classify, resolve } from '../src/inspector/schema';
 const root = schema as any;
 afterEach(cleanup);
 const node = resolve(root, root.properties.secretRefs);
-const field = (value: unknown) => ({ key: 'secretRefs', path: ['secretRefs'], label: 'secretRefs', widget: classify(root, node), schema: node, value, present: value !== undefined, required: false, tier: 'basic' as const });
+const field = (value: unknown) => ({ key: 'secretRefs', path: ['secretRefs'], label: 'secretRefs', widget: classify(root, node), schema: node, value, present: value !== undefined, required: false, locked: false, evict: [], tier: 'basic' as const });
 const value = { db: [{ name: 'DB_URL', secretKeyRef: { name: 'db', key: 'url' } }], api: [] };
 
 describe('MapOfListsField', () => {
@@ -42,5 +42,19 @@ describe('MapOfListsField', () => {
     expect(op.value).toHaveLength(1);
     expect(typeof op.value[0].name).toBe('string');
     expect(op.value[0].name.length).toBeGreaterThan(0);
+  });
+  it('a group a container still names cannot be removed', () => {
+    const onEdit = vi.fn();
+    const blockedRemove = (k: string) => (k === 'db' ? 'used by deployments/web · main — remove that reference first' : undefined);
+    render(<FieldRow root={root} field={field(value)} tier="basic" onEdit={onEdit} bare blockedRemove={blockedRemove} />);
+    const db = screen.getByLabelText('remove secretRefs.db') as HTMLButtonElement;
+    expect(db.disabled).toBe(true);
+    expect(db.title).toBe('used by deployments/web · main — remove that reference first');
+    fireEvent.click(db);
+    expect(onEdit).not.toHaveBeenCalled();
+    const api = screen.getByLabelText('remove secretRefs.api') as HTMLButtonElement;
+    expect(api.disabled).toBe(false);
+    fireEvent.click(api);
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: ['secretRefs', 'api'] }]);
   });
 });

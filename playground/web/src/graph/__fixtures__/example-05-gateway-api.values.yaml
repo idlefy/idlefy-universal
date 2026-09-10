@@ -26,5 +26,5 @@ httpRoutes:
       - matches:
           - path: {type: PathPrefix, value: /}
         backendRefs:
-          - name: demo-web
+          - name: web
             port: 80

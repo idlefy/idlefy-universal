@@ -3,11 +3,14 @@
 {{- $deploymentName := .deploymentName }}
 {{- $deploymentConfig := .deploymentConfig }}
 {{- $root := .root }}
+{{- /* autoCreatePdb without a pdb block is legal (the spec branch below defaults maxUnavailable);
+       `.pdb.labels` on a nil block is a template error, so default it once here. */}}
+{{- $pdbConfig := $deploymentConfig.pdb | default dict }}
 
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  {{- include "idlefy-universal.resourceMetadata" (dict "name" $deploymentName "root" $root "labels" $deploymentConfig.pdb.labels "annotations" $deploymentConfig.pdb.annotations) | nindent 2 }}
+  {{- include "idlefy-universal.resourceMetadata" (dict "name" $deploymentName "root" $root "labels" $pdbConfig.labels "annotations" $pdbConfig.annotations) | nindent 2 }}
 spec:
   selector:
     matchLabels:

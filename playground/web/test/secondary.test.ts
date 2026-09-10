@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SECONDARY, secondariesFor } from '../src/graph/secondary';
+import { SECONDARY, secondariesFor, toggleState, NEEDS_PORT } from '../src/graph/secondary';
 import { buildExpectations } from '../src/graph/expectations';
 
 const base = ['deployments', 'web'];
@@ -34,12 +34,19 @@ describe('secondary resources', () => {
       { op: 'set', path: [...base, 'autoCreateNetworkPolicy'], value: true },
     ]);
     expect(byId('rbac').on(base, {}, 'web')).toEqual([
+      { op: 'set', path: [...base, 'autoCreateServiceAccount'], value: true },
       { op: 'set', path: [...base, 'autoCreateRbac'], value: true },
       { op: 'set', path: [...base, 'rbac'], value: { rules: [{ apiGroups: [''], resources: ['configmaps'], verbs: ['get', 'list'] }] } },
     ]);
+    expect(byId('rbac').on(base, { serviceAccountName: 'sa', rbac: { rules: [] } }, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreateRbac'], value: true }]);
     expect(byId('ingress').on(base, {}, 'web')).toEqual([
       { op: 'set', path: [...base, 'autoCreateIngress'], value: true },
       { op: 'set', path: [...base, 'ingress'], value: { hosts: [{ host: 'web.example.com', paths: [{ path: '/', pathType: 'Prefix' }] }] } },
+    ]);
+    // _autocreate-httproute.tpl fails without hostnames or generic.ingressesGeneral.domain, same as ingress.
+    expect(byId('httpRoute').on(base, {}, 'web')).toEqual([
+      { op: 'set', path: [...base, 'autoCreateHttpRoute'], value: true },
+      { op: 'set', path: [...base, 'httpRoute'], value: { parentRefs: [{ name: 'gateway' }], hostnames: [{ host: 'web.example.com' }] } },
     ]);
     expect(byId('certificate').on(base, {}, 'web')).toEqual([
       { op: 'set', path: [...base, 'autoCreateIngress'], value: true },
@@ -49,7 +56,8 @@ describe('secondary resources', () => {
     ]);
     expect(byId('hpa').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'hpa'], value: { minReplicas: 1, maxReplicas: 3 } }]);
     expect(byId('migrations').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'migrations', 'enabled'], value: true }]);
-    expect(byId('pdb').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreatePdb'], value: true }]);
+    expect(byId('pdb').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreatePdb'], value: true }, { op: 'set', path: [...base, 'pdb'], value: { maxUnavailable: 1 } }]);
+    expect(byId('pdb').on(base, { pdb: { minAvailable: 1 } }, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreatePdb'], value: true }]);
     expect(byId('service').on(base, {}, 'web')).toEqual([{ op: 'set', path: [...base, 'autoCreateService'], value: true }]);
   });
   it('service.blocked() explains a missing container port', () => {
@@ -65,5 +73,45 @@ describe('secondary resources', () => {
     expect(ra('Role')).toEqual(byId('rbac').off(base));
     expect(ra('Job')).toEqual(byId('migrations').off(base));
     expect(ra('HorizontalPodAutoscaler')).toEqual(byId('hpa').off(base));
+  });
+  it('rbac is blocked on Jobs and CronJobs until a serviceAccountName exists', () => {
+    // JobSpec/CronJobSpec are additionalProperties:false with no autoCreateServiceAccount, so the
+    // SA chain rbac.on() adds for the other three kinds makes the document schema-invalid.
+    for (const kind of ['jobs', 'cronJobs']) {
+      expect(byId('rbac').blocked!({}, kind), kind).toMatch(/serviceAccountName/);
+      expect(byId('rbac').blocked!({ serviceAccountName: 'runner' }, kind), kind).toBeUndefined();
+    }
+    for (const kind of ['deployments', 'statefulSets', 'daemonSets']) {
+      expect(byId('rbac').blocked!({}, kind), kind).toBeUndefined();
+    }
+    // a Job that names its own SA takes the existing no-chain branch of on()
+    expect(byId('rbac').on(base, { serviceAccountName: 'runner' }, 'web')).toEqual([
+      { op: 'set', path: [...base, 'autoCreateRbac'], value: true },
+      { op: 'set', path: [...base, 'rbac'], value: { rules: [{ apiGroups: [''], resources: ['configmaps'], verbs: ['get', 'list'] }] } },
+    ]);
+  });
+  it('blockedOff explains why ServiceAccount cannot be switched off, and serviceMonitor needs a port', () => {
+    expect(byId('serviceAccount').blockedOff!({ autoCreateRbac: true })).toMatch(/Role \+ RoleBinding/);
+    expect(byId('serviceAccount').blockedOff!({ autoCreateRbac: true, serviceAccountName: 'sa' })).toBeUndefined();
+    expect(byId('serviceAccount').blockedOff!({})).toBeUndefined();
+    // no other secondary blocks its own off direction
+    expect(SECONDARY.filter((s) => s.blockedOff).map((s) => s.id)).toEqual(['serviceAccount']);
+    expect(byId('serviceMonitor').blocked!({ containers: { main: {} } })).toBe(NEEDS_PORT);
+    expect(byId('serviceMonitor').blocked!({ containers: { main: { ports: { http: { containerPort: 80 } } } } })).toBeUndefined();
+  });
+  it('toggleState: the shared rule AutoCreated and SecondaryPanel both call', () => {
+    // off, and blocked: disabled, `why` explains the blocking direction
+    expect(toggleState(byId('service'), { containers: { main: {} } }, 'deployments', false)).toEqual({ on: false, why: NEEDS_PORT, isDisabled: true });
+    // off, and not blocked: off, not disabled, no reason
+    expect(toggleState(byId('service'), { containers: { main: { ports: { h: { containerPort: 80 } } } } }, 'deployments', false)).toEqual({ on: false, why: undefined, isDisabled: false });
+    // on, and `blocked` would apply: still shows `why` (the on-but-blocked case), but not disabled —
+    // only `blockedOff` disables an already-on switch
+    expect(toggleState(byId('service'), { autoCreateService: true, containers: { main: {} } }, 'deployments', false)).toEqual({ on: true, why: NEEDS_PORT, isDisabled: false });
+    // on, and blockedOff applies: disabled in the off direction
+    expect(toggleState(byId('serviceAccount'), { autoCreateServiceAccount: true, autoCreateRbac: true }, 'deployments', false)).toEqual({
+      on: true, why: 'turn Role + RoleBinding off first (RBAC needs a ServiceAccount)', isDisabled: true,
+    });
+    // the panel's own `disabled` (e.g. a release-wide read-only mode) always wins
+    expect(toggleState(byId('service'), { containers: { main: { ports: { h: { containerPort: 80 } } } } }, 'deployments', true).isDisabled).toBe(true);
   });
 });

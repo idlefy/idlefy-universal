@@ -15,7 +15,8 @@ describe('AutoCreated', () => {
     const sw = screen.getByLabelText('toggle Service') as HTMLInputElement;
     expect(sw.checked).toBe(true);
     expect(sw.disabled).toBe(false);
-    expect(screen.getByText(/add a container port first/i)).toBeTruthy();
+    // Service and ServiceMonitor share NEEDS_PORT, so the reason is on both rows
+    expect(screen.getAllByText(/add a container port first/i).length).toBe(2);
     fireEvent.click(sw);
     expect(p.onEdit).toHaveBeenCalledWith([{ op: 'set', path: ['deployments', 'api', 'autoCreateService'], value: false }]);
   });
@@ -24,7 +25,8 @@ describe('AutoCreated', () => {
     const sw = screen.getByLabelText('toggle Service') as HTMLInputElement;
     expect(sw.checked).toBe(false);
     expect(sw.disabled).toBe(true);
-    expect(screen.getByText(/add a container port first/i)).toBeTruthy();
+    // Service and ServiceMonitor share NEEDS_PORT, so the reason is on both rows
+    expect(screen.getAllByText(/add a container port first/i).length).toBe(2);
   });
   it('shows a summary when on, a hint when off, and opens the node', () => {
     const p = props('deployments', { autoCreateRbac: true, rbac: { rules: [{}] } }, { nodeFor: (id) => (id === 'rbac' ? 'default/Role/api' : null) });
@@ -39,12 +41,27 @@ describe('AutoCreated', () => {
     expect(document.querySelectorAll('.sub.why').length).toBe(0);
   });
   it('a block with a schema node but no rendered node opens as a block selection', () => {
-    const p = props('deployments', { hpa: { minReplicas: 1, maxReplicas: 3 } });
+    const p = props('deployments', {
+      hpa: { minReplicas: 1, maxReplicas: 3 },
+      autoCreateIngress: true, ingress: { hosts: [{ host: 'a.example.com' }] },
+    });
     render(<AutoCreated {...p} />);
     fireEvent.click(screen.getByLabelText('open HorizontalPodAutoscaler'));
     expect(p.onSelect).toHaveBeenCalledWith('block:deployments.api.hpa');
     fireEvent.click(screen.getByLabelText('open Ingress'));
     expect(p.onSelect).toHaveBeenCalledWith('block:deployments.api.ingress');
+  });
+  it('opens a block panel only when the secondary is on or already has a body', () => {
+    // off + no rbac body: the switch is the only affordance, opening it would fail the chart
+    // (`'rbac' block is defined but autoCreateRbac is not true`)
+    const { rerender } = render(<AutoCreated {...props('deployments', { autoCreateRbac: false })} />);
+    expect(screen.queryByRole('button', { name: /^open /i })).toBeNull();
+    // on: openable
+    rerender(<AutoCreated {...props('deployments', { autoCreateRbac: true, rbac: { rules: [{}] } })} />);
+    expect(screen.getByLabelText('open Role + RoleBinding')).toBeTruthy();
+    // off but a body is already present: still openable (so the user can look at/clear the leftover config)
+    rerender(<AutoCreated {...props('deployments', { autoCreateRbac: false, rbac: { rules: [{}] } })} />);
+    expect(screen.getByLabelText('open Role + RoleBinding')).toBeTruthy();
   });
   it('the Service row (no schema node) opens only when its node exists', () => {
     const { rerender } = render(<AutoCreated {...props('deployments', { autoCreateService: true, containers: { main: { image: 'x', ports: { http: { containerPort: 80 } } } } })} />);
@@ -66,5 +83,16 @@ describe('AutoCreated', () => {
     render(<AutoCreated {...props('statefulSets', {})} />);
     const labels = screen.getAllByRole('switch').map((e) => e.getAttribute('aria-label'));
     expect(labels).toEqual(['toggle Service', 'toggle PodDisruptionBudget', 'toggle ServiceMonitor', 'toggle NetworkPolicy', 'toggle ServiceAccount', 'toggle Role + RoleBinding']);
+  });
+  it('a switch whose off direction is blocked is disabled and says why', () => {
+    const cfg = { autoCreateRbac: true, autoCreateServiceAccount: true, rbac: { rules: [{}] }, containers: { main: { image: 'x', ports: { http: { containerPort: 80 } } } } };
+    const p = props('deployments', cfg);
+    render(<AutoCreated {...p} />);
+    const sw = screen.getByLabelText('toggle ServiceAccount') as HTMLInputElement;
+    expect(sw.checked).toBe(true);
+    expect(sw.disabled).toBe(true);
+    expect(screen.getByText(/turn Role \+ RoleBinding off first/i)).toBeTruthy();
+    fireEvent.click(sw);
+    expect(p.onEdit).not.toHaveBeenCalled();
   });
 });

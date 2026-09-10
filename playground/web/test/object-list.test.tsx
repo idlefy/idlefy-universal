@@ -21,13 +21,18 @@ describe('ObjectListField', () => {
     expect(nameA.className).toContain('var');
     fireEvent.change(screen.getByLabelText('deployments.web.containers.main.env.1.value'), { target: { value: '3' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'env', 1, 'value'], value: '3' }]);
+    // `value` is the only member of EnvVar's value/valueFrom oneOf that is set: deleting it would
+    // leave a row that matches neither branch, so the text is held as a draft and nothing is emitted
+    onEdit.mockClear();
     fireEvent.change(screen.getByLabelText('deployments.web.containers.main.env.1.value'), { target: { value: '' } });
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...cbase, 'env', 1, 'value'] }]);
+    expect(onEdit).not.toHaveBeenCalled();
+    expect((screen.getByLabelText('deployments.web.containers.main.env.1.value') as HTMLInputElement).className).toContain('invalid');
     fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main.env.0'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...cbase, 'env', 0] }]);
-    // a required identifying leaf is never deleted while typing: it is set to ''
+    // a required leaf is neither deleted nor set to '' (EnvVar.name's pattern rejects ''): held as a draft
+    onEdit.mockClear();
     fireEvent.change(screen.getByLabelText('deployments.web.containers.main.env.0.name'), { target: { value: '' } });
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...cbase, 'env', 0, 'name'], value: '' }]);
+    expect(onEdit).not.toHaveBeenCalled();
     const add = screen.getByLabelText('add deployments.web.containers.main.env');
     expect(add.textContent).toBe('Variable');
     fireEvent.click(add);
@@ -36,13 +41,21 @@ describe('ObjectListField', () => {
     expect(ops[0].value).toBeTruthy();
     expect(screen.queryByRole('textbox', { name: 'deployments.web.containers.main.env' })).toBeNull();   // no textarea
   });
-  it('env: the expander reveals valueFrom; a row with valueFrom starts expanded', () => {
+  it('env: the expander still offers valueFrom while `value` is set, wired to evict it (EnvVar is a oneOf)', () => {
     const onEdit = vi.fn();
-    render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: [{ name: 'A', value: '1' }, { name: 'S', valueFrom: { secretKeyRef: { name: 'db', key: 'pw' } } }] }} tier="basic" onEdit={onEdit} />);
-    expect(screen.queryByLabelText('add field deployments.web.containers.main.env.0.valueFrom')).toBeNull();
+    render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: [{ name: 'A', value: '1' }, { name: 'B' }, { name: 'S', valueFrom: { secretKeyRef: { name: 'db', key: 'pw' } } }] }} tier="basic" onEdit={onEdit} />);
     fireEvent.click(screen.getByLabelText('more deployments.web.containers.main.env.0'));
-    expect(screen.getByLabelText('add field deployments.web.containers.main.env.0.valueFrom')).toBeTruthy();
-    expect(screen.getByLabelText('deployments.web.containers.main.env.1.valueFrom.secretKeyRef.name')).toBeTruthy();
+    // row 0 has `value` — the chip is not hidden away: clicking it swaps the row to valueFrom
+    const chip = screen.getByLabelText('add field deployments.web.containers.main.env.0.valueFrom');
+    fireEvent.click(chip);
+    const ops = onEdit.mock.calls.at(-1)![0];
+    expect(ops).toHaveLength(2);
+    expect(ops[0]).toMatchObject({ op: 'set', path: [...cbase, 'env', 0, 'valueFrom'] });
+    expect(ops[0].value).toBeTruthy();
+    expect(ops[1]).toEqual({ op: 'delete', path: [...cbase, 'env', 0, 'value'] });
+    fireEvent.click(screen.getByLabelText('more deployments.web.containers.main.env.1'));
+    expect(screen.getByLabelText('add field deployments.web.containers.main.env.1.valueFrom')).toBeTruthy();
+    expect(screen.getByLabelText('deployments.web.containers.main.env.2.valueFrom.secretKeyRef.name')).toBeTruthy();
   });
   it('secretRefs-shaped pair: nested leaves render as a joined pair, name before key; optional sits behind the expander', () => {
     const onEdit = vi.fn();
@@ -64,6 +77,19 @@ describe('ObjectListField', () => {
     expect(screen.queryByLabelText('clear x.refs.0.secretKeyRef')).toBeNull();
     expect(screen.getByLabelText('add field x.refs.0.secretKeyRef.optional')).toBeTruthy();
     expect(screen.queryByText('No fields here.')).toBeNull();
+  });
+  it('oneOf-exclusive leaves: setting subdomain deletes host and vice versa; other pairs are untouched', () => {
+    const onEdit = vi.fn();
+    const hostnames = schemaAt(root, ['deployments', 'web', 'httpRoute'])!;
+    const hbase = [...base, 'httpRoute'];
+    render(<FieldList root={root} node={hostnames} basePath={hbase} value={{ hostnames: [{ host: 'a.example.com' }, { subdomain: 'api' }] }} tier="basic" onEdit={onEdit} />);
+    fireEvent.change(screen.getByLabelText('deployments.web.httpRoute.hostnames.0.subdomain'), { target: { value: 'shop' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...hbase, 'hostnames', 0, 'subdomain'], value: 'shop' }, { op: 'delete', path: [...hbase, 'hostnames', 0, 'host'] }]);
+    fireEvent.change(screen.getByLabelText('deployments.web.httpRoute.hostnames.1.host'), { target: { value: 'b.example.com' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...hbase, 'hostnames', 1, 'host'], value: 'b.example.com' }, { op: 'delete', path: [...hbase, 'hostnames', 1, 'subdomain'] }]);
+    // no sibling present → a plain set
+    fireEvent.change(screen.getByLabelText('deployments.web.httpRoute.hostnames.1.subdomain'), { target: { value: 'api2' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...hbase, 'hostnames', 1, 'subdomain'], value: 'api2' }]);
   });
   it('a present non-list value keeps the raw YAML editor', () => {
     render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: { NOT: 'a list' } }} tier="basic" onEdit={vi.fn()} />);
@@ -118,7 +144,9 @@ describe('ObjectListField', () => {
   });
   it('expansion state follows the item after a removal', () => {
     const onEdit = vi.fn();
-    const value = { image: 'x', env: [{ name: 'A', value: '1' }, { name: 'B', value: '2' }, { name: 'C', value: '3' }] };
+    // rows with no `value` set, so `valueFrom` is still offered — this test uses that chip as its
+    // "row is open" probe, and buildFields now hides it while the other half of the oneOf is set
+    const value = { image: 'x', env: [{ name: 'A' }, { name: 'B' }, { name: 'C' }] };
     const { rerender } = render(<FieldList root={root} node={cnode} basePath={cbase} value={value} tier="basic" onEdit={onEdit} />);
     fireEvent.click(screen.getByLabelText('more deployments.web.containers.main.env.2'));   // C open
     fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main.env.0'));
@@ -135,5 +163,46 @@ describe('ObjectListField', () => {
     const ops = onEdit.mock.calls.at(-1)![0];
     expect(ops[0].path).toEqual(['x', 'items', 0]);
     expect(ops[0].value).toEqual({ name: '' });
+  });
+  it('the last item of a locked list cannot be removed', () => {
+    const onEdit = vi.fn();
+    const ing = schemaAt(root, ['ingresses', 'site'])!;
+    render(<FieldList root={root} node={ing} basePath={['ingresses', 'site']} value={{ hosts: [{ host: 'a.example.com', paths: [{ path: '/', pathType: 'Prefix' }] }] }} tier="advanced" onEdit={onEdit} />);
+    // removing it would delete `hosts` and leave `ingresses.site: {}` — "configuration must not be empty"
+    expect((screen.getByLabelText('remove ingresses.site.hosts.0') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText('remove ingresses.site.hosts.0'));
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+  it('a committed value evicts the exclusive sibling on the row (oneOf and anyOf alike)', () => {
+    const onEdit = vi.fn();
+    // HttpRouteHostname says host xor subdomain with `oneOf`
+    const hr = schemaAt(root, ['deployments', 'web', 'httpRoute'])!;
+    render(<FieldList root={root} node={hr} basePath={['deployments', 'web', 'httpRoute']} value={{ hostnames: [{ host: 'a.example.com' }, { host: 'b.example.com' }] }} tier="basic" onEdit={onEdit} />);
+    fireEvent.change(screen.getByLabelText('deployments.web.httpRoute.hostnames.1.subdomain'), { target: { value: 'api' } });
+    expect(onEdit).toHaveBeenLastCalledWith([
+      { op: 'set', path: ['deployments', 'web', 'httpRoute', 'hostnames', 1, 'subdomain'], value: 'api' },
+      { op: 'delete', path: ['deployments', 'web', 'httpRoute', 'hostnames', 1, 'host'] },
+    ]);
+    // IngressHost says the same thing with anyOf + not, and must behave identically
+    cleanup();
+    const onEdit2 = vi.fn();
+    const ing = schemaAt(root, ['deployments', 'web', 'ingress'])!;
+    const ibase = ['deployments', 'web', 'ingress'];
+    render(<FieldList root={root} node={ing} basePath={ibase} value={{ hosts: [{ host: 'a.example.com', paths: [{ path: '/', pathType: 'Prefix' }] }] }} tier="advanced" onEdit={onEdit2} />);
+    fireEvent.change(screen.getByLabelText('deployments.web.ingress.hosts.0.subdomain'), { target: { value: 'api' } });
+    expect(onEdit2).toHaveBeenLastCalledWith([
+      { op: 'set', path: [...ibase, 'hosts', 0, 'subdomain'], value: 'api' },
+      { op: 'delete', path: [...ibase, 'hosts', 0, 'host'] },
+    ]);
+  });
+  it('adding a second item does not repeat the first one\'s name or port', () => {
+    const onEdit = vi.fn();
+    const svc = schemaAt(root, ['services', 'api'])!;
+    const ports = [{ name: 'http', port: 80, targetPort: 8080 }];
+    render(<FieldList root={root} node={svc} basePath={['services', 'api']} value={{ ports }} tier="advanced" onEdit={onEdit} />);
+    fireEvent.click(screen.getByLabelText('add services.api.ports'));
+    const ops = onEdit.mock.calls.at(-1)![0];
+    expect(ops[0].path).toEqual(['services', 'api', 'ports', 1]);
+    expect(ops[0].value).toMatchObject({ name: 'http-2', port: 81 });
   });
 });

@@ -6,7 +6,7 @@ import { AddKeyRow } from './AddKeyRow';
 import { resolve, type SchemaNode } from '../schema';
 import { starterValue } from '../form';
 
-export function MapSection({ root, field, tier, onEdit }: FieldProps): ReactElement {
+export function MapSection({ root, field, tier, onEdit, lockedPaths, workload }: FieldProps): ReactElement {
   const id = field.path.join('.');
   const r = resolve(root, field.schema);
   const item = r.additionalProperties as SchemaNode;
@@ -20,7 +20,7 @@ export function MapSection({ root, field, tier, onEdit }: FieldProps): ReactElem
           <summary><span>{key}</span>
             <button type="button" aria-label={`remove ${id}.${key}`} onClick={(e) => { e.preventDefault(); onEdit([{ op: 'delete', path: [...field.path, key] }]); }}>×</button>
           </summary>
-          <FieldList root={root} node={item} basePath={[...field.path, key]} value={(field.value as Record<string, unknown>)[key]} tier={tier} onEdit={onEdit} />
+          <FieldList root={root} node={item} basePath={[...field.path, key]} value={(field.value as Record<string, unknown>)[key]} tier={tier} onEdit={onEdit} lockedPaths={lockedPaths} workload={workload} />
         </details>
       ))}
       <AddKeyRow id={id} existing={entries} valid={(k) => !keyPattern || new RegExp(keyPattern).test(k)} invalidText={`must match ${keyPattern}`} placeholder="new name"

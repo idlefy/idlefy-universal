@@ -44,3 +44,75 @@ export function workloadSummary(kindKey: string, cfg: Record<string, any>): stri
   if (kindKey === 'jobs' || kindKey === 'daemonSets') return image;
   return `${plural(typeof cfg.replicas === 'number' ? cfg.replicas : 1, 'replica')} · ${image}`;
 }
+
+/**
+ * Every `<mapKey>/<name> · <container>` whose `secretRefs` list names `group`, in document order.
+ * `_validation.tpl` fails a container that references a group `.Values.secretRefs` does not hold —
+ * and skips the check entirely when `secretRefs` is empty, so removing the *last* group leaves a
+ * dangling reference that renders "successfully". Tolerates any shape: this walks the live document.
+ */
+export function secretRefUsers(values: Record<string, unknown>, group: string): string[] {
+  const out: string[] = [];
+  for (const mapKey of ['deployments', 'statefulSets', 'daemonSets', 'jobs', 'cronJobs']) {
+    const entries = values[mapKey];
+    if (!isObj(entries)) continue;
+    for (const [name, cfg] of Object.entries(entries)) {
+      if (!isObj(cfg)) continue;
+      for (const listKey of ['containers', 'initContainers']) {
+        const containers = (cfg as Record<string, unknown>)[listKey];
+        if (!isObj(containers)) continue;
+        for (const [cn, c] of Object.entries(containers)) {
+          const refs = isObj(c) ? (c as Record<string, unknown>).secretRefs : undefined;
+          if (Array.isArray(refs) && refs.includes(group)) out.push(`${mapKey}/${name} · ${cn}`);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Every `hosts[]`/`hostnames[]` entry anywhere in the document that sets `subdomain` — a workload's
+ * auto-created `ingress.hosts` / `httpRoute.hostnames`, or a standalone `ingresses.*.hosts` /
+ * `httpRoutes.*.hostnames`. `_computed-ingress-host.tpl` combines `subdomain` with
+ * `generic.ingressesGeneral.domain` ("Global domain must be specified when a subdomain is used."), so
+ * while any of these exist that domain cannot be cleared without breaking the render. Tolerates any
+ * shape: this walks the live document, mirroring `secretRefUsers`.
+ */
+export function subdomainUsers(values: Record<string, unknown>): string[] {
+  const out: string[] = [];
+  const scan = (label: string, hosts: unknown, hostsKey: string) => {
+    if (!Array.isArray(hosts)) return;
+    hosts.forEach((h, i) => {
+      if (isObj(h) && typeof (h as Record<string, unknown>).subdomain === 'string') out.push(`${label} · ${hostsKey}.${i}.subdomain`);
+    });
+  };
+  for (const mapKey of ['deployments', 'statefulSets', 'daemonSets', 'jobs', 'cronJobs']) {
+    const entries = values[mapKey];
+    if (!isObj(entries)) continue;
+    for (const [name, cfg] of Object.entries(entries)) {
+      if (!isObj(cfg)) continue;
+      const c = cfg as Record<string, unknown>;
+      scan(`${mapKey}/${name}`, isObj(c.ingress) ? (c.ingress as Record<string, unknown>).hosts : undefined, 'ingress.hosts');
+      scan(`${mapKey}/${name}`, isObj(c.httpRoute) ? (c.httpRoute as Record<string, unknown>).hostnames : undefined, 'httpRoute.hostnames');
+    }
+  }
+  const ingresses = values.ingresses;
+  if (isObj(ingresses)) for (const [name, cfg] of Object.entries(ingresses)) if (isObj(cfg)) scan(`ingresses/${name}`, (cfg as Record<string, unknown>).hosts, 'hosts');
+  const httpRoutes = values.httpRoutes;
+  if (isObj(httpRoutes)) for (const [name, cfg] of Object.entries(httpRoutes)) if (isObj(cfg)) scan(`httpRoutes/${name}`, (cfg as Record<string, unknown>).hostnames, 'hostnames');
+  return out;
+}
+
+/**
+ * The one runtime (document-wide) `lockedPaths` lock the playground computes today — see
+ * `buildFields`'s own doc comment for why this can't be expressed as static path shape. While
+ * `subdomainUsers` finds a live reference anywhere in the document, `generic.ingressesGeneral.domain`
+ * cannot be cleared (`_computed-ingress-host.tpl` needs it), and neither can the `ingressesGeneral`
+ * block itself — its own clear × would take `domain` with it in one click, the same silent escape the
+ * leaf lock is there to prevent. Empty `Set` (not `undefined`) when no such reference exists, so every
+ * caller can pass the result straight through `lockedPaths?.has(...)` without an extra branch.
+ */
+export function subdomainLockedPaths(values: Record<string, unknown>): Set<string> {
+  return subdomainUsers(values).length > 0 ? new Set(['generic.ingressesGeneral.domain', 'generic.ingressesGeneral']) : new Set();
+}

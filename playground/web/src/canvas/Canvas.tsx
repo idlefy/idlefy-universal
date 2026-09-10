@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -34,22 +34,34 @@ function FitOnLayout({ token }: { token: unknown }) {
 
 export function Canvas({
   model,
+  booting,
   stale,
   selection,
   onSelect,
   onAddResource,
+  emptyState,
 }: {
   model: GraphModel | null;
+  booting: boolean;
   stale: boolean;
   selection: string | null;
   onSelect: (id: string | null) => void;
   onAddResource: (groupId: string) => void;
+  emptyState?: ReactNode;
 }) {
-  const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[] }>({
+  // `model` is tracked alongside the layout so the empty card is never decided from a model whose
+  // ELK layout has not landed yet — otherwise it paints over the previous graph for one tick. `empty`
+  // is the emptiness of *that* completed layout's model, kept around so the card is not withheld
+  // during the gap of a later, still-empty model's own layout still being in flight — see the render
+  // check below for why that gap otherwise strobes the card while typing over an empty document.
+  const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[]; model: GraphModel | null; empty: boolean }>({
     nodes: [],
     edges: [],
+    model: null,
+    empty: false,
   });
   const [layoutError, setLayoutError] = useState<string | null>(null);
+  const isEmpty = (m: GraphModel) => m.nodes.filter((n) => n.manifest).length === 0;
 
   useEffect(() => {
     let alive = true;
@@ -57,13 +69,13 @@ export function Canvas({
     layoutGraph(model)
       .then((r) => {
         if (alive) {
-          setLaid(r);
+          setLaid({ ...r, model, empty: isEmpty(model) });
           setLayoutError(null);
         }
       })
       .catch((e) => {
         if (alive) {
-          setLaid({ nodes: [], edges: [] });
+          setLaid({ nodes: [], edges: [], model, empty: isEmpty(model) });
           setLayoutError(e instanceof Error ? e.message : String(e));
           console.error("layout failed", e);
         }
@@ -95,7 +107,9 @@ export function Canvas({
   if (!model)
     return (
       <div className="canvas-empty">
-        Paste or pick an example on the left to see the resources it produces.
+        {booting
+          ? "Starting the Helm engine…"
+          : "Paste or pick an example on the left to see the resources it produces."}
       </div>
     );
   return (
@@ -116,7 +130,7 @@ export function Canvas({
           onNodeClick={(_, n) => onSelect(n.id)}
           onPaneClick={() => onSelect(null)}
           nodesConnectable={false}
-          proOptions={{ hideAttribution: true }}
+          // No proOptions: hiding React Flow's attribution requires a Pro subscription, and this repo documents none.
         >
           <Background />
           <Controls />
@@ -128,8 +142,13 @@ export function Canvas({
       {layoutError && (
         <div className="canvas-error">Layout failed: {layoutError}</div>
       )}
-      {!layoutError && model.nodes.filter((n) => n.manifest).length === 0 && (
-        <div className="canvas-empty overlay">No resources rendered yet.</div>
+      {/* `laid.model === model`: the layout on screen actually is this model's, the normal case.
+          `laid.empty`: the layout in flight for *this* model has not landed yet, but the last one
+          that did was already empty too — continuous typing over an empty document produces a new
+          (still empty) model on every keystroke, and gating on `laid.model === model` alone would
+          hide and reshow the card on every one of those async gaps instead of leaving it be. */}
+      {!layoutError && (laid.model === model || laid.empty) && isEmpty(model) && (
+        emptyState ?? <div className="canvas-empty overlay">No resources rendered yet.</div>
       )}
     </div>
   );

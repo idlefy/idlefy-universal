@@ -333,3 +333,34 @@ tests:
       - equal:
           path: spec.rules[0].backendRefs[0].kind
           value: Service
+  - it: should render a match with no path (headers/queryParams-only match)
+    set:
+      generic:
+        ingressesGeneral:
+          domain: "example.org"
+        httpRoutesGeneral:
+          parentRefs:
+            - name: gw
+              namespace: gw-ns
+      httpRoutes:
+        my-app:
+          hostnames:
+            - subdomain: my-app
+          rules:
+            - matches:
+                - headers:
+                    - name: x-env
+                      value: staging
+              backendRefs:
+                - name: my-app
+                  port: 8080
+    asserts:
+      - equal:
+          path: spec.rules[0].matches[0].path.type
+          value: PathPrefix
+      - equal:
+          path: spec.rules[0].matches[0].path.value
+          value: /
+      - equal:
+          path: spec.rules[0].matches[0].headers[0].name
+          value: x-env
