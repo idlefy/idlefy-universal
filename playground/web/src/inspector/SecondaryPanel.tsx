@@ -33,7 +33,12 @@ export function SecondaryPanel(p: {
   const why = blockedOff ?? blocked;
   // secondary.ts: some `off()` handlers delete the block, others only clear a flag — say which
   const deletes = sec.off(owner).some((o) => o.op === 'delete');
+  const isDisabled = p.disabled || (!on && !!blocked) || !!blockedOff;
   const toggle = (checked: boolean) => {
+    // jsdom fires the native `change` event for a disabled checkbox when the click is
+    // dispatched programmatically (only the real `.click()` method honors `disabled`), so
+    // guard here too rather than trusting the DOM attribute alone.
+    if (isDisabled) return;
     if (checked) { p.onEdit(sec.on(owner, cfg, name)); return; }
     p.onEdit(sec.off(owner));
     // the node (and with it this panel's subject) may vanish: hand the selection to the group
@@ -90,7 +95,7 @@ export function SecondaryPanel(p: {
           <div className="nm">{sec.label} enabled</div>
           <div className={`sub ${why ? 'why' : ''}`}>{why ?? (deletes ? 'turning off removes its settings from values.yaml' : 'turning off keeps the settings in values.yaml')}</div>
         </div>
-        <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${sec.label}`} checked={on} disabled={p.disabled || (!on && !!blocked) || !!blockedOff} onChange={(e) => toggle(e.target.checked)} />
+        <input type="checkbox" role="switch" className="switch" aria-label={`toggle ${sec.label}`} checked={on} disabled={isDisabled} onChange={(e) => toggle(e.target.checked)} />
       </div>
       <fieldset disabled={p.disabled}>{fields}</fieldset>
     </>

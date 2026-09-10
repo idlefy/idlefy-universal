@@ -122,6 +122,7 @@ describe('buildFields', () => {
     expect(chartRequired(['httpRoutes', 'r', 'rules'])).toBe(true);
     expect(chartRequired(['httpRoutes', 'r', 'rules', 0, 'matches'])).toBe(true);   // a numeric index matches '*'
     expect(chartRequired(['statefulSets', 'db', 'networkPolicy', 'ingress'])).toBe(true);
+    expect(chartRequired(['deployments', 'web', 'networkPolicy', 'egress'])).toBe(true);
     expect(chartRequired(['deployments', 'web', 'replicas'])).toBe(false);
   });
 });

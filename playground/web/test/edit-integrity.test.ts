@@ -91,7 +91,7 @@ describe('edit integrity', () => {
       if (!r0.ok) { fails.push(`all-on ${kind} → ${why(r0)}`); continue; }
       const cfgAllOn = (allOn.toJS() as any)[kind].app as Record<string, any>;
       for (const s of applied) {
-        if (s.blockedOff?.(cfgAllOn, kind)) continue;   // the switch is disabled and says why
+        if (s.isOn(cfgAllOn) && s.blockedOff?.(cfgAllOn, kind)) continue;   // the switch is disabled and says why
         const r = render(allOn.apply(s.off([kind, 'app'])).toString());
         if (!r.ok) fails.push(`off ${kind}/${s.id} (all others on) → ${why(r)}`);
       }
@@ -122,7 +122,7 @@ describe('edit integrity', () => {
         const before = render(doc.toString());
         if (!before.ok) { fails.push(`pair ${kind}/${a.id}+${b.id} → ${why(before)}`); continue; }
         const cfg = (doc.toJS() as any)[kind].app as Record<string, any>;
-        if (b.blockedOff?.(cfg, kind)) continue;
+        if (b.isOn(cfg) && b.blockedOff?.(cfg, kind)) continue;
         const after = render(doc.apply(b.off([kind, 'app'])).toString());
         if (!after.ok) fails.push(`pair ${kind}/${a.id} on + ${b.id} off → ${why(after)}`);
       }

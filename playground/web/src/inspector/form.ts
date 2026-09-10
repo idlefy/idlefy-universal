@@ -38,6 +38,7 @@ const CHART_REQUIRED_PATHS: readonly string[] = [
   '*.*.ingress.hosts',                     // autoCreateCertificate requires ingress configuration (clearing hosts leaves `ingress: {}`)
   '*.*.containers.*.ports',                // <Kind> <n>: autoCreateService=true requires at least one container port
   '*.*.networkPolicy.ingress',             // <Kind> <n>: policyTypes contains 'Ingress' but 'networkPolicy.ingress' is not defined (use [] for explicit deny)
+  '*.*.networkPolicy.egress',              // <Kind> <n>: policyTypes contains 'Egress' but 'networkPolicy.egress' is not defined (use [] for explicit deny)
 ];
 
 /** True for a values path `CHART_REQUIRED_PATHS` matches. */

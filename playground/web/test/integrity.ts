@@ -61,13 +61,14 @@ export const SKIP = process.env.EDIT_INTEGRITY === 'off';
 export const TIMEOUT = 300_000;
 
 /** The smallest body each workload kind's schema accepts, plus one container port so the Service and
- *  ServiceMonitor switches are not blocked. */
+ *  ServiceMonitor switches are not blocked, and (for Job/CronJob) a `serviceAccountName` so `rbac` is
+ *  not blocked either — JobSpec/CronJobSpec have no `autoCreateServiceAccount`, only `serviceAccountName`. */
 export const MINIMAL: Record<string, Record<string, unknown>> = {
   deployments: { containers: { main: { image: 'nginx', imageTag: '1.27', ports: { http: { containerPort: 80 } } } } },
   statefulSets: { containers: { main: { image: 'postgres', imageTag: '16', ports: { http: { containerPort: 5432 } } } }, serviceName: 'app' },
   daemonSets: { containers: { main: { image: 'agent', imageTag: 'v1', ports: { http: { containerPort: 80 } } } } },
-  jobs: { containers: { main: { image: 'worker', imageTag: 'v1' } } },
-  cronJobs: { containers: { main: { image: 'backup', imageTag: 'v1' } }, schedule: '0 0 * * *' },
+  jobs: { containers: { main: { image: 'worker', imageTag: 'v1' } }, serviceAccountName: 'app' },
+  cronJobs: { containers: { main: { image: 'backup', imageTag: 'v1' } }, schedule: '0 0 * * *', serviceAccountName: 'app' },
 };
 
 /** Two instances of every entity with every toggle on: the only document that puts two Ingresses
