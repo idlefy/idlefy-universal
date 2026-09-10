@@ -96,7 +96,7 @@ describe('compound widgets', () => {
   });
   it('ports table: the last port is locked while autoCreateService is on — a StatefulSet needs one', () => {
     const onEdit = vi.fn();
-    const workload = { kindKey: 'deployments', autoCreateService: true };
+    const workload = { autoCreateService: true };
     render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} workload={workload} />);
     const removeBtn = screen.getByLabelText('remove deployments.web.containers.main.ports.http') as HTMLButtonElement;
     expect(removeBtn.disabled).toBe(true);
@@ -106,12 +106,12 @@ describe('compound widgets', () => {
   });
   it('ports table: without autoCreateService (or with more than one port) the × stays live', () => {
     const onEdit = vi.fn();
-    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} workload={{ kindKey: 'deployments', autoCreateService: false }} />);
+    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} workload={{ autoCreateService: false }} />);
     expect((screen.getByLabelText('remove deployments.web.containers.main.ports.http') as HTMLButtonElement).disabled).toBe(false);
     cleanup();
     const two = { containers: { main: { ...value.containers.main, ports: { http: { containerPort: 80 }, admin: { containerPort: 81 } } } } };
     const onEdit2 = vi.fn();
-    render(<FieldList root={root} node={dep} basePath={base} value={two} tier="basic" onEdit={onEdit2} workload={{ kindKey: 'deployments', autoCreateService: true }} />);
+    render(<FieldList root={root} node={dep} basePath={base} value={two} tier="basic" onEdit={onEdit2} workload={{ autoCreateService: true }} />);
     const removeBtn = screen.getByLabelText('remove deployments.web.containers.main.ports.http') as HTMLButtonElement;
     expect(removeBtn.disabled).toBe(false);
     fireEvent.click(removeBtn);

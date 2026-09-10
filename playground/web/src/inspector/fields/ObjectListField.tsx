@@ -50,10 +50,12 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string; remove
   // removing the last item takes the whole key with it, which a locked list cannot survive. A list
   // whose sole surviving row is still referenced elsewhere (e.g. a secretRefs group a container still
   // names) is blocked the same way, with the caller's own reason (`removeBlocked`) — MapOfListsField
-  // threads the same `why` its own card × already shows.
+  // threads the same `why` its own card × already shows. `removeBlocked` only matters for the *last*
+  // row: removing any other row leaves the group (and the reference) intact, so only the sole
+  // remaining row needs to stay put.
   const lastLocked = items.length === 1 && field.locked;
-  const removeDisabled = lastLocked || !!removeBlocked;
-  const removeTitle = removeBlocked ?? (lastLocked ? 'This list must keep at least one entry' : undefined);
+  const removeDisabled = lastLocked || (items.length === 1 && !!removeBlocked);
+  const removeTitle = lastLocked ? 'This list must keep at least one entry' : (items.length === 1 ? removeBlocked : undefined);
   const remove = (i: number) => {
     if (removeDisabled) return;
     onEdit(items.length === 1 ? [{ op: 'delete', path: field.path }] : [{ op: 'delete', path: [...field.path, i] }]);

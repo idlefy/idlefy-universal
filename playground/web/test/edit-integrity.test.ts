@@ -4,9 +4,9 @@
 //   must render. The only sanctioned escape is a blocked()/blockedOff() reason (for toggles) or a
 //   disabled control (for widgets) — never a silently broken document.
 //
-// Cost: ~113 ms per engine render. This file is ~165 renders ≈ 21 s; see the plan's Global
-// Constraints for the sharding budget. EDIT_INTEGRITY=full adds the exhaustive ordered-pair off
-// sweep (~240 renders) that the all-on/each-off sweep below stands in for.
+// Cost: ~113 ms per engine render. This file's default-shard tests together take ~19 s measured on
+// dev hardware; see the plan's Global Constraints for the sharding budget. EDIT_INTEGRITY=full adds
+// the exhaustive ordered-pair off sweep that the all-on/each-off sweep below stands in for.
 import { describe, it, expect, beforeAll } from 'vitest';
 import { stringify } from 'yaml';
 import examplesJson from '../src/chart-bundle/examples.json';

@@ -18,7 +18,7 @@ export type FieldProps = {
   /** Only `PortsTable` reads this. The owning workload's own flags — `Sections`/`WorkloadPanel` is the
    *  one caller with the whole workload config in hand, so it is the one that can say whether the
    *  last container port is load-bearing for an auto-created Service. */
-  workload?: { kindKey: string; autoCreateService: boolean };
+  workload?: { autoCreateService: boolean };
 };
 export { FieldRow };
 

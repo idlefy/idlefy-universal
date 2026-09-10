@@ -23,7 +23,7 @@ export function WorkloadPanel(p: {
   // PortsTable needs to know whether the last container port it would remove is load-bearing for an
   // auto-created Service — the workload cfg (`autoCreateService`) is only visible here, not at the
   // port row's own level several FieldList/FieldRow layers down.
-  const workload = { kindKey: String(base[0]), autoCreateService: isObj(cfg) && !!cfg.autoCreateService };
+  const workload = { autoCreateService: isObj(cfg) && !!cfg.autoCreateService };
   const members = p.nodes.filter((n) => n.provenance?.owner && samePath(n.provenance.owner, base));
   const summary = members.length === 0 ? 'no other resources yet' : members.length === 1 ? members[0].kind : `${members[0].kind}, ${members.length - 1} more`;
   return (

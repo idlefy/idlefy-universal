@@ -27,7 +27,10 @@ export function ReleasePanel(p: {
   // entry elsewhere in the document sets `subdomain`. ReleasePanel is the one caller with the whole
   // document in hand — same reasoning as the secretRefs guard just below — so it computes the lock
   // here and hands it down through buildFields' `lockedPaths` instead of TextField growing its own ×.
-  const lockedPaths = subdomainUsers(all).length > 0 ? new Set(['generic.ingressesGeneral.domain']) : undefined;
+  // The parent `generic.ingressesGeneral` block is locked the same way: its own clear × (rendered by
+  // FieldRow for the object as a whole) would otherwise take `domain` with it in one click, the same
+  // silent escape a locked leaf is supposed to prevent.
+  const lockedPaths = subdomainUsers(all).length > 0 ? new Set(['generic.ingressesGeneral.domain', 'generic.ingressesGeneral']) : undefined;
 
   // Property-shaped release sections list their fields; `secretRefs` is a bare additionalProperties
   // map that buildFields cannot walk, so it renders through its own widget.
