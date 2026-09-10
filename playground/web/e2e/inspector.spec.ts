@@ -1,13 +1,5 @@
 import { test, expect } from '@playwright/test';
-
-// The YAML pane starts collapsed; tests that use the toolbar or type into Monaco open it first.
-// Waits for either the rail or an already-visible editor so it cannot race the first paint.
-const openYaml = async (page: import('@playwright/test').Page) => {
-  const rail = page.getByRole('button', { name: 'Show values.yaml' });
-  await rail.or(page.locator('.editor:visible')).first().waitFor();
-  if (await rail.isVisible()) await rail.click();
-  await expect(page.locator('.editor')).toBeVisible();
-};
+import { openYaml } from './helpers';
 
 test('inspector edits values, toggles resources, and undo goes through Monaco', async ({ page }) => {
   await page.goto('./');

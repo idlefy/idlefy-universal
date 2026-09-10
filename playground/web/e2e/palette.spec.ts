@@ -1,19 +1,11 @@
 import { test, expect } from '@playwright/test';
-
-// The YAML pane starts collapsed; tests that use the toolbar or type into Monaco open it first.
-// Waits for either the rail or an already-visible editor so it cannot race the first paint.
-const openYaml = async (page: import('@playwright/test').Page) => {
-  const rail = page.getByRole('button', { name: 'Show values.yaml' });
-  await rail.or(page.locator('.editor:visible')).first().waitFor();
-  if (await rail.isVisible()) await rail.click();
-  await expect(page.locator('.editor')).toBeVisible();
-};
+import { openYaml, setText } from './helpers';
 
 test('add from the empty state with the keyboard, then remove', async ({ page }) => {
   await page.goto('./');
   await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
   await openYaml(page);
-  // Empty document (not `{}`: a flow root would keep every later insert on one line — spec §4).
+  // Empty document. (A flow `{}` root is covered by its own test below — inserts are block either way.)
   // Monaco's textarea is an input proxy: select-all + Delete clears the model without going through fill().
   await page.locator('.editor').click();
   await page.keyboard.press('ControlOrMeta+A');
@@ -41,7 +33,7 @@ test('add from the empty state with the keyboard, then remove', async ({ page })
   await expect(page.locator('.rnode', { hasText: 'Deployment' })).toHaveCount(1, { timeout: 15_000 });
   await expect(page.locator('.detail .head b')).toHaveText('backend-api');
   await expect(page.locator('.detail [role="tab"][aria-selected="true"]')).toHaveText('Fields');
-  // Block style, not flow: a `{}` root would have produced `deployments: {backend-api: …}` on one line.
+  // Block style, not flow.
   await expect
     .poll(async () => (await page.locator('.view-lines').innerText()), { timeout: 15_000 })
     .toMatch(/deployments:\n\s+backend-api:/);
@@ -66,4 +58,106 @@ test('the Add button is disabled while the YAML is broken', async ({ page }) => 
   await page.keyboard.type('deployments: [');
   await expect(page.locator('.add-btn')).toBeDisabled({ timeout: 15_000 });
   await expect(page.locator('.add-btn')).toHaveAttribute('title', 'Fix the YAML syntax error in the editor to edit here.');
+});
+
+test('the launcher scrolls the active row into view', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
+  await page.locator('.add-btn').click();
+  const list = page.locator('.launcher .list');
+  await expect(list).toBeVisible();
+  expect(await list.evaluate((el) => el.scrollTop)).toBe(0);
+  // ↑ from the first row wraps to the last (PVC), which is below the fold of the 440px container.
+  await page.keyboard.press('ArrowUp');
+  await expect(page.locator('.launcher .row.active code')).toHaveText('persistentVolumeClaims');
+  await expect.poll(async () => list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(async () => list.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
+});
+
+test('adding into an existing `deployments: {}` stays block style', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
+  await openYaml(page);
+  await setText(page, 'deployments: {}\n');
+  await expect(page.locator('.empty-card')).toBeVisible({ timeout: 15_000 });
+  await page.locator('.add-btn').click();
+  await page.keyboard.type('dep');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.rnode', { hasText: 'Deployment' })).toHaveCount(1, { timeout: 15_000 });
+  await expect
+    .poll(async () => (await page.locator('.view-lines').innerText()), { timeout: 15_000 })
+    .toMatch(/deployments:\n\s+backend-api:/);
+});
+
+test('Ctrl+Z outside the editor undoes an add', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
+  await openYaml(page);
+  await page.locator('.editor').click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.press('Delete');
+  await expect(page.locator('.empty-card')).toBeVisible({ timeout: 15_000 });
+  await page.locator('.empty-card h3').click();
+  await page.keyboard.press('a');
+  await page.keyboard.type('dep');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.rnode', { hasText: 'Deployment' })).toHaveCount(1, { timeout: 15_000 });
+  // Focus is on the canvas/inspector, not Monaco: this is the global path.
+  await page.locator('header strong').click();
+  await page.keyboard.press('ControlOrMeta+Z');
+  await expect(page.locator('.empty-card')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.editor')).not.toContainText('backend-api');
+  // and again with the pane collapsed — the case the finding is actually about
+  await page.getByRole('button', { name: 'YAML', exact: true }).click();
+  await expect(page.locator('.editor')).toBeHidden();
+  await page.locator('header strong').click();
+  await page.keyboard.press('ControlOrMeta+Shift+Z');   // redo brings the Deployment back
+  await expect(page.locator('.rnode', { hasText: 'Deployment' })).toHaveCount(1, { timeout: 15_000 });
+});
+
+test('the launcher does not re-appear by itself after a YAML error, nor survive an example load', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
+  const dialog = page.getByRole('dialog', { name: 'Add a resource' });
+  await page.locator('.add-btn').click();
+  await expect(dialog).toBeVisible();
+  await openYaml(page);
+  await page.locator('.editor').click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.type('\nbroken: [');
+  await expect(page.locator('.add-btn')).toBeDisabled({ timeout: 15_000 });
+  // fixing the typo must not bring the stale popover back
+  await page.keyboard.press('Backspace');
+  await expect(page.locator('.add-btn')).toBeEnabled({ timeout: 15_000 });
+  await expect(dialog).toHaveCount(0);
+
+  await page.locator('.add-btn').click();
+  await expect(dialog).toBeVisible();
+  await page.getByLabel('examples').selectOption('05-gateway-api');
+  await expect(dialog).toHaveCount(0);
+});
+
+// Task 9 review (controller ruling): the undo bridge must reach Monaco's stack even when the
+// pane is collapsed and no Monaco instance is mounted-visible to receive the keystroke.
+test('undo restores a node removed via the detail panel while the YAML pane is collapsed', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
+  // exercise the same pane toggle panes.spec.ts uses, landing on collapsed rather than assuming it.
+  await openYaml(page);
+  await page.getByRole('button', { name: 'YAML', exact: true }).click();
+  await expect(page.locator('.editor')).toBeHidden();
+
+  const nodes = page.locator('.rnode');
+  const before = await nodes.count();   // example 01: release + Service hello + Deployment hello
+  await page.locator('.rnode', { hasText: 'Deployment' }).click();
+  await expect(page.locator('.detail')).toBeVisible();
+  await page.getByLabel('Remove Deployment hello').click();
+  await expect(nodes).not.toHaveCount(before, { timeout: 15_000 });
+
+  // Focus is on the page chrome, not Monaco (which isn't even visible): the global undo path.
+  await page.locator('header strong').click();
+  await page.keyboard.press('ControlOrMeta+Z');
+  await expect(nodes).toHaveCount(before, { timeout: 15_000 });
 });
