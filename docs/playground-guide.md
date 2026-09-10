@@ -17,6 +17,8 @@ The playground is three panes: **values.yaml** on the left, the **resource graph
 
 The editor folds YAML blocks by indentation (chevrons in the gutter), shows indentation guides, pins the parent keys at the top while you scroll inside a block, and marks the whole values block of the selected node.
 
+The values.yaml pane's toolbar has a **Load example…** picker: it is a command, not a status display — it always reads "Load example…" after a pick and never shows which example is currently loaded, so picking the same one again is a quick way to reset a wrecked document. Below it, **release** and **namespace** are validated as you type (a DNS-1123 subdomain and a DNS label, respectively) and turn red with the reason on hover when invalid.
+
 ### Object Inspector
 
 Click a node. The panel header shows the object's icon, name, kind, namespace and the values.yaml line it comes from. **Fields** edits the object; **Manifest** shows the rendered YAML.
@@ -43,6 +45,11 @@ very first inspector edit on a document that uses flush-left sequences (`- a` at
 indentation), multiple spaces before a `# comment`, or a trailing comment with no blank line above
 it — that first edit normalises those lines once (sequences get indented, comments get one leading
 space). It happens once, lands as a single undo step, and never recurs after that.
+
+On the rare edit that cannot be applied — an insert into a document shaped differently than the
+schema expects, or one that would leave the YAML unresolvable — a banner reads "That change could
+not be applied to values.yaml, which was left unchanged.": values.yaml keeps its previous content
+exactly, nothing is silently dropped or reverted underneath you.
 
 ### Adding and removing resources
 

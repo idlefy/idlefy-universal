@@ -121,7 +121,9 @@ describe('buildGraph', () => {
     expect(gf.nodes.flatMap((n) => n.warnings)).toEqual([]);
     const gw = loadFixture('example-05-gateway-api');
     const g5 = buildGraph(gw.manifests, gw.values, 'default');
-    // example 05's HTTPRoute is standalone (no owner) and its backendRef is a placeholder — no warning.
+    // example 05's HTTPRoute is standalone (no owner) — build.ts only runs the backed-by-Service check
+    // on auto-created resources (`n.provenance?.owner ? BACKED_BY_SERVICE[n.kind] : undefined`), so it
+    // never looks at this HTTPRoute's backendRef at all, correct or not.
     expect(g5.nodes.find((n) => n.kind === 'HTTPRoute')!.warnings).toEqual([]);
   });
   it('warns on an auto-created HTTPRoute whose backend Service is not part of the release', () => {
@@ -141,6 +143,19 @@ describe('buildGraph', () => {
     const node = g.nodes.find((n) => n.kind === 'ServiceMonitor')!;
     expect(node.provenance?.owner).toEqual(['deployments', 'web']);
     expect(node.warnings.some((w) => w.includes('no Service in this release backs it'))).toBe(true);
+  });
+  it('does not warn on an auto-created HTTPRoute whose backendRef deliberately names a non-Service kind', () => {
+    // edges.ts's `ref(n, b.kind ?? 'Service', b.name, …)` carries a backendRef's own `kind` onto the
+    // node built for it; build.ts's `backends` filter then only counts same-namespace *Service*
+    // targets (see its own comment) — a custom-resource backend is Gateway API's own escape hatch, and
+    // must not be judged as a missing Service just because it does not stringify as one.
+    const dep = 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  template:\n    metadata:\n      labels: {app.kubernetes.io/name: web}\n    spec:\n      containers:\n        - name: main\n          image: nginx\n';
+    const route = 'apiVersion: gateway.networking.k8s.io/v1\nkind: HTTPRoute\nmetadata:\n  name: web\nspec:\n  parentRefs:\n    - name: gateway\n  hostnames: [web.example.com]\n  rules:\n    - backendRefs:\n        - name: web\n          kind: MyBackend\n          port: 80\n';
+    const values = { deployments: { web: { autoCreateHttpRoute: true, containers: { main: { image: 'nginx', imageTag: '1' } }, httpRoute: { parentRefs: [{ name: 'gateway' }], hostnames: [{ host: 'web.example.com' }] } } } };
+    const g = buildGraph([...splitManifests('c/templates/deployment.yaml', dep), ...splitManifests('c/templates/httproute.yaml', route)], values, 'default');
+    const node = g.nodes.find((n) => n.kind === 'HTTPRoute')!;
+    expect(node.provenance?.owner).toEqual(['deployments', 'web']);
+    expect(node.warnings).toEqual([]);
   });
   it('does not warn on an auto-created HTTPRoute whose backendRef deliberately names a foreign namespace', () => {
     const dep = 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\nspec:\n  template:\n    metadata:\n      labels: {app.kubernetes.io/name: web}\n    spec:\n      containers:\n        - name: main\n          image: nginx\n';

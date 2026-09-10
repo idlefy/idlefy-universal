@@ -24,16 +24,20 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
 
   componentDidCatch(err: unknown, info: ErrorInfo): void {
     console.error('playground crashed', err, info.componentStack);
-    this.heading.current?.focus();
+    // Measured under React 19 (see componentDidUpdate below): for an error thrown after mount, this
+    // runs *second*, after componentDidUpdate already focused the heading on the same error
+    // transition — guard against the redundant second .focus() call rather than relying on it being
+    // harmless.
+    if (document.activeElement !== this.heading.current) this.heading.current?.focus();
   }
 
   componentDidUpdate(_prevProps: { children: ReactNode }, prevState: State): void {
-    // React does not call componentDidUpdate on the render that getDerivedStateFromError triggers
-    // (that render is the error one, not an update) — componentDidCatch above already focuses the
-    // heading for that path, so this branch is unreachable today. Catches the fallback being
-    // (re)shown without going through componentDidCatch again — e.g. a future caller that flips
-    // `hasError` some other way — kept for symmetry so the focus behavior doesn't silently depend on
-    // componentDidCatch being the only path in.
+    // Measured under React 19: when the error happens *after* mount, componentDidUpdate DOES run on
+    // the error re-render — and runs before componentDidCatch, so this branch is the one that first
+    // focuses the heading for that path (componentDidCatch's own call above is then a same-target
+    // no-op, guarded). It is skipped only when the error happens *during* the boundary's own mount —
+    // there is no prior render for React to call this as an update from — which is why
+    // componentDidCatch still needs its own focus() call: that path is the only one that reaches it.
     if (this.state.hasError && !prevState.hasError) this.heading.current?.focus();
   }
 

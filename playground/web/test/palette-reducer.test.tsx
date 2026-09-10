@@ -14,8 +14,8 @@ const root = schema as unknown as SchemaNode;
 
 /** A miniature of App.tsx's Add wiring over the real reducer (no engine, no canvas). `exampleText`
  *  wires a button that dispatches a real `example` action; `forceFail` wires a button that dispatches
- *  a throwing `edit` (the same shape test/state.test.ts uses for the Symbol case) so a test can arm a
- *  real editError through the actual reducer without depending on a second, distinct Add succeeding. */
+ *  an `edit` with a Symbol value (the same shape test/state.test.ts uses) so a test can arm a real
+ *  editError through the actual reducer without depending on a second, distinct Add succeeding. */
 function MiniApp({ text, exampleText, forceFail }: { text: string; exampleText?: string; forceFail?: boolean }) {
   const [state, dispatch] = useReducer(reducer, text, initialState);
   const [launcher, setLauncher] = useState<LauncherRequest | null>(null);
@@ -29,8 +29,10 @@ function MiniApp({ text, exampleText, forceFail }: { text: string; exampleText?:
         <button onClick={() => dispatch({ type: 'example', text: exampleText })}>load example</button>
       )}
       {forceFail && (
-        // `focus` matters here: a focus-less no-op edit is silent by design (see state.test.ts), so
-        // without it this would never actually arm editError for the test below to observe.
+        // A Symbol op is a serialize failure (ValuesDocument.toString() cannot emit it, falls back to
+        // the source, sets `stringifyFailed`), which the reducer now surfaces unconditionally — see
+        // state.test.ts. `focus` isn't required to arm editError here; it's carried only to mirror how
+        // a real palette Add always dispatches one.
         <button onClick={() => dispatch({ type: 'edit', ops: [{ op: 'set', path: ['zzz'], value: Symbol('x') }], focus: ['zzz'] })}>force fail</button>
       )}
       <pre data-testid="text">{state.text}</pre>
