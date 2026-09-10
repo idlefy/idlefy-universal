@@ -47,22 +47,28 @@ export class ValuesDocument {
     const root: any = this.doc.contents;
     if (!isMap(root)) return; // sequence or scalar root: no-op (never throws)
 
-    // Walk intermediate segments, creating a map, or a sequence when the next
-    // segment is a numeric index, as needed. If an intermediate
-    // segment holds a scalar (not a collection) rather than being missing, we
-    // treat the caller's intent as "make this a nested structure" and replace
-    // the scalar with a fresh collection rather than throwing — the same behavior a
-    // deep-set utility like lodash's `set` has for a superseded scalar.
+    // Walk intermediate segments, creating the collection the *next* segment needs: a sequence
+    // when it is a numeric index, a map otherwise. A scalar (or missing) intermediate is replaced
+    // with that collection — the same behavior a deep-set utility like lodash's `set` has for a
+    // superseded scalar. An intermediate that is already a *collection* of the wrong shape — e.g. a
+    // sequence where a key is about to be written — is the user's own structure: setIn bails instead
+    // of walking into it, which would otherwise throw out of setIn (`YAMLSeq.set('api', …)` →
+    // "Expected a valid index, not api."), and a throw here reaches React's render phase and
+    // unmounts the whole app.
     let node: any = root;
     for (let i = 0; i < path.length - 1; i++) {
       const seg = path[i];
+      const wantSeq = typeof path[i + 1] === 'number';
       let next = node.get(seg, true);
-      if (!isMap(next) && !isSeq(next)) {
-        next = this.doc.createNode(typeof path[i + 1] === 'number' ? [] : {});
-        node.set(seg, next);
-      }
+      // A scalar (or a missing) intermediate is superseded — lodash `set` semantics, and at most one
+      // value is lost. An intermediate that is already a *collection* of the wrong shape is the
+      // user's own structure: bail instead of overwriting it. setIn then changes nothing, the
+      // reducer sees `text === s.text` and reports EDIT_FAILED (Task 3) — visible, and non-destructive.
+      if (isMap(next) || isSeq(next)) { if (wantSeq ? !isSeq(next) : !isMap(next)) return; }
+      else { next = this.doc.createNode(wantSeq ? [] : {}); node.set(seg, next); }
       node = next;
     }
+    // The loop guarantees `node` matches the last segment's type, so this set never throws.
     node.set(path[path.length - 1], value);
   }
 
@@ -74,6 +80,8 @@ export class ValuesDocument {
       node = node.get(path[i], true);
     }
     if (!isMap(node) && !isSeq(node)) return; // missing/scalar target parent: no-op
+    // A key against a YAMLSeq parent (or an index against a YAMLMap) is a no-op, not a throw:
+    // `YAMLSeq.delete('web')` returns false. deleteIn matches setIn — it never throws either.
     node.delete(path[path.length - 1]);
   }
 

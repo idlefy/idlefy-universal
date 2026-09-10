@@ -171,4 +171,19 @@ describe('ValuesDocument', () => {
     const d = ValuesDocument.parse('{}').apply([{ op: 'set', path: ['deployments', 'backend-api'], value: { replicas: 2 } }]);
     expect(d.toString()).toBe('{deployments: {backend-api: {replicas: 2}}}\n');
   });
+  it('setIn leaves a sequence intermediate alone when the next path segment is a key (never throws)', () => {
+    const d = ValuesDocument.parse('deployments:\n  - name: api\n');
+    expect(() => d.setIn(['deployments', 'web'], { replicas: 1 })).not.toThrow();
+    expect(d.toJS()).toEqual({ deployments: [{ name: 'api' }] });
+  });
+  it('setIn leaves a map intermediate alone when the next path segment is an index', () => {
+    const d = ValuesDocument.parse('env:\n  a: 1\n');
+    expect(() => d.setIn(['env', 0, 'name'], 'N')).not.toThrow();
+    expect(d.toJS()).toEqual({ env: { a: 1 } });
+  });
+  it('deleteIn is a no-op when a sequence parent is addressed by key', () => {
+    const d = ValuesDocument.parse('deployments:\n  - name: api\n');
+    expect(() => d.deleteIn(['deployments', 'web'])).not.toThrow();
+    expect(d.toJS()).toEqual({ deployments: [{ name: 'api' }] });
+  });
 });
