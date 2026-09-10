@@ -7,7 +7,9 @@ import { NameStep } from './NameStep';
 
 const matches = (e: Entity, q: string): boolean => !q || [e.label, e.key, e.kind, e.description].some((s) => s.toLowerCase().includes(q));
 const GROUPS: { id: Entity['group']; heading: string }[] = [{ id: 'workloads', heading: 'WORKLOADS' }, { id: 'resources', heading: 'RESOURCES' }];
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+/** Shared with `AddButton`'s outside-pointerdown handler: whether a click target is itself something
+ *  that should keep (or take) focus, rather than have focus pulled back to the Add trigger. */
+export const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** Keep Tab inside the popover: it is `aria-modal`, and the page behind it is not reachable by keyboard. */
 function trapTab(ev: React.KeyboardEvent): void {
@@ -57,11 +59,12 @@ export function Launcher(p: { root: SchemaNode; values: Record<string, unknown>;
     else if (ev.key === 'Enter') { ev.preventDefault(); choose(filtered[cur]); }
   };
   const overRow = (i: number) => { modality.current = 'mouse'; setActive(i); };
-  // Only a row or a group heading may steal the mousedown default (it would otherwise move focus to
-  // the dialog, the nearest focusable ancestor, and silently stop the search box from filtering).
-  // Anywhere else — the preview `<pre>`, a row's `<code>` key, the key-hint footer — a mousedown must
-  // stay free to start a text selection.
-  const onMouseDown = (ev: React.MouseEvent) => { if ((ev.target as HTMLElement).closest('.row, .lh')) ev.preventDefault(); };
+  // A mousedown anywhere in the dialog would otherwise move focus to the dialog itself (the nearest
+  // focusable ancestor of most of its content) and silently stop the search box from filtering — so
+  // the default is prevented everywhere except a `<pre>` (the insert preview: free to start a text
+  // selection) and an already-focusable element (the search input, a button — clicking those should
+  // focus *them*, not get overridden back to the search input).
+  const onMouseDown = (ev: React.MouseEvent) => { if (!(ev.target as HTMLElement).closest(`pre, ${FOCUSABLE}`)) ev.preventDefault(); };
   return (
     <div role="dialog" aria-modal="true" aria-label="Add a resource" className="launcher" tabIndex={-1} onKeyDown={onKeyDown} onMouseDown={onMouseDown}>   {/* tabIndex: keys keep working after a click on a non-focusable child (the preview) */}
       {picked ? (

@@ -153,25 +153,41 @@ describe('Launcher', () => {
     fireEvent.change(input, { target: { value: '  zzz  ' } });
     expect(screen.getByText('No resource matches "zzz"')).toBeTruthy();
   });
-  it('the mousedown guard is scoped to rows/headings: the preview stays selectable, a row keeps focus on the search box', () => {
+  it('the mousedown guard covers the whole dialog except the preview and focusable elements', () => {
     setup();
     const input = screen.getByLabelText('Search resources');
-    fireEvent.mouseDown(screen.getAllByRole('option')[0]);
-    expect(document.activeElement).toBe(input);          // focus never leaves the search box
+    const row = screen.getAllByRole('option')[0];
+    expect(fireEvent.mouseDown(row)).toBe(false);          // default prevented: focus stays on the search box
+    expect(document.activeElement).toBe(input);
+    const keys = document.querySelector('.launcher .keys')!;
+    expect(fireEvent.mouseDown(keys)).toBe(false);         // the key-hint footer is dialog padding, not selectable text
     cleanup();
     setup({}, 'ingresses');
     const pre = document.querySelector('.launcher pre')!;
-    const ev = fireEvent.mouseDown(pre);
-    expect(ev).toBe(true);                                // preventDefault() was NOT called: a selection can start
+    expect(fireEvent.mouseDown(pre)).toBe(true);           // preventDefault() was NOT called: a selection can start
   });
-  it('a name that is only whitespace previews nothing rather than the placeholder', () => {
+  it('a name that is only whitespace previews the invalid-name sentinel, not the last-valid preview', () => {
     const { onAdd } = setup({}, 'deployments');
     const name = screen.getByLabelText('Name') as HTMLInputElement;
     expect(document.querySelector('.launcher pre')!.textContent).toContain('backend-api:');
     fireEvent.change(name, { target: { value: '   ' } });
     expect((screen.getByLabelText('Add Deployment') as HTMLButtonElement).disabled).toBe(true);
-    expect(document.querySelector('.launcher pre')!.textContent).toBe('Type a name to preview the insert.');
+    expect(document.querySelector('.launcher pre')!.textContent).toBe('Type a valid name to preview the insert.');
+    // gated on `valid`, not just non-empty: the "Inserted from the schema example" header and the
+    // placeholders hint disappear along with the real preview while the sentinel is shown
+    expect(screen.queryByText('Inserted from the schema example')).toBeNull();
+    expect(screen.queryByText('Names in references are placeholders; edit them in the inspector.')).toBeNull();
     fireEvent.keyDown(name, { key: 'Enter' });
     expect(onAdd).not.toHaveBeenCalled();
+  });
+  it('an invalid (duplicate) name also shows the sentinel, not a stale preview', () => {
+    setup({ deployments: { 'backend-api': {} } });
+    fireEvent.change(screen.getByLabelText('Search resources'), { target: { value: 'dep' } });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter' });
+    const name = screen.getByLabelText('Name') as HTMLInputElement;
+    expect(name.value).toBe('backend-api-2');
+    expect(document.querySelector('.launcher pre')!.textContent).toContain('backend-api-2:');
+    fireEvent.change(name, { target: { value: 'backend-api' } });   // already exists
+    expect(document.querySelector('.launcher pre')!.textContent).toBe('Type a valid name to preview the insert.');
   });
 });

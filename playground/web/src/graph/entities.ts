@@ -42,13 +42,21 @@ export const DNS_LABEL = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/;
 
 const topLevel = (root: SchemaNode, key: string): SchemaNode => resolve(root, root.properties?.[key] ?? {});
 
-export function namePattern(root: SchemaNode, key: string): RegExp {
+/** `re` is anchored for a whole-name test; `display` is the schema's own pattern text (never the
+ *  `^(?:…)$` wrapper `re` needs internally) — the one copy shown to the user, in the hint and the
+ *  invalid-name message. */
+export type NamePattern = { re: RegExp; display: string };
+
+export function namePattern(root: SchemaNode, key: string): NamePattern {
   const pat = topLevel(root, key).propertyNames?.pattern;
-  // The chart's own pattern for the workload maps *is* the DNS label; return the shared object so
-  // callers can tell "DNS label" from a bespoke pattern by identity (spec §3's hint copy).
-  // A bespoke pattern is anchored: JSON Schema's `pattern` is a search, but `pattern.test(name)`
-  // here is a whole-name check, and an unanchored regex would accept any name that merely contains a match.
-  return typeof pat === 'string' && pat !== DNS_LABEL.source ? new RegExp(`^(?:${pat})$`) : DNS_LABEL;
+  // The chart's own pattern for the workload maps *is* the DNS label; `re === DNS_LABEL` lets a
+  // caller tell "DNS label" from a bespoke pattern by identity (spec §3's hint copy).
+  // A bespoke pattern is anchored: JSON Schema's `pattern` is a search, but `re.test(name)` here is
+  // a whole-name check, and an unanchored regex would accept any name that merely contains a match.
+  // The wrapper never leaks into `display`, though: the user asked to type something matching the
+  // schema's pattern, not a regex source that happens to work with `re.test`.
+  if (typeof pat === 'string' && pat !== DNS_LABEL.source) return { re: new RegExp(`^(?:${pat})$`), display: pat };
+  return { re: DNS_LABEL, display: DNS_LABEL.source };
 }
 
 /** First key of the top-level map's `examples[0]`; every entity has one (asserted in tests). */

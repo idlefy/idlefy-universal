@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactElement } from 'react';
 import type { SchemaNode } from '../inspector/schema';
-import { Launcher } from './Launcher';
+import { Launcher, FOCUSABLE } from './Launcher';
 import { DISABLED_NOTICE } from '../inspector/Inspector';
 
 export type LauncherRequest = { key?: string };   // key → open directly in step 2 for that entity (empty-state card)
@@ -19,11 +19,19 @@ export function AddButton(p: {
   const closeRef = useRef(close);
   useEffect(() => { closeRef.current = close; });
   useEffect(() => {
-    if (!p.open) return;
-    const onDown = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node)) closeRef.current(false); };
+    if (!p.open || p.disabled) return;   // mirrors the render guard just below: no popover, nothing to close on an outside click
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (!wrap.current || wrap.current.contains(target)) return;
+      // A click on something itself focusable (a button elsewhere on the page, say) should let that
+      // element take focus normally; only a click on inert canvas — which would otherwise drop focus
+      // to `<body>` — refocuses the trigger.
+      const focusable = target instanceof Element && target.closest(FOCUSABLE);
+      closeRef.current(!focusable);
+    };
     document.addEventListener('pointerdown', onDown);
     return () => document.removeEventListener('pointerdown', onDown);
-  }, [p.open]);
+  }, [p.open, p.disabled]);
   return (
     <div className="add-wrap" ref={wrap}>
       <button ref={btn} type="button" className="add-btn" disabled={p.disabled} title={p.disabled ? DISABLED_NOTICE : undefined}

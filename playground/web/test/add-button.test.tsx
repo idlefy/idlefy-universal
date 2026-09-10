@@ -5,11 +5,18 @@ import { useState } from 'react';
 import schema from '../src/chart-bundle/schema.json';
 import { AddButton, type LauncherRequest } from '../src/palette/AddButton';
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 const root = schema as any;
 function Host(p: { disabled?: boolean; onAdd: (k: string, n: string) => void; start?: LauncherRequest | null }) {
   const [open, setOpen] = useState<LauncherRequest | null>(p.start ?? null);
-  return <div><button>outside</button><AddButton disabled={!!p.disabled} open={open} onOpen={() => setOpen({})} onClose={() => setOpen(null)} root={root} values={{}} onAdd={p.onAdd} /></div>;
+  return (
+    <div>
+      <button>outside</button>
+      {/* a plain, non-focusable target — stands in for the canvas */}
+      <div data-testid="canvas">canvas</div>
+      <AddButton disabled={!!p.disabled} open={open} onOpen={() => setOpen({})} onClose={() => setOpen(null)} root={root} values={{}} onAdd={p.onAdd} />
+    </div>
+  );
 }
 
 describe('AddButton', () => {
@@ -62,7 +69,7 @@ describe('AddButton', () => {
     render(<Host onAdd={vi.fn()} disabled start={{}} />);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
-  it('an outside pointer down closes without stealing focus back to the button', () => {
+  it('an outside pointer down on a focusable element closes without stealing its focus back to the button', () => {
     render(<Host onAdd={vi.fn()} />);
     const outside = screen.getByText('outside');
     fireEvent.click(screen.getByRole('button', { name: /Add/ }));
@@ -70,6 +77,14 @@ describe('AddButton', () => {
     fireEvent.pointerDown(outside);
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(outside);
+  });
+  it('an outside pointer down on plain (non-focusable) canvas closes and refocuses the trigger, instead of dropping focus to <body>', () => {
+    render(<Host onAdd={vi.fn()} />);
+    const btn = screen.getByRole('button', { name: /Add/ });
+    fireEvent.click(btn);
+    fireEvent.pointerDown(screen.getByTestId('canvas'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(btn);
   });
   it('announces the hotkey without putting it in the accessible name', () => {
     render(<Host onAdd={vi.fn()} />);
@@ -80,8 +95,8 @@ describe('AddButton', () => {
     const add = vi.spyOn(document, 'addEventListener');
     const { rerender } = render(<Host onAdd={vi.fn()} start={{}} />);
     const before = add.mock.calls.filter((c) => c[0] === 'pointerdown').length;
+    expect(before).toBe(1);
     rerender(<Host onAdd={vi.fn()} start={{}} />);
     expect(add.mock.calls.filter((c) => c[0] === 'pointerdown').length).toBe(before);
-    add.mockRestore();
   });
 });

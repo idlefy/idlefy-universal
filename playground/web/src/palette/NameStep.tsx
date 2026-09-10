@@ -24,8 +24,11 @@ export function NameStep(p: { root: SchemaNode; entity: Entity; values: Record<s
   // so a whitespace-only field reads as '' and previews nothing instead of promising the placeholder.
   const [typed, setTyped] = useState<string | null>(null);
   const name = typed ?? initial;
-  const valid = name !== '' && pattern.test(name) && !existing.includes(name);
-  const preview = useMemo(() => (name === '' ? null : previewYaml(key, name, starterBody(p.root, key, name))), [p.root, key, name]);
+  const valid = name !== '' && pattern.re.test(name) && !existing.includes(name);
+  // Gated on `valid`, not just non-empty: an in-progress or invalid name (a duplicate, or one that
+  // fails the schema's pattern) has no insert to preview — showing the last-valid preview under it
+  // would misrepresent what Enter is actually about to do.
+  const preview = useMemo(() => (valid ? previewYaml(key, name, starterBody(p.root, key, name)) : null), [p.root, key, name, valid]);
   const fam = familyOf(kind);
   return (
     <div className="name-step" onKeyDown={(e) => { if (e.key === 'Enter' && valid && !(e.target as HTMLElement).closest('button')) { e.preventDefault(); p.onAdd(name); } }}>   {/* a focused button already fires onAdd via click activation */}
@@ -35,14 +38,22 @@ export function NameStep(p: { root: SchemaNode; entity: Entity; values: Record<s
         <b>New {label}</b>
         <code>{key}.‹name›</code>
       </div>
-      <AddKeyRow id={key} inputAriaLabel="Name" placeholder={initial} initial={initial} onDraft={setTyped}
-        existing={existing} valid={(k) => pattern.test(k)} invalidText={`must match ${pattern.source}`}
+      {/* keyed on `initial`: a value that changes `existing` (and so `initial`, via uniqueName) while
+          this step stays mounted must reseed the draft rather than leave a stale typed value behind */}
+      <AddKeyRow key={initial} id={key} inputAriaLabel="Name" placeholder={initial} initial={initial} onDraft={setTyped}
+        existing={existing} valid={(k) => pattern.re.test(k)} invalidText={`must match ${pattern.display}`}
         buttonText={`Add ${label}`} buttonAriaLabel={`Add ${label}`} buttonClassName="btn primary" onAdd={p.onAdd} />
-      <p className="hint">{pattern.source === DNS_LABEL.source ? 'Lowercase letters, digits and dashes (DNS label).' : `Must match ${pattern.source}`}</p>
+      <p className="hint">{pattern.re === DNS_LABEL ? 'Lowercase letters, digits and dashes (DNS label).' : `Must match ${pattern.display}`}</p>
       <div className="preview">
-        <div className="ph">Inserted from the schema example</div>
-        <pre>{preview ?? 'Type a name to preview the insert.'}</pre>
-        <p className="hint">Names in references are placeholders; edit them in the inspector.</p>
+        {valid ? (
+          <>
+            <div className="ph">Inserted from the schema example</div>
+            <pre>{preview}</pre>
+            <p className="hint">Names in references are placeholders; edit them in the inspector.</p>
+          </>
+        ) : (
+          <pre>Type a valid name to preview the insert.</pre>
+        )}
       </div>
       <div className="keys"><kbd>Enter</kbd> add <kbd>Esc</kbd> back</div>
     </div>

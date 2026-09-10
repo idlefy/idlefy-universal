@@ -41,9 +41,10 @@ describe('entities', () => {
   });
   it('namePattern uses propertyNames.pattern when present, else the DNS label', () => {
     expect(root.properties.deployments.propertyNames.pattern).toBe(DNS_LABEL.source);
-    expect(namePattern(root, 'deployments')).toBe(DNS_LABEL);              // schema pattern == DNS label → the shared object
+    expect(namePattern(root, 'deployments').re).toBe(DNS_LABEL);              // schema pattern == DNS label → the shared object
+    expect(namePattern(root, 'deployments').display).toBe(DNS_LABEL.source);
     expect(root.properties.configs.propertyNames).toBeUndefined();
-    expect(namePattern(root, 'configs')).toBe(DNS_LABEL);
+    expect(namePattern(root, 'configs').re).toBe(DNS_LABEL);
     expect(DNS_LABEL.test('app-config')).toBe(true);
     expect(DNS_LABEL.test('App')).toBe(false);
     expect(DNS_LABEL.test('-a')).toBe(false);
@@ -54,11 +55,14 @@ describe('entities', () => {
     expect(uniqueName('web', ['web', 'web-2'])).toBe('web-3');
     expect(uniqueName('web', ['web-2'])).toBe('web');
   });
-  it('a bespoke propertyNames pattern is anchored (a substring match must not pass)', () => {
+  it('a bespoke propertyNames pattern is anchored (a substring match must not pass), and display is the raw pattern', () => {
     const root = { properties: { widgets: { type: 'object', propertyNames: { pattern: 'ab' }, additionalProperties: {} } } } as any;
     const p = namePattern(root, 'widgets');
-    expect(p).not.toBe(DNS_LABEL);
-    expect(p.test('ab')).toBe(true);
-    expect(p.test('zabz')).toBe(false);
+    expect(p.re).not.toBe(DNS_LABEL);
+    expect(p.re.test('ab')).toBe(true);
+    expect(p.re.test('zabz')).toBe(false);
+    // `display` is the schema's own pattern text, never `re`'s internal `^(?:…)$` wrapper.
+    expect(p.display).toBe('ab');
+    expect(p.re.source).not.toBe('ab');
   });
 });
