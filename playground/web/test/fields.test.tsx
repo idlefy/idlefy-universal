@@ -257,4 +257,10 @@ describe('field widgets', () => {
     fireEvent.click(screen.getByLabelText('clear deployments.web.pdb'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'pdb'] }]);
   });
+
+  it('a locked block shows no clear ×', () => {
+    const dep = schemaAt(root, ['deployments', 'web'])!;
+    render(<FieldList root={root} node={dep} basePath={['deployments', 'web']} value={{ containers: { main: { image: 'n', imageTag: '1' } } }} tier="advanced" onEdit={vi.fn()} />);
+    expect(screen.queryByLabelText('clear deployments.web.containers')).toBeNull();
+  });
 });

@@ -86,7 +86,7 @@ function sweep(bases: { label: string; text: string }[], fails: string[]): void 
           const value = chipValue(root, f);
           const r = render(start.apply([{ op: 'set', path: f.path, value }]).toString());
           if (!r.ok) fails.push(`chip ${id} = ${JSON.stringify(value)} → ${why(r)}`);
-        } else if (!(f as Field & { locked?: boolean }).locked) {
+        } else if (!f.locked) {
           const r = render(start.apply([{ op: 'delete', path: f.path }]).toString());
           if (!r.ok) fails.push(`clear ${id} → ${why(r)}`);
         }

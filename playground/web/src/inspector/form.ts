@@ -5,16 +5,77 @@ import { isObj } from '../model/guards';
 
 export type Field = {
   key: string; path: ValuesPath; label: string; description?: string;
-  widget: Widget; schema: SchemaNode; value: unknown; present: boolean; required: boolean; tier: Tier;
+  widget: Widget; schema: SchemaNode; value: unknown; present: boolean; required: boolean;
+  /** This key must not be removed: schema-required, chart-required (`chartRequired`), or the only
+   *  member left of a `oneOf`/`anyOf` "exactly one of" group. Widgets hide their clear control; the
+   *  edit-integrity test reads it to know the delete op is unreachable. */
+  locked: boolean;
+  tier: Tier;
 };
+
+/**
+ * Values paths the chart's own templates require although `values.schema.json` does not — clearing
+ * one fails the render. `*` matches exactly one path segment (including a numeric list index, since
+ * `chartRequired` stringifies every segment before comparing). Matching by path shape rather than by
+ * `$defs` name is deliberate: `IngressConfig`/`HttpRouteConfig` are used both standalone (`ingresses.*.hosts`)
+ * and as a workload's auto-created block (`*.*.ingress.hosts`) — the two need separate entries because
+ * clearing `hosts` fails standalone with "configuration must not be empty" and fails the workload case
+ * with `autoCreateCertificate requires ingress configuration` once `ingress` is left as `{}`. Each
+ * entry is the `fail` (or nil-pointer template crash) it prevents, quoted from the engine.
+ */
+const CHART_REQUIRED_PATHS: readonly string[] = [
+  'ingresses.*.hosts',                     // Ingress <n>: configuration must not be empty
+  'httpRoutes.*.hostnames',                // HTTPRoute <n>: hostnames is required
+  'httpRoutes.*.parentRefs',               // HTTPRoute <n>: parentRefs must be specified either per-route or in generic.httpRoutesGeneral
+  'httpRoutes.*.rules',                    // HTTPRoute <n>: at least one rule is required
+  'httpRoutes.*.rules.*.matches',          // HTTPRoute <n>: rule[i] must have at least one match
+  'httpRoutes.*.rules.*.matches.*.path',   // httproute.yaml:26 <$match.path.type>: nil pointer evaluating interface {}.type
+  'hpas.*.metrics.*.resource',             // HpaMetric's `if type==Resource then required:[resource]` — resolve() drops if/then allOf members, so `required` never sees it
+  '*.*.hpa.metrics.*.resource',            // the same $defs as an auto-created HPA block
+  '*.*.httpRoute.hostnames',               // autoCreateHttpRoute for <n> requires explicit httpRoute.hostnames or generic.ingressesGeneral.domain
+  '*.*.httpRoute.rules.*.matches.*.path',  // same nil deref, on the auto-created route
+  '*.*.ingress.hosts',                     // autoCreateCertificate requires ingress configuration (clearing hosts leaves `ingress: {}`)
+  '*.*.containers.*.ports',                // <Kind> <n>: autoCreateService=true requires at least one container port
+  '*.*.networkPolicy.ingress',             // <Kind> <n>: policyTypes contains 'Ingress' but 'networkPolicy.ingress' is not defined (use [] for explicit deny)
+];
+
+/** True for a values path `CHART_REQUIRED_PATHS` matches. */
+export function chartRequired(path: ValuesPath): boolean {
+  const segs = path.map(String);
+  return CHART_REQUIRED_PATHS.some((p) => {
+    const pat = p.split('.');
+    return pat.length === segs.length && pat.every((x, i) => x === '*' || x === segs[i]);
+  });
+}
+
+/**
+ * Top-level keys a `oneOf`/`anyOf` of single-`required` alternatives declares mutually exclusive:
+ * `PdbConfig` (minAvailable xor maxUnavailable), `EnvVar` (value xor valueFrom), `IngressHost` and
+ * `HttpRouteHostname` (host xor subdomain). `IngressHost` writes it as `anyOf` + `not` and includes
+ * a "neither" alternative with no `required` at all, so alternatives without a single `required`
+ * key are skipped rather than disqualifying the group. Fewer than two keys means no group.
+ */
+export function exclusiveKeys(root: SchemaNode, node: SchemaNode): string[] {
+  const r = resolve(root, node);
+  const alts: SchemaNode[] = Array.isArray(r.oneOf) ? r.oneOf : Array.isArray(r.anyOf) ? r.anyOf : [];
+  const props = isObj(r.properties) ? (r.properties as Record<string, unknown>) : {};
+  const out: string[] = [];
+  for (const a of alts) {
+    if (!isObj(a) || !Array.isArray(a.required) || a.required.length !== 1) continue;
+    const k = String(a.required[0]);
+    if (k in props && !out.includes(k)) out.push(k);
+  }
+  return out.length >= 2 ? out : [];
+}
 
 /** One `Field`, resolved and classified from `node`. The single constructor `buildFields` and every
  *  hand-built field (a release-level bare widget, a `MapOfListsField` card) share. */
-export function makeField(root: SchemaNode, key: string, path: ValuesPath, node: SchemaNode, value: unknown, opts: { tier?: Tier; present?: boolean; required?: boolean } = {}): Field {
+export function makeField(root: SchemaNode, key: string, path: ValuesPath, node: SchemaNode, value: unknown, opts: { tier?: Tier; present?: boolean; required?: boolean; locked?: boolean } = {}): Field {
   const s = resolve(root, node);
   return {
     key, path, label: key, description: typeof s.description === 'string' ? s.description.trim() : undefined,
     widget: classify(root, node), schema: s, value, present: opts.present ?? value !== undefined, required: opts.required ?? false,
+    locked: opts.locked ?? opts.required ?? false,
     tier: opts.tier ?? (s['x-ui-tier'] === 'basic' ? 'basic' : 'advanced'),
   };
 }
@@ -24,11 +85,20 @@ export function buildFields(root: SchemaNode, node: SchemaNode, basePath: Values
   const props: Record<string, SchemaNode> = isObj(r.properties) ? (r.properties as any) : {};
   const required = new Set<string>(r.required ?? []);
   const v = isObj(value) ? value : {};
+  const excl = exclusiveKeys(root, r);
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(v, k);
+  const siblingSet = (key: string) => excl.some((k) => k !== key && has(k));
   const out: Field[] = [];
   for (const [key, raw] of Object.entries(props)) {
     if (opts.hide?.(key)) continue;
-    const present = Object.prototype.hasOwnProperty.call(v, key);
-    const field = makeField(root, key, [...basePath, key], raw, v[key], { present, required: required.has(key) });
+    const present = has(key);
+    // Adding the other half of an "exactly one of" group makes the object match two branches
+    // (PdbConfig, EnvVar), so it is not offered while a sibling is set — and the sibling that *is*
+    // set is the only one left, so it must not be cleared either.
+    if (!present && excl.includes(key) && siblingSet(key)) continue;
+    const path = [...basePath, key];
+    const locked = required.has(key) || chartRequired(path) || (present && excl.includes(key) && !siblingSet(key));
+    const field = makeField(root, key, path, raw, v[key], { present, required: required.has(key), locked });
     if (tier === 'basic' && field.tier !== 'basic' && !field.required && !field.present) continue;
     out.push(field);
   }
@@ -108,8 +178,10 @@ const byIdKeys = (a: string, b: string) => (ID_KEYS.indexOf(a) + 1 || 99) - (ID_
  * objects) is an "extra" reachable through the row's expander; a promoted nested object that also has a
  * boolean (`secretKeyRef.optional`) is both. Pair row = an identifying leaf plus one or two other leaves.
  * `required` lists the item's required top-level keys so an emptied required leaf is set to '' rather than deleted.
- * `exclusive` lists top-level leaves a `oneOf` of single `required` keys makes mutually exclusive
- * (HttpRouteHostname: `host` xor `subdomain`) — setting one must delete the others.
+ * `exclusive` is `exclusiveKeys(root, item)`: the top-level keys a `oneOf`/`anyOf` of single
+ * `required` alternatives makes mutually exclusive (HttpRouteHostname and IngressHost: `host` xor
+ * `subdomain`; EnvVar: `value` xor `valueFrom`, where `valueFrom` is an extra, not a leaf) —
+ * setting one must delete the others.
  */
 export function itemShape(root: SchemaNode, item: SchemaNode): ItemShape {
   const r = resolve(root, item);
@@ -131,9 +203,7 @@ export function itemShape(root: SchemaNode, item: SchemaNode): ItemShape {
   }
   const identifying = ID_KEYS.find((k) => leaves.some((l) => l.length === 1 && l[0] === k)) ?? null;
   const rest = leaves.filter((l) => !(l.length === 1 && l[0] === identifying));
-  const alts: any[] = Array.isArray(r.oneOf) ? r.oneOf : [];
-  const single = (a: any) => Array.isArray(a?.required) && a.required.length === 1 && leaves.some((l) => l.length === 1 && l[0] === a.required[0]);
-  const exclusive = alts.length > 1 && alts.every(single) ? alts.map((a) => String(a.required[0])) : [];
+  const exclusive = exclusiveKeys(root, r);
   return { identifying, leaves: rest, extras, required: Array.isArray(r.required) ? r.required.map(String) : [], pair: identifying !== null && rest.length >= 1 && rest.length <= 2, exclusive };
 }
 

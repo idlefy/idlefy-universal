@@ -36,13 +36,15 @@ describe('ObjectListField', () => {
     expect(ops[0].value).toBeTruthy();
     expect(screen.queryByRole('textbox', { name: 'deployments.web.containers.main.env' })).toBeNull();   // no textarea
   });
-  it('env: the expander reveals valueFrom; a row with valueFrom starts expanded', () => {
+  it('env: the expander offers valueFrom only when `value` is unset (EnvVar is a oneOf)', () => {
     const onEdit = vi.fn();
-    render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: [{ name: 'A', value: '1' }, { name: 'S', valueFrom: { secretKeyRef: { name: 'db', key: 'pw' } } }] }} tier="basic" onEdit={onEdit} />);
-    expect(screen.queryByLabelText('add field deployments.web.containers.main.env.0.valueFrom')).toBeNull();
+    render(<FieldList root={root} node={cnode} basePath={cbase} value={{ image: 'x', env: [{ name: 'A', value: '1' }, { name: 'B' }, { name: 'S', valueFrom: { secretKeyRef: { name: 'db', key: 'pw' } } }] }} tier="basic" onEdit={onEdit} />);
     fireEvent.click(screen.getByLabelText('more deployments.web.containers.main.env.0'));
-    expect(screen.getByLabelText('add field deployments.web.containers.main.env.0.valueFrom')).toBeTruthy();
-    expect(screen.getByLabelText('deployments.web.containers.main.env.1.valueFrom.secretKeyRef.name')).toBeTruthy();
+    // row 0 has `value`, so adding `valueFrom` would match both oneOf branches
+    expect(screen.queryByLabelText('add field deployments.web.containers.main.env.0.valueFrom')).toBeNull();
+    fireEvent.click(screen.getByLabelText('more deployments.web.containers.main.env.1'));
+    expect(screen.getByLabelText('add field deployments.web.containers.main.env.1.valueFrom')).toBeTruthy();
+    expect(screen.getByLabelText('deployments.web.containers.main.env.2.valueFrom.secretKeyRef.name')).toBeTruthy();
   });
   it('secretRefs-shaped pair: nested leaves render as a joined pair, name before key; optional sits behind the expander', () => {
     const onEdit = vi.fn();
@@ -131,7 +133,9 @@ describe('ObjectListField', () => {
   });
   it('expansion state follows the item after a removal', () => {
     const onEdit = vi.fn();
-    const value = { image: 'x', env: [{ name: 'A', value: '1' }, { name: 'B', value: '2' }, { name: 'C', value: '3' }] };
+    // rows with no `value` set, so `valueFrom` is still offered — this test uses that chip as its
+    // "row is open" probe, and buildFields now hides it while the other half of the oneOf is set
+    const value = { image: 'x', env: [{ name: 'A' }, { name: 'B' }, { name: 'C' }] };
     const { rerender } = render(<FieldList root={root} node={cnode} basePath={cbase} value={value} tier="basic" onEdit={onEdit} />);
     fireEvent.click(screen.getByLabelText('more deployments.web.containers.main.env.2'));   // C open
     fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main.env.0'));
@@ -148,5 +152,14 @@ describe('ObjectListField', () => {
     const ops = onEdit.mock.calls.at(-1)![0];
     expect(ops[0].path).toEqual(['x', 'items', 0]);
     expect(ops[0].value).toEqual({ name: '' });
+  });
+  it('the last item of a locked list cannot be removed', () => {
+    const onEdit = vi.fn();
+    const ing = schemaAt(root, ['ingresses', 'site'])!;
+    render(<FieldList root={root} node={ing} basePath={['ingresses', 'site']} value={{ hosts: [{ host: 'a.example.com', paths: [{ path: '/', pathType: 'Prefix' }] }] }} tier="advanced" onEdit={onEdit} />);
+    // removing it would delete `hosts` and leave `ingresses.site: {}` — "configuration must not be empty"
+    expect((screen.getByLabelText('remove ingresses.site.hosts.0') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText('remove ingresses.site.hosts.0'));
+    expect(onEdit).not.toHaveBeenCalled();
   });
 });

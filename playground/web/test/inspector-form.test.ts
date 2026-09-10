@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import schema from '../src/chart-bundle/schema.json';
-import { buildFields, starterValue, firstSentence, chipValue, itemShape, itemLabelOf } from '../src/inspector/form';
+import { buildFields, starterValue, firstSentence, chipValue, itemShape, itemLabelOf, exclusiveKeys, chartRequired } from '../src/inspector/form';
 import { classify, schemaAt, resolve } from '../src/inspector/schema';
 
 const root = schema as any;
@@ -76,6 +76,40 @@ describe('buildFields', () => {
       }
     }
   });
+  it('does not offer the other half of a oneOf pair, and locks the half that is set', () => {
+    const pdb = schemaAt(root, ['deployments', 'web', 'pdb'])!;
+    const p = ['deployments', 'web', 'pdb'];
+    const set = buildFields(root, pdb, p, { maxUnavailable: 1 }, 'advanced');
+    expect(set.map((f) => f.key)).not.toContain('minAvailable');
+    expect(set.find((f) => f.key === 'maxUnavailable')).toMatchObject({ present: true, locked: true });
+    // with neither set, both are offered and neither is locked
+    const none = buildFields(root, pdb, p, {}, 'advanced');
+    expect(none.filter((f) => f.key === 'minAvailable' || f.key === 'maxUnavailable').map((f) => f.locked)).toEqual([false, false]);
+  });
+  it('locks schema-required keys and the keys only the chart requires', () => {
+    const dep = schemaAt(root, ['deployments', 'web'])!;
+    const value = { containers: { main: { image: 'n', imageTag: '1' } } };
+    expect(buildFields(root, dep, ['deployments', 'web'], value, 'advanced').find((f) => f.key === 'containers')).toMatchObject({ required: true, locked: true });
+    const ing = schemaAt(root, ['ingresses', 'site'])!;
+    const hosts = buildFields(root, ing, ['ingresses', 'site'], { hosts: [{ host: 'a.example.com' }] }, 'advanced').find((f) => f.key === 'hosts')!;
+    // IngressConfig does not require `hosts`; _validation.tpl fails "configuration must not be empty".
+    expect(hosts.required).toBe(false);
+    expect(hosts.locked).toBe(true);
+    // a workload's auto-created ingress locks `hosts` too: clearing it leaves `ingress: {}` and
+    // autoCreateCertificate then fails. Over-locking an optional key costs a × that nothing needs;
+    // under-locking breaks the render.
+    const wl = buildFields(root, schemaAt(root, ['deployments', 'web', 'ingress'])!, ['deployments', 'web', 'ingress'], { hosts: [{ host: 'a.example.com' }] }, 'advanced').find((f) => f.key === 'hosts')!;
+    expect(wl.locked).toBe(true);
+  });
+  it('chartRequired matches by path shape, not by $defs name', () => {
+    expect(chartRequired(['ingresses', 'site', 'hosts'])).toBe(true);
+    expect(chartRequired(['deployments', 'web', 'ingress', 'hosts'])).toBe(true);   // clearing it leaves ingress: {}, which autoCreateCertificate rejects
+    expect(chartRequired(['deployments', 'web', 'httpRoute', 'hostnames'])).toBe(true);
+    expect(chartRequired(['httpRoutes', 'r', 'rules'])).toBe(true);
+    expect(chartRequired(['httpRoutes', 'r', 'rules', 0, 'matches'])).toBe(true);   // a numeric index matches '*'
+    expect(chartRequired(['statefulSets', 'db', 'networkPolicy', 'ingress'])).toBe(true);
+    expect(chartRequired(['deployments', 'web', 'replicas'])).toBe(false);
+  });
 });
 
 describe('firstSentence / chipValue', () => {
@@ -113,10 +147,22 @@ describe('itemShape', () => {
   it('required leaves are reported', () => {
     expect(itemShape(root, resolve(root, schemaAt(root, ['deployments', 'web', 'containers', 'main', 'env'])!).items).required).toEqual(['name']);
   });
-  it('hosts: host + subdomain pair, paths behind the expander', () => {
-    expect(shape(['deployments', 'web', 'ingress', 'hosts'])).toEqual({ identifying: 'host', leaves: [['subdomain']], extras: ['paths'], required: [], pair: true, exclusive: [] });
-    // anyOf (IngressHost) admits both keys; only a oneOf of single required keys is exclusive
+  it('hosts: host + subdomain pair, paths behind the expander, host xor subdomain', () => {
+    // IngressHost states "one of host / subdomain" with anyOf + not; HttpRouteHostname states the
+    // same thing with oneOf. Both must produce the same exclusive group.
+    expect(shape(['deployments', 'web', 'ingress', 'hosts'])).toEqual({ identifying: 'host', leaves: [['subdomain']], extras: ['paths'], required: [], pair: true, exclusive: ['host', 'subdomain'] });
     expect(shape(['deployments', 'web', 'httpRoute', 'hostnames'])).toMatchObject({ identifying: 'host', leaves: [['subdomain']], pair: true, exclusive: ['host', 'subdomain'] });
+  });
+  it('env: value xor valueFrom, even though valueFrom is an extra rather than a leaf', () => {
+    expect(shape(['deployments', 'web', 'containers', 'main', 'env']).exclusive).toEqual(['value', 'valueFrom']);
+  });
+  it('exclusiveKeys finds the three groups this schema declares and invents none', () => {
+    expect(exclusiveKeys(root, root.$defs.PdbConfig)).toEqual(['minAvailable', 'maxUnavailable']);
+    expect(exclusiveKeys(root, root.$defs.EnvVar)).toEqual(['value', 'valueFrom']);
+    expect(exclusiveKeys(root, root.$defs.IngressHost)).toEqual(['host', 'subdomain']);
+    expect(exclusiveKeys(root, root.$defs.HttpRouteHostname)).toEqual(['host', 'subdomain']);
+    expect(exclusiveKeys(root, root.$defs.SecretRefEntry)).toEqual([]);
+    expect(exclusiveKeys(root, root.$defs.DeploymentSpec)).toEqual([]);
   });
   it('tls and hostAliases: an identifying leaf plus a list → block', () => {
     expect(shape(['deployments', 'web', 'ingress', 'tls'])).toMatchObject({ identifying: 'secretName', leaves: [], extras: ['hosts'], pair: false });

@@ -175,7 +175,7 @@ describe('edit integrity', () => {
             for (let i = 0; i < items.length; i++) {
               // ObjectListField.remove: the last item takes the whole key with it. When the key is
               // locked (schema-required or chart-required) the widget disables that × instead.
-              if (items.length === 1 && (f as Field & { locked?: boolean }).locked) continue;
+              if (items.length === 1 && f.locked) continue;
               const removed: EditOp[] = items.length === 1
                 ? [{ op: 'delete', path: f.path }]
                 : [{ op: 'delete', path: [...f.path, i] }];
