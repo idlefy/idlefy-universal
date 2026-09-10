@@ -34,7 +34,9 @@ function* walkFields(node: SchemaNode, basePath: ValuesPath, value: unknown, hid
     } else if (f.widget.kind === 'objectList' && Array.isArray(f.value)) {
       const itemNode = r.items as SchemaNode;
       const rowShape = itemShape(root, itemNode);
-      const hideRowLeaves = (k: string) => k === rowShape.identifying || rowShape.leaves.some((l) => l[0] === k);
+      // mirrors ObjectListField.tsx's `hide = pair ? hideLeaves : undefined` (~line 120): a block row
+      // shows every key in the UI, so only a pair row hides its identifying/leaf keys from the sweep.
+      const hideRowLeaves = rowShape.pair ? (k: string) => k === rowShape.identifying || rowShape.leaves.some((l) => l[0] === k) : undefined;
       for (let i = 0; i < f.value.length; i++) yield* walkFields(itemNode, [...f.path, i], f.value[i], hideRowLeaves, depth + 1);
     }
   }

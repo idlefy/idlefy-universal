@@ -59,7 +59,9 @@ function* walkFields(node: SchemaNode, basePath: ValuesPath, value: unknown, hid
     } else if (f.widget.kind === 'objectList' && Array.isArray(f.value)) {
       const itemNode = r.items as SchemaNode;
       const rowShape = itemShape(root, itemNode);
-      const hideRowLeaves = (k: string) => k === rowShape.identifying || rowShape.leaves.some((l) => l[0] === k);
+      // mirrors ObjectListField.tsx's `hide = pair ? hideLeaves : undefined` (~line 120): a block row
+      // shows every key in the UI, so only a pair row hides its identifying/leaf keys from the sweep.
+      const hideRowLeaves = rowShape.pair ? (k: string) => k === rowShape.identifying || rowShape.leaves.some((l) => l[0] === k) : undefined;
       for (let i = 0; i < f.value.length; i++) yield* walkFields(itemNode, [...f.path, i], f.value[i], hideRowLeaves, depth + 1);
     }
   }
@@ -208,6 +210,9 @@ describe('edit integrity', () => {
       { label: 'ingresses/starter', text: stringify({ generic: { ingressesGeneral: { domain: 'example.com' } }, ingresses: { site: starterBody(root, 'ingresses', 'site') } }, { lineWidth: 0 }) },
       { label: 'httpRoutes/starter', text: stringify({ generic: { ingressesGeneral: { domain: 'example.com' } }, httpRoutes: { r: starterBody(root, 'httpRoutes', 'r') } }, { lineWidth: 0 }) },
       { label: 'deployments/env', text: stringify({ deployments: { app: { ...MINIMAL.deployments, containers: { main: { ...(MINIMAL.deployments.containers as any).main, env: [{ name: 'LOG_LEVEL', value: 'info' }] } } } } }, { lineWidth: 0 }) },
+      // EnvFrom (type/configName/prefix) is a pair row with no exclusive group — its non-required,
+      // non-exclusive `prefix` leaf is the render-check target for the plain-delete branch below.
+      { label: 'deployments/envFrom', text: stringify({ deployments: { app: { ...MINIMAL.deployments, containers: { main: { ...(MINIMAL.deployments.containers as any).main, envFrom: [{ type: 'configMap', configName: 'cfg', prefix: 'PRE_' }] } } } } }, { lineWidth: 0 }) },
     ];
     for (const base of bases) {
       const start = ValuesDocument.parse(base.text);
@@ -221,6 +226,28 @@ describe('edit integrity', () => {
             if (f.widget.kind !== 'objectList' || !Array.isArray(f.value)) continue;
             const item = resolve(root, f.schema).items as SchemaNode;
             const shape = itemShape(root, item);
+            // A pair row's own leaves never reach buildFields/AddChips (ObjectListField hides them —
+            // see walkFields' hideRowLeaves, only applied `pair ? … : undefined` — mirroring
+            // ObjectListField.tsx's own `hide = pair ? hideLeaves : undefined`), so the plain-`delete`
+            // branch of leafEditOps for a leaf that is neither required nor part of an exclusive group
+            // (EnvFrom.prefix: `type`/`configName` are required, there is no exclusive group) is only
+            // reachable here, through leafEditOps directly, never through the chip/clear sweep.
+            if (shape.pair) {
+              const props = resolve(root, item).properties as Record<string, SchemaNode>;
+              (f.value as unknown[]).forEach((row, i) => {
+                if (!isObj(row)) return;
+                for (const l of shape.leaves) {
+                  if (l.length !== 1) continue;   // only top-level leaves; nested ones hold via nestedLeafRequired
+                  const k = l[0];
+                  if (shape.required.includes(k) || shape.exclusive.includes(k)) continue;
+                  if ((row as Record<string, unknown>)[k] === undefined) continue;
+                  const ops = leafEditOps(root, shape, item, f.path, i, row, [k], resolve(root, props[k]), '');
+                  expect(ops, `${base.label} clear ${f.path.join('.')}[${i}].${k}`).toEqual([{ op: 'delete', path: [...f.path, i, k] }]);
+                  const r = render(start.apply(ops!).toString());
+                  if (!r.ok) fails.push(`clear ${base.label} · ${f.path.join('.')}[${i}].${k} → ${why(r)}`);
+                }
+              });
+            }
             if (shape.exclusive.length === 0) continue;
             (f.value as unknown[]).forEach((row, i) => {
               for (const k of shape.exclusive) {
