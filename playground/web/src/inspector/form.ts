@@ -110,11 +110,12 @@ export function makeField(root: SchemaNode, key: string, path: ValuesPath, node:
 
 /**
  * Absolute values-paths (dotted, `path.join('.')`) locked for a reason no static schema fact can
- * express — today, only `generic.ingressesGeneral.domain` while any `hosts[].subdomain` /
- * `hostnames[].subdomain` exists anywhere in the document (`subdomainUsers`, computed by the one
- * caller — `ReleasePanel` — that can see the whole document, same as `secretRefUsers`). Threaded
- * through `FieldList`/`ObjectSection` like `hide`, rather than baked into `chartRequired`, because it
- * is a runtime document fact, not a static path pattern.
+ * express — today, both `generic.ingressesGeneral.domain` (the leaf) and `generic.ingressesGeneral`
+ * (its parent block, so the block's own clear × cannot take `domain` with it in one click) while any
+ * `hosts[].subdomain` / `hostnames[].subdomain` exists anywhere in the document (`subdomainUsers`,
+ * computed by the one caller — `ReleasePanel` — that can see the whole document, same as
+ * `secretRefUsers`). Threaded through `FieldList`/`ObjectSection` like `hide`, rather than baked into
+ * `chartRequired`, because it is a runtime document fact, not a static path pattern.
  */
 export function buildFields(root: SchemaNode, node: SchemaNode, basePath: ValuesPath, value: unknown, tier: Tier, opts: { hide?: (key: string) => boolean; lockedPaths?: ReadonlySet<string> } = {}): Field[] {
   const r = resolve(root, node);

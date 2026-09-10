@@ -19,6 +19,8 @@ export function Sections(p: {
   /** The owning workload's own flags, for `PortsTable` — see `FieldProps.workload`. Only meaningful
    *  when `p.value` is itself a workload config (WorkloadPanel is the caller that passes it). */
   workload?: FieldProps['workload'];
+  /** Forwarded unchanged to `FieldList` — see `FieldProps.lockedPaths`. */
+  lockedPaths?: FieldProps['lockedPaths'];
 }): ReactElement {
   const keys = Object.keys(resolve(p.root, p.node).properties ?? {}).filter((k) => !p.hide?.(k));
   const parts = partition(keys, p.tables).map((x) => (x.section === OTHER_SECTION && p.other ? { ...x, section: p.other } : x));
@@ -35,7 +37,7 @@ export function Sections(p: {
     return (
       <div key={section.id} className="sec">
         <h3>{section.title}</h3>
-        <FieldList root={p.root} node={p.node} basePath={p.base} value={p.value} tier={p.tier} onEdit={p.onEdit} hide={hide} order={mine} workload={p.workload} />
+        <FieldList root={p.root} node={p.node} basePath={p.base} value={p.value} tier={p.tier} onEdit={p.onEdit} hide={hide} order={mine} workload={p.workload} lockedPaths={p.lockedPaths} />
       </div>
     );
   });

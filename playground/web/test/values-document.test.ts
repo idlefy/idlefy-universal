@@ -217,4 +217,16 @@ describe('ValuesDocument', () => {
     expect(() => d.deleteIn(['deployments', 'web'])).not.toThrow();
     expect(d.toJS()).toEqual({ deployments: [{ name: 'api' }] });
   });
+  it('deleteIn is a no-op for a numeric-looking string segment against a sequence, even mid-path', () => {
+    // yaml's asItemIndex coerces a numeric string to an index (YAMLSeq.get('0', true) works), so
+    // without an explicit type check this would otherwise delete `replicas` via the seq's item 0.
+    const d = ValuesDocument.parse('deployments:\n  - name: api\n    replicas: 2\n');
+    expect(() => d.deleteIn(['deployments', '0', 'replicas'])).not.toThrow();
+    expect(d.toJS()).toEqual({ deployments: [{ name: 'api', replicas: 2 }] });
+  });
+  it('deleteIn is a no-op when a map parent is addressed by a numeric index', () => {
+    const d = ValuesDocument.parse('env:\n  a: 1\n');
+    expect(() => d.deleteIn(['env', 0])).not.toThrow();
+    expect(d.toJS()).toEqual({ env: { a: 1 } });
+  });
 });

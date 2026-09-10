@@ -12,7 +12,7 @@ import { isObj } from '../../model/guards';
 const NAME = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
 
 /** One card per container: image:tag row, the remaining present fields, chips for the rest; add row below. */
-export function ContainersField({ root, field, tier, onEdit, workload }: FieldProps): ReactElement {
+export function ContainersField({ root, field, tier, onEdit, lockedPaths, workload }: FieldProps): ReactElement {
   const id = field.path.join('.');
   const item = resolve(root, field.schema).additionalProperties as SchemaNode;
   const pattern = (field.widget as { keyPattern?: string }).keyPattern ?? NAME.source;
@@ -31,7 +31,7 @@ export function ContainersField({ root, field, tier, onEdit, workload }: FieldPr
             removeTitle={soleAndRequired ? 'A workload needs at least one container' : 'Remove this container'}
             removeText="remove" onRemove={() => { if (!soleAndRequired) onEdit([{ op: 'delete', path: base }]); }}>
             <ImageField base={base} image={c.image as string | undefined} imageTag={c.imageTag as string | undefined} onEdit={onEdit} />
-            <FieldList root={root} node={item} basePath={base} value={c} tier={tier} onEdit={onEdit} hide={(x) => x === 'image' || x === 'imageTag'} workload={workload} />
+            <FieldList root={root} node={item} basePath={base} value={c} tier={tier} onEdit={onEdit} hide={(x) => x === 'image' || x === 'imageTag'} lockedPaths={lockedPaths} workload={workload} />
           </Card>
         );
       })}

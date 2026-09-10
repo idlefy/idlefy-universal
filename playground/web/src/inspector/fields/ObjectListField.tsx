@@ -10,7 +10,7 @@ const leafAt = (v: unknown, leaf: string[]): unknown => leaf.reduce<any>((cur, k
 
 /** A list of objects as rows: pair rows when the item is small, collapsed block rows otherwise. */
 export function ObjectListField(props: FieldProps & { itemLabel?: string; removeBlocked?: string }): ReactElement {
-  const { root, field, onEdit, itemLabel, removeBlocked } = props;
+  const { root, field, onEdit, itemLabel, removeBlocked, lockedPaths, workload } = props;
   const id = field.path.join('.');
   const item = resolve(root, field.schema).items as SchemaNode;
   const shape = itemShape(root, item);
@@ -127,9 +127,9 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string; remove
     const anyVisible = !pair || itemKeys.some((k) => !hideLeaves(k));
     return (
       <div className="field-body">
-        {anyVisible && <FieldList root={root} node={item} basePath={[...field.path, i]} value={v} tier="advanced" onEdit={onEdit} hide={hide} />}
+        {anyVisible && <FieldList root={root} node={item} basePath={[...field.path, i]} value={v} tier="advanced" onEdit={onEdit} hide={hide} lockedPaths={lockedPaths} workload={workload} />}
         {pair && mixedKeys.map((k) => (
-          <FieldList key={k} root={root} node={leafSchema([k])} basePath={[...field.path, i, k]} value={leafAt(v, [k])} tier="advanced" onEdit={onEdit} hide={(sk) => promotedSubKeys(k).includes(sk)} />
+          <FieldList key={k} root={root} node={leafSchema([k])} basePath={[...field.path, i, k]} value={leafAt(v, [k])} tier="advanced" onEdit={onEdit} hide={(sk) => promotedSubKeys(k).includes(sk)} lockedPaths={lockedPaths} workload={workload} />
         ))}
       </div>
     );

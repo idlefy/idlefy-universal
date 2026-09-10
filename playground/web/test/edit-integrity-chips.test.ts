@@ -12,7 +12,7 @@ import { chipValue, starterValue } from '../src/inspector/form';
 import { defaultName } from '../src/graph/entities';
 import { starterBody } from '../src/palette/add';
 import { secondariesFor, toggleState, WORKLOAD_KEYS } from '../src/graph/secondary';
-import { subdomainUsers } from '../src/inspector/summary';
+import { secretRefUsers, subdomainUsers } from '../src/inspector/summary';
 import { isFilledObj, isObj } from '../src/model/guards';
 
 const examples = examplesJson as { id: string; values: string }[];
@@ -83,6 +83,35 @@ function genericBase(withSubdomain: boolean): { label: string; text: string } {
   return { label: withSubdomain ? 'generic/all-on+subdomain' : 'generic/all-on', text: stringify(doc, { lineWidth: 0 }) };
 }
 
+/**
+ * `secretRefs` with four groups spanning every combination `ReleasePanel`'s `blockedRemove` / last-row
+ * rule branches on: referenced by a container vs. never referenced, single item vs. multiple. One
+ * `deployments.app` container names the two `used-*` groups via `secretRefs: [...]`; the `free-*`
+ * groups are never referenced by anything, so `secretRefUsers` reports no users for them.
+ */
+function secretRefsBase(): { label: string; text: string } {
+  const doc = {
+    deployments: {
+      app: {
+        containers: { main: { image: 'nginx', imageTag: '1', ports: { http: { containerPort: 80 } }, secretRefs: ['used-multi', 'used-single'] } },
+      },
+    },
+    secretRefs: {
+      'used-multi': [
+        { name: 'A', secretKeyRef: { name: 's', key: 'a' } },
+        { name: 'B', secretKeyRef: { name: 's', key: 'b' } },
+      ],
+      'used-single': [{ name: 'C', secretKeyRef: { name: 's', key: 'c' } }],
+      'free-multi': [
+        { name: 'D', secretKeyRef: { name: 's', key: 'd' } },
+        { name: 'E', secretKeyRef: { name: 's', key: 'e' } },
+      ],
+      'free-single': [{ name: 'F', secretKeyRef: { name: 's', key: 'f' } }],
+    },
+  };
+  return { label: 'secretRefs/mixed', text: stringify(doc, { lineWidth: 0 }) };
+}
+
 function sweep(bases: { label: string; text: string }[], fails: string[]): void {
   for (const base of bases) {
     const start = ValuesDocument.parse(base.text);
@@ -102,6 +131,34 @@ function sweep(bases: { label: string; text: string }[], fails: string[]): void 
         if (lockedPaths?.has(path.join('.'))) continue;
         const r = render(start.apply([{ op: 'delete', path }]).toString());
         if (!r.ok) fails.push(`clear ${base.label} · ${path.join('.')} → ${why(r)}`);
+      }
+    }
+    // `secretRefs`' own card × (`delete ['secretRefs', g]`) and row × (`delete ['secretRefs', g, i]`)
+    // are release-level actions `panelsOf`/`walkFields` never reaches (same reason as `generic.*`'s
+    // own block clears, just above). Mirrors `MapOfListsField`/`ObjectListField`'s own gating exactly:
+    // the card is blocked while `secretRefUsers` finds a user. A row is only its own action while the
+    // group has more than one item — `ObjectListField.remove` deletes the whole group (the same op as
+    // the card, `field.path` not `[...field.path, i]`) once only one item is left, per
+    // `removeDisabled = lastLocked || (items.length === 1 && !!removeBlocked)` (`lastLocked` never
+    // applies here: `MapOfListsField` never sets `field.locked` on a secretRefs group's list) — so a
+    // singleton group's last row is exercised by the card check above, not a second index-based delete
+    // (which `secretRefs.<group>`'s own `minItems: 1` would reject even when the group is unblocked).
+    if (isObj(values.secretRefs)) {
+      for (const [group, items] of Object.entries(values.secretRefs as Record<string, unknown>)) {
+        if (!Array.isArray(items)) continue;
+        const users = secretRefUsers(values, group);
+        const cardPath = ['secretRefs', group];
+        if (users.length === 0) {
+          const r = render(start.apply([{ op: 'delete', path: cardPath }]).toString());
+          if (!r.ok) fails.push(`clear ${base.label} · ${cardPath.join('.')} → ${why(r)}`);
+        }
+        if (items.length > 1) {
+          for (let i = 0; i < items.length; i++) {
+            const rowPath = ['secretRefs', group, i];
+            const r = render(start.apply([{ op: 'delete', path: rowPath }]).toString());
+            if (!r.ok) fails.push(`clear ${base.label} · ${rowPath.join('.')} → ${why(r)}`);
+          }
+        }
       }
     }
     for (const panel of panelsOf(start)) {
@@ -133,9 +190,21 @@ describe('edit integrity — chips and clears', () => {
       const name = defaultName(root, key);
       bases.push({ label: `${key}/starter`, text: stringify({ [key]: { [name]: starterBody(root, key, name) } }, { lineWidth: 0 }) });
     }
-    bases.push(genericBase(false), genericBase(true));
+    bases.push(genericBase(false), genericBase(true), secretRefsBase());
     sweep(bases, fails);
     expect(fails).toEqual([]);
+  }, TIMEOUT);
+
+  // `lockedPaths` self-check: `genericBase(true)` is the one base where the `subdomainUsers` lock is
+  // actually live (a `hosts[].subdomain` exists in the document), so this is the one place able to
+  // prove the lock still does something. Without this, a change that quietly makes
+  // `generic.ingressesGeneral` renderable-when-cleared even with a live subdomain reference would pass
+  // the sweep above by skipping the path via `lockedPaths` — flagged here instead of silently unchecked.
+  it.skipIf(SKIP)('the subdomain lock on generic.ingressesGeneral is still load-bearing', () => {
+    const { text } = genericBase(true);
+    const start = ValuesDocument.parse(text);
+    const r = render(start.apply([{ op: 'delete', path: ['generic', 'ingressesGeneral'] }]).toString());
+    expect(r.ok, 'clearing generic.ingressesGeneral while a subdomain reference exists should fail to render — the lock is no longer load-bearing').toBe(false);
   }, TIMEOUT);
 
   // vitest 5.0.0's ChainableTestAPI type does not re-expose `.runIf` after `.skipIf` (see the same

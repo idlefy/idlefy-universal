@@ -88,13 +88,23 @@ export class ValuesDocument {
     if (path.length === 0) return;
     let node: any = this.doc.contents;
     for (let i = 0; i < path.length - 1; i++) {
-      if (!isMap(node) && !isSeq(node)) return; // missing/scalar intermediate: no-op
-      node = node.get(path[i], true);
+      const seg = path[i];
+      // Bail — matching setIn's own bail semantics — when the segment's type doesn't match the
+      // node it is about to index into: a string key against a YAMLSeq, or a numeric index against
+      // a YAMLMap. Without this check `YAMLSeq.get('0', true)` (and `.delete('0')`) coerce a
+      // numeric-*string* segment to an index via `asItemIndex` — so a path built from a map-shaped
+      // intent (e.g. a name that happens to look numeric) could silently walk into — or delete from
+      // — a sequence by position instead of being the no-op the caller expects.
+      if (isSeq(node)) { if (typeof seg !== 'number') return; }
+      else if (isMap(node)) { if (typeof seg === 'number') return; }
+      else return; // missing/scalar intermediate: no-op
+      node = node.get(seg, true);
     }
-    if (!isMap(node) && !isSeq(node)) return; // missing/scalar target parent: no-op
-    // A key against a YAMLSeq parent (or an index against a YAMLMap) is a no-op, not a throw:
-    // `YAMLSeq.delete('web')` returns false. deleteIn matches setIn — it never throws either.
-    node.delete(path[path.length - 1]);
+    const last = path[path.length - 1];
+    if (isSeq(node)) { if (typeof last !== 'number') return; }
+    else if (isMap(node)) { if (typeof last === 'number') return; }
+    else return; // missing/scalar target parent: no-op
+    node.delete(last);
     // Removing the last entry of a top-level entity map would leave `deployments: {}` behind:
     // noise in the file, and the flow-`{}` parent the un-flow above then has to repair. Prune the
     // key instead — unless it carries a comment, which would be dropped with it.
