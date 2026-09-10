@@ -4,6 +4,16 @@ export type ValuesPath = (string | number)[];
 
 export type EditOp = { op: 'set'; path: ValuesPath; value: unknown } | { op: 'delete'; path: ValuesPath };
 
+/**
+ * `yaml` stringifies with `ctx.inFlow ?? collection.flow`, so a child's own `flow` flag can never
+ * beat a flow ancestor: the only way to keep an insert block-style is to un-flow the flow parent
+ * itself. Doing that only while it is still *empty* (`{}`, `[]`) costs nothing — an empty
+ * collection has no style worth preserving — while a non-empty flow map the user typed keeps it.
+ */
+function unflowIfEmpty(node: any): void {
+  if ((isMap(node) || isSeq(node)) && node.flow && node.items.length === 0) node.flow = false;
+}
+
 export class ValuesDocument {
   private doc: Document;
   private lc: LineCounter;
@@ -56,6 +66,7 @@ export class ValuesDocument {
     // "Expected a valid index, not api."), and a throw here reaches React's render phase and
     // unmounts the whole app.
     let node: any = root;
+    unflowIfEmpty(node);
     for (let i = 0; i < path.length - 1; i++) {
       const seg = path[i];
       const wantSeq = typeof path[i + 1] === 'number';
@@ -67,6 +78,7 @@ export class ValuesDocument {
       if (isMap(next) || isSeq(next)) { if (wantSeq ? !isSeq(next) : !isMap(next)) return; }
       else { next = this.doc.createNode(wantSeq ? [] : {}); node.set(seg, next); }
       node = next;
+      unflowIfEmpty(node);
     }
     // The loop guarantees `node` matches the last segment's type, so this set never throws.
     node.set(path[path.length - 1], value);
@@ -83,6 +95,16 @@ export class ValuesDocument {
     // A key against a YAMLSeq parent (or an index against a YAMLMap) is a no-op, not a throw:
     // `YAMLSeq.delete('web')` returns false. deleteIn matches setIn — it never throws either.
     node.delete(path[path.length - 1]);
+    // Removing the last entry of a top-level entity map would leave `deployments: {}` behind:
+    // noise in the file, and the flow-`{}` parent the un-flow above then has to repair. Prune the
+    // key instead — unless it carries a comment, which would be dropped with it.
+    if (path.length !== 2 || !isMap(node) || node.items.length > 0) return;
+    const top: any = this.doc.contents;
+    if (!isMap(top)) return;
+    const pair: any = top.items.find((it: any) => String((it.key as any)?.value ?? it.key) === String(path[0]));
+    if (!pair) return;
+    const annotated = !!(pair.key?.commentBefore || pair.key?.comment || pair.value?.commentBefore || pair.value?.comment);
+    if (!annotated) top.delete(path[0]);
   }
 
   toString(): string {

@@ -167,9 +167,31 @@ describe('ValuesDocument', () => {
     const d = ValuesDocument.parse('').apply([{ op: 'set', path: ['deployments', 'backend-api'], value: { replicas: 2 } }]);
     expect(d.toString()).toBe('deployments:\n  backend-api:\n    replicas: 2\n');
   });
-  it('setIn on a flow root `{}` stays flow (documented caveat: the palette starts from an empty editor, not `{}`)', () => {
+  it('setIn un-flows an empty flow root so the insert is block style', () => {
     const d = ValuesDocument.parse('{}').apply([{ op: 'set', path: ['deployments', 'backend-api'], value: { replicas: 2 } }]);
-    expect(d.toString()).toBe('{deployments: {backend-api: {replicas: 2}}}\n');
+    expect(d.toString()).toBe('deployments:\n  backend-api:\n    replicas: 2\n');
+  });
+  it('setIn un-flows an empty flow map value so the insert is block style', () => {
+    const d = ValuesDocument.parse('deployments: {}\n').apply([{ op: 'set', path: ['deployments', 'backend-api'], value: { replicas: 2 } }]);
+    expect(d.toString()).toBe('deployments:\n  backend-api:\n    replicas: 2\n');
+  });
+  it('setIn un-flows an empty flow map found mid-path', () => {
+    const d = ValuesDocument.parse('deployments:\n  web:\n    pdb: {}\n').apply([{ op: 'set', path: ['deployments', 'web', 'pdb', 'minAvailable'], value: 1 }]);
+    expect(d.toString()).toBe('deployments:\n  web:\n    pdb:\n      minAvailable: 1\n');
+  });
+  it('setIn leaves a non-empty flow map in flow style (the user wrote it that way)', () => {
+    const d = ValuesDocument.parse('deployments: {web: {replicas: 1}}\n').apply([{ op: 'set', path: ['deployments', 'api'], value: { replicas: 2 } }]);
+    expect(d.toString()).toBe('deployments: {web: {replicas: 1}, api: {replicas: 2}}\n');
+  });
+  it('deleteIn drops a top-level key whose last entry was removed, keeping siblings', () => {
+    const d = ValuesDocument.parse('deployments:\n  web: {}\nservices:\n  s: {}\n').apply([{ op: 'delete', path: ['deployments', 'web'] }]);
+    expect(d.toString()).toBe('services:\n  s: {}\n');
+  });
+  it('deleteIn keeps an emptied top-level key that carries a comment, and never prunes deeper levels', () => {
+    const kept = ValuesDocument.parse('# hi\ndeployments:\n  web: {}\n').apply([{ op: 'delete', path: ['deployments', 'web'] }]);
+    expect(kept.toString()).toBe('# hi\ndeployments: {}\n');
+    const deep = ValuesDocument.parse('deployments:\n  web:\n    ingress:\n      x: 1\n').apply([{ op: 'delete', path: ['deployments', 'web', 'ingress', 'x'] }]);
+    expect(deep.toString()).toBe('deployments:\n  web:\n    ingress: {}\n');
   });
   it('setIn leaves a sequence intermediate alone when the next path segment is a key (never throws)', () => {
     const d = ValuesDocument.parse('deployments:\n  - name: api\n');

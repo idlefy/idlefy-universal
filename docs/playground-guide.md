@@ -70,5 +70,6 @@ button. It deletes that entry from `values.yaml` (a workload's auto-created reso
 off from the group panel instead.
 
 When the document renders nothing, the canvas shows a card with **Add a Deployment** and **Load an
-example**. Start from an empty editor rather than `{}`: a flow-style root keeps every later insert
-on one line.
+example**. Inserts are always block-style, whether you start from an empty editor, from `{}`, or
+from a `deployments: {}` left behind by a removal — and removing the last entry of a top-level map
+takes the (uncommented) key with it.
