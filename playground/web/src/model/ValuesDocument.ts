@@ -98,11 +98,20 @@ export class ValuesDocument {
     // Removing the last entry of a top-level entity map would leave `deployments: {}` behind:
     // noise in the file, and the flow-`{}` parent the un-flow above then has to repair. Prune the
     // key instead — unless it carries a comment, which would be dropped with it.
+    // Note: a delete-then-set batch that targets the same top-level key relocates that key to the
+    // end of the file (the prune removes the pair, then setIn re-appends it) — latent, no caller
+    // does this today.
     if (path.length !== 2 || !isMap(node) || node.items.length > 0) return;
     const top: any = this.doc.contents;
     if (!isMap(top)) return;
-    const pair: any = top.items.find((it: any) => String((it.key as any)?.value ?? it.key) === String(path[0]));
+    // Look up by identity of the emptied node, not by re-deriving the key: a `String(key.value)`
+    // match can pick a different pair than the one `top.delete` (strict key equality) would act on
+    // when two keys stringify the same (e.g. `true` vs `'true'`).
+    const pair: any = top.items.find((it: any) => it.value === node);
     if (!pair) return;
+    // An anchor on the key or value means an alias elsewhere still needs it; dropping the pair would
+    // leave that alias unresolved and make `toString()` throw.
+    if (pair.key?.anchor || pair.value?.anchor) return;
     const annotated = !!(pair.key?.commentBefore || pair.key?.comment || pair.value?.commentBefore || pair.value?.comment);
     if (!annotated) top.delete(path[0]);
   }

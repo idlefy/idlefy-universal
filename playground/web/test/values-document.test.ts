@@ -193,6 +193,15 @@ describe('ValuesDocument', () => {
     const deep = ValuesDocument.parse('deployments:\n  web:\n    ingress:\n      x: 1\n').apply([{ op: 'delete', path: ['deployments', 'web', 'ingress', 'x'] }]);
     expect(deep.toString()).toBe('deployments:\n  web:\n    ingress: {}\n');
   });
+  it('deleteIn keeps an emptied top-level key that is anchored, and round-trips without throwing', () => {
+    const d = ValuesDocument.parse('deployments: &d\n  web: {}\nother: *d\n').apply([{ op: 'delete', path: ['deployments', 'web'] }]);
+    expect(() => d.toString()).not.toThrow();
+    expect(d.toString()).toBe('deployments: &d {}\nother: *d\n');
+  });
+  it('setIn un-flows an empty flow sequence so the insert is block style', () => {
+    const d = ValuesDocument.parse('env: []\n').apply([{ op: 'set', path: ['env', 0], value: { name: 'A' } }]);
+    expect(d.toString()).toBe('env:\n  - name: A\n');
+  });
   it('setIn leaves a sequence intermediate alone when the next path segment is a key (never throws)', () => {
     const d = ValuesDocument.parse('deployments:\n  - name: api\n');
     expect(() => d.setIn(['deployments', 'web'], { replicas: 1 })).not.toThrow();
