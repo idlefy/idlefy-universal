@@ -17,7 +17,7 @@ export function useUndoRedo(api: RefObject<EditorApi | null>, enabled = true): v
       if (e.isComposing) return;
       const key = e.key.toLowerCase();
       const isUndo = key === 'z' && !e.shiftKey;
-      const isRedo = (key === 'z' && e.shiftKey) || key === 'y';
+      const isRedo = (key === 'z' && e.shiftKey) || (key === 'y' && !e.shiftKey);
       if (!isUndo && !isRedo) return;
       if (isTypingTarget(e.target)) return;
       e.preventDefault();

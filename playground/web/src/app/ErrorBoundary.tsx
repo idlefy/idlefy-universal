@@ -28,9 +28,12 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   componentDidUpdate(_prevProps: { children: ReactNode }, prevState: State): void {
-    // Catches the fallback being (re)shown without going through componentDidCatch again — e.g. a
-    // future caller that flips `hasError` some other way. A no-op today, kept for symmetry so the
-    // focus behavior doesn't silently depend on componentDidCatch being the only path in.
+    // React does not call componentDidUpdate on the render that getDerivedStateFromError triggers
+    // (that render is the error one, not an update) — componentDidCatch above already focuses the
+    // heading for that path, so this branch is unreachable today. Catches the fallback being
+    // (re)shown without going through componentDidCatch again — e.g. a future caller that flips
+    // `hasError` some other way — kept for symmetry so the focus behavior doesn't silently depend on
+    // componentDidCatch being the only path in.
     if (this.state.hasError && !prevState.hasError) this.heading.current?.focus();
   }
 

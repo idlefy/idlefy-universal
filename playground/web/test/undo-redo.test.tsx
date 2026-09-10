@@ -32,6 +32,16 @@ describe('useUndoRedo', () => {
     fireEvent.keyDown(document.body, { key: 'y', metaKey: true });
     expect(api.redo).toHaveBeenCalledTimes(4);
   });
+  it('Ctrl/Cmd+Shift+Y is not a redo binding: it does nothing (and does not prevent the default)', () => {
+    const api = { undo: vi.fn(), redo: vi.fn() };
+    render(<Host api={api} />);
+    const ev = new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true });
+    document.body.dispatchEvent(ev);
+    fireEvent.keyDown(document.body, { key: 'y', metaKey: true, shiftKey: true });
+    expect(api.undo).not.toHaveBeenCalled();
+    expect(api.redo).not.toHaveBeenCalled();
+    expect(ev.defaultPrevented).toBe(false);
+  });
   it('leaves text fields (Monaco included) to their own undo, and ignores a bare or alt-ed z', () => {
     const api = { undo: vi.fn(), redo: vi.fn() };
     const { getByLabelText } = render(<Host api={api} />);

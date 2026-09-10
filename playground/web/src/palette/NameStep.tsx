@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import type { SchemaNode } from '../inspector/schema';
 import { AddKeyRow } from '../inspector/fields/AddKeyRow';
 import { KindIcon } from '../canvas/icons';
@@ -23,6 +23,10 @@ export function NameStep(p: { root: SchemaNode; entity: Entity; values: Record<s
   // `null` = the row still holds the prefilled `initial`; anything else is the (trimmed) typed draft,
   // so a whitespace-only field reads as '' and previews nothing instead of promising the placeholder.
   const [typed, setTyped] = useState<string | null>(null);
+  // `initial` changing means `existing` changed under us (another add landed, or a prior add's name
+  // is now taken) while this step stayed mounted: any typed override is for the *old* placeholder and
+  // must not survive it, or `name` below would keep previewing a stale draft against the new default.
+  useEffect(() => setTyped(null), [initial]);
   const name = typed ?? initial;
   const valid = name !== '' && pattern.re.test(name) && !existing.includes(name);
   // Gated on `valid`, not just non-empty: an in-progress or invalid name (a duplicate, or one that
@@ -38,8 +42,8 @@ export function NameStep(p: { root: SchemaNode; entity: Entity; values: Record<s
         <b>New {label}</b>
         <code>{key}.‹name›</code>
       </div>
-      {/* keyed on `initial`: a value that changes `existing` (and so `initial`, via uniqueName) while
-          this step stays mounted must reseed the draft rather than leave a stale typed value behind */}
+      {/* keyed on `initial` so AddKeyRow itself remounts too: its own internal `draft` state resets to
+          the new placeholder and it re-focuses/re-selects the input, matching the `typed` reset above */}
       <AddKeyRow key={initial} id={key} inputAriaLabel="Name" placeholder={initial} initial={initial} onDraft={setTyped}
         existing={existing} valid={(k) => pattern.re.test(k)} invalidText={`must match ${pattern.display}`}
         buttonText={`Add ${label}`} buttonAriaLabel={`Add ${label}`} buttonClassName="btn primary" onAdd={p.onAdd} />

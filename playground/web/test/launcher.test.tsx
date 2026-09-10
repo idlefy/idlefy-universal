@@ -111,6 +111,23 @@ describe('Launcher', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'web' } });
     expect(screen.queryByText('already exists')).toBeNull();
   });
+  it('a typed draft is dropped when the placeholder reseeds under it (another add landed while open)', () => {
+    const onAdd = vi.fn();
+    const { rerender } = render(<NameStep root={root} entity={entityOf('deployments')!} values={{}} onBack={vi.fn()} onAdd={onAdd} />);
+    const input = screen.getByLabelText('Name') as HTMLInputElement;
+    expect(input.value).toBe('backend-api');
+    fireEvent.change(input, { target: { value: 'web' } });
+    expect(input.value).toBe('web');
+    // simulate another add landing while this step stays mounted: 'backend-api' is now taken, so the
+    // placeholder reseeds to 'backend-api-2' via uniqueName
+    rerender(<NameStep root={root} entity={entityOf('deployments')!} values={{ deployments: { 'backend-api': {} } }} onBack={vi.fn()} onAdd={onAdd} />);
+    const reseeded = screen.getByLabelText('Name') as HTMLInputElement;
+    expect(reseeded.value).toBe('backend-api-2');
+    // the stale typed draft ('web') must not still be what Enter would submit
+    expect(document.querySelector('.launcher pre, .preview pre')!.textContent).toContain('backend-api-2:');
+    fireEvent.keyDown(screen.getByText('New Deployment').closest('.name-step')!, { key: 'Enter' });
+    expect(onAdd).toHaveBeenCalledWith('backend-api-2');
+  });
   it('scrolls the active row into view only on keyboard moves, never on hover or mount', () => {
     const seen: string[] = [];
     const scroll = vi.fn(function (this: Element) { seen.push(this.textContent ?? ''); });
