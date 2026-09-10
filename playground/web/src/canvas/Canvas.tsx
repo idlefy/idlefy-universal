@@ -34,6 +34,7 @@ function FitOnLayout({ token }: { token: unknown }) {
 
 export function Canvas({
   model,
+  booting,
   stale,
   selection,
   onSelect,
@@ -41,15 +42,19 @@ export function Canvas({
   emptyState,
 }: {
   model: GraphModel | null;
+  booting: boolean;
   stale: boolean;
   selection: string | null;
   onSelect: (id: string | null) => void;
   onAddResource: (groupId: string) => void;
   emptyState?: ReactNode;
 }) {
-  const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[] }>({
+  // `model` is tracked alongside the layout so the empty card is never decided from a model whose
+  // ELK layout has not landed yet — otherwise it paints over the previous graph for one tick.
+  const [laid, setLaid] = useState<{ nodes: AppNode[]; edges: Edge[]; model: GraphModel | null }>({
     nodes: [],
     edges: [],
+    model: null,
   });
   const [layoutError, setLayoutError] = useState<string | null>(null);
 
@@ -59,13 +64,13 @@ export function Canvas({
     layoutGraph(model)
       .then((r) => {
         if (alive) {
-          setLaid(r);
+          setLaid({ ...r, model });
           setLayoutError(null);
         }
       })
       .catch((e) => {
         if (alive) {
-          setLaid({ nodes: [], edges: [] });
+          setLaid({ nodes: [], edges: [], model });
           setLayoutError(e instanceof Error ? e.message : String(e));
           console.error("layout failed", e);
         }
@@ -97,7 +102,9 @@ export function Canvas({
   if (!model)
     return (
       <div className="canvas-empty">
-        Paste or pick an example on the left to see the resources it produces.
+        {booting
+          ? "Starting the Helm engine…"
+          : "Paste or pick an example on the left to see the resources it produces."}
       </div>
     );
   return (
@@ -118,7 +125,7 @@ export function Canvas({
           onNodeClick={(_, n) => onSelect(n.id)}
           onPaneClick={() => onSelect(null)}
           nodesConnectable={false}
-          proOptions={{ hideAttribution: true }}
+          // No proOptions: hiding React Flow's attribution requires a Pro subscription, and this repo documents none.
         >
           <Background />
           <Controls />
@@ -130,7 +137,7 @@ export function Canvas({
       {layoutError && (
         <div className="canvas-error">Layout failed: {layoutError}</div>
       )}
-      {!layoutError && model.nodes.filter((n) => n.manifest).length === 0 && (
+      {!layoutError && laid.model === model && model.nodes.filter((n) => n.manifest).length === 0 && (
         emptyState ?? <div className="canvas-empty overlay">No resources rendered yet.</div>
       )}
     </div>

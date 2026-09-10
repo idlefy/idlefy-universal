@@ -115,7 +115,10 @@ export function App() {
             onClick={() => setOpen("inspector", !panes.inspector.open)}>Inspector</button>
         </div>
         <span className="status">
-          {state.render?.ok && <><span className="dot ok" aria-hidden="true" /> rendered {state.render.manifests.length} objects in {state.render.durationMs} ms</>}
+          {/* A syntax error freezes the pipeline: without this the header keeps advertising the stale render. */}
+          {yamlBroken
+            ? <><span className="dot bad" aria-hidden="true" /> YAML has a syntax error</>
+            : state.render?.ok && <><span className="dot ok" aria-hidden="true" /> rendered {state.render.manifests.length} objects in {state.render.durationMs} ms</>}
           <a className="muted" href="../">docs</a>
         </span>
       </header>
@@ -158,7 +161,7 @@ export function App() {
           {!error && warnings.length > 0 && <div className="banner warn">{warnings.map((w) => <div key={w}>{w}</div>)}</div>}
           <div className="canvas-wrap">
             <AddButton disabled={yamlBroken} open={launcher} onOpen={openLauncher} onClose={() => setLauncher(null)} root={schema as SchemaNode} values={values} onAdd={onAdd} />
-            <Canvas model={state.graph} stale={!!error || yamlBroken} selection={state.selection}
+            <Canvas model={state.graph} booting={!state.render} stale={!!error || yamlBroken} selection={state.selection}
               onSelect={(id) => { setAddToken(null); dispatch({ type: "select", id }); if (id !== null) setOpen("inspector", true); }}
               onAddResource={(id) => { dispatch({ type: "select", id }); setOpen("inspector", true); setAddToken((t) => ({ id, n: (t?.n ?? 0) + 1 })); }}
               emptyState={emptyState} />
