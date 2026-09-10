@@ -2,6 +2,7 @@ import type { ValuesPath } from '../model/ValuesDocument';
 import type { Tier } from '../app/state';
 import { classify, resolve, type SchemaNode, type Widget } from './schema';
 import { isObj } from '../model/guards';
+import { REF_FIXUPS, intOrStringStarter, stringStarter } from './starters';
 
 export type Field = {
   key: string; path: ValuesPath; label: string; description?: string;
@@ -126,10 +127,28 @@ const clone = <T>(v: T): T => structuredClone(v);
  * first `examples` entry when it fits the node's own properties, else a type-appropriate empty value.
  * Some docs examples describe the *map entry* that holds the node (PortSpec.examples[0] is
  * `{http: {containerPort: …}}`), so a single-key example whose inner object fits the properties is
- * unwrapped. Every example/default-derived value is deep-cloned before returning.
+ * unwrapped. Every example/default-derived value is deep-cloned before returning, then run through
+ * `REF_FIXUPS` — the chart rejects some of its own schema examples, and every insertion point (the
+ * palette, an "Add" chip, an object-list "add item") must get the correction, not just the palette.
  */
 export function starterValue(root: SchemaNode, node: SchemaNode): unknown {
   const r = resolve(root, node);
+  return fixup(root, r, derive(root, r));
+}
+
+/** Applies `REF_FIXUPS` to a starter: to the value itself, or to each element of an array whose
+ *  `items` name a fixed-up `$defs` (the `hosts`/`hostnames` chip inserts examples[0] of the array). */
+function fixup(root: SchemaNode, r: SchemaNode, value: unknown): unknown {
+  const own = REF_FIXUPS[String(r['x-ref-name'])];
+  if (own && isObj(value)) { own(value as Record<string, any>); return value; }
+  if (Array.isArray(value) && isObj(r.items)) {
+    const perItem = REF_FIXUPS[String(resolve(root, r.items as SchemaNode)['x-ref-name'])];
+    if (perItem) for (const el of value) if (isObj(el)) perItem(el as Record<string, any>);
+  }
+  return value;
+}
+
+function derive(root: SchemaNode, r: SchemaNode): unknown {
   if (r.default !== undefined) return clone(r.default);
   const props = isObj(r.properties) ? (r.properties as Record<string, unknown>) : undefined;
   const fits = (ex: unknown) => !props || r.additionalProperties !== false || (isObj(ex) && Object.keys(ex).every((k) => k in props));
@@ -143,7 +162,9 @@ export function starterValue(root: SchemaNode, node: SchemaNode): unknown {
   switch (t) {
     case 'boolean': return false;
     case 'integer': case 'number': return typeof r.minimum === 'number' ? r.minimum : 0;
-    case 'string': return '';
+    // '' is not a legal value for a pattern- or minLength-constrained string, and the schema gives no
+    // example for any of those nodes — stringStarter() answers those from src/inspector/starters.ts.
+    case 'string': return stringStarter(root, r);
     case 'array': return [];
   }
   if (t === 'object' || isObj(r.properties)) {
@@ -157,7 +178,7 @@ export function starterValue(root: SchemaNode, node: SchemaNode): unknown {
   switch (widget.kind) {
     case 'boolean': return false;
     case 'number': return 0;
-    case 'string': return '';
+    case 'string': return widget.intOrString ? intOrStringStarter(r) : '';
     case 'list': return [];
     default: return {};
   }

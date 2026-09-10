@@ -57,4 +57,10 @@ describe('palette add', () => {
   it('every entity has a starter body under its default name', () => {
     for (const e of ENTITIES) expect(starterBody(root, e.key, defaultName(root, e.key)), e.key).toBeTruthy();
   });
+  it('the ref-level fixups apply everywhere, not only on the palette path', () => {
+    // starterBody still overrides the host with the entity's own name; the point of REF_FIXUPS is
+    // that the *inspector* chip for the same node no longer inserts a bare `subdomain`.
+    expect(starterValue(root, schemaAt(root, ['httpRoutes', 'x', 'hostnames'])!)).toEqual([{ host: 'api.example.com' }]);
+    expect((starterBody(root, 'httpRoutes', 'canary') as any).hostnames).toEqual([{ host: 'canary.example.com' }]);
+  });
 });

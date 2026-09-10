@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { root } from './integrity';
 import { classify, resolve, type SchemaNode } from '../src/inspector/schema';
 import { starterValue } from '../src/inspector/form';
+import { PATTERN_STARTERS } from '../src/inspector/starters';
 
 /** JSON-Schema subset this chart's leaf nodes actually use. Returns one message per violation. */
 function violations(value: unknown, node: SchemaNode, where: string): string[] {
@@ -53,5 +54,28 @@ describe('starter contract', () => {
       }
     }
     expect(bad).toEqual([]);
+  });
+
+  it('every pattern the schema leaves without an example has a starter that matches it', () => {
+    // Collected by walking every $defs node: a `type: string` node with a `pattern` and neither
+    // `examples` nor `default` cannot get a legal starter from the schema, so PATTERN_STARTERS must
+    // carry one — and it must satisfy the pattern it is filed under.
+    for (const [pattern, value] of Object.entries(PATTERN_STARTERS)) {
+      expect(new RegExp(pattern).test(value), `${value} !~ ${pattern}`).toBe(true);
+    }
+    const missing = new Set<string>();
+    const seen = new Set<SchemaNode>();
+    const walk = (node: SchemaNode, depth = 0) => {
+      if (!node || typeof node !== 'object' || depth > 8 || seen.has(node)) return;
+      seen.add(node);
+      const r = resolve(root, node);
+      const isString = r.type === 'string' || (Array.isArray(r.type) && r.type.includes('string'));
+      if (isString && typeof r.pattern === 'string' && !Array.isArray(r.examples) && r.default === undefined && !(r.pattern in PATTERN_STARTERS)) missing.add(r.pattern);
+      if (r.properties) for (const v of Object.values(r.properties as Record<string, SchemaNode>)) walk(v, depth + 1);
+      if (r.items) walk(r.items as SchemaNode, depth + 1);
+      if (r.additionalProperties && typeof r.additionalProperties === 'object') walk(r.additionalProperties as SchemaNode, depth + 1);
+    };
+    for (const def of Object.values(root.$defs as Record<string, SchemaNode>)) walk(def);
+    expect([...missing]).toEqual([]);
   });
 });

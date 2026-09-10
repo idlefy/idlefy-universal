@@ -45,9 +45,21 @@ describe('buildFields', () => {
     // DeploymentSpec.autoCreateRbac has both `default: false` and `examples: [true]` — default wins.
     expect(starterValue(root, root.$defs.DeploymentSpec.properties.autoCreateRbac)).toBe(false);
   });
-  it('starterValue seeds an empty string for bare oneOf/anyOf IntOrString nodes', () => {
+  it('starterValue seeds the integer branch of a bare oneOf/anyOf IntOrString node', () => {
+    // '' matches neither `type: integer` nor `^[0-9]+%$`; and 0 is falsy in Go templates, so
+    // _autocreate-pdb.tpl would emit neither key and render a PDB with an empty spec.
     const minAvailable = schemaAt(root, ['deployments', 'web', 'pdb', 'minAvailable'])!;
-    expect(starterValue(root, minAvailable)).toBe('');
+    expect(starterValue(root, minAvailable)).toBe(1);
+    expect(starterValue(root, schemaAt(root, ['services', 'x', 'ports'])!)).toBeTruthy();
+  });
+  it('starterValue answers a pattern-constrained string from the shared table, and fixes subdomains', () => {
+    expect(starterValue(root, root.$defs.CronJobSpec.properties.schedule)).toBe('0 3 * * *');
+    expect(starterValue(root, root.$defs.ServiceMonitorConfig.properties.interval)).toBe('30s');
+    expect(starterValue(root, root.$defs.PvcSpec.properties.size)).toBe('1Gi');
+    // the `hosts` chip inserts examples[0] of the *array*, whose item is `{subdomain: api, …}` —
+    // the chart fails that without generic.ingressesGeneral.domain (QA H-5)
+    expect(starterValue(root, schemaAt(root, ['ingresses', 'x', 'hosts'])!)).toEqual([{ host: 'api.example.com', paths: [{ path: '/', pathType: 'Prefix' }] }]);
+    expect(starterValue(root, schemaAt(root, ['deployments', 'web', 'httpRoute', 'hostnames'])!)).toEqual([{ host: 'api.example.com' }]);
   });
   it('starterValue deep-clones example/default-derived values (no live reference into the schema module)', () => {
     const sv = starterValue(root, root.$defs.PortSpec);
@@ -68,7 +80,9 @@ describe('buildFields', () => {
           switch (widget.kind) {
             case 'boolean': expect(typeof sv).toBe('boolean'); break;
             case 'number': expect(typeof sv).toBe('number'); break;
-            case 'string': expect(typeof sv).toBe('string'); break;
+            // an IntOrString widget is a text box that commits digits as a number (TextField.emit),
+            // so a numeric starter is the right JS type for it
+            case 'string': expect(typeof sv === 'string' || (widget.intOrString === true && typeof sv === 'number')).toBe(true); break;
             case 'list': expect(Array.isArray(sv)).toBe(true); break;
             default: expect(typeof sv === 'object' && sv !== null).toBe(true); break;
           }
