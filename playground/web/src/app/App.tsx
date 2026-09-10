@@ -55,6 +55,9 @@ export function App() {
   const yamlBroken = state.doc.errors.length > 0;
   const openLauncher = useCallback(() => setLauncher({}), []);
   useHotkey("a", openLauncher, !yamlBroken && !launcher);
+  // AddButton renders the popover on `open && !disabled`, so a launcher left open while the YAML is
+  // broken would silently re-appear — with pre-break state — the moment the user fixed the typo.
+  useEffect(() => { if (yamlBroken) setLauncher(null); }, [yamlBroken]);
   // toJS() walks the whole document; only pay for it while the launcher is open.
   const values = useMemo(() => (launcher ? (inspectorDoc.toJS() as Record<string, unknown>) : {}), [launcher, inspectorDoc]);
   // Text is canonical: the launcher only produces ops; the reducer's one-shot focusPath (carried on
@@ -121,7 +124,9 @@ export function App() {
             onRelease={(v) => dispatch({ type: "release", v })} onNs={(v) => dispatch({ type: "ns", v })}
             onPickExample={(id) => {
               const ex = (examples as { id: string; values: string }[]).find((e) => e.id === id);
-              if (ex) dispatch({ type: "example", text: ex.values });
+              if (!ex) return;
+              setLauncher(null);   // an open launcher would keep previewing an insert into the old document
+              dispatch({ type: "example", text: ex.values });
             }}
             valuesText={state.text} chartVersion={chartMeta.version} onHide={() => setOpen("editor", false)}
           />

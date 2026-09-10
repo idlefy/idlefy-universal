@@ -62,4 +62,26 @@ describe('AddButton', () => {
     render(<Host onAdd={vi.fn()} disabled start={{}} />);
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+  it('an outside pointer down closes without stealing focus back to the button', () => {
+    render(<Host onAdd={vi.fn()} />);
+    const outside = screen.getByText('outside');
+    fireEvent.click(screen.getByRole('button', { name: /Add/ }));
+    outside.focus();
+    fireEvent.pointerDown(outside);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(outside);
+  });
+  it('announces the hotkey without putting it in the accessible name', () => {
+    render(<Host onAdd={vi.fn()} />);
+    const btn = screen.getByRole('button', { name: 'Add' });   // exact: no "Add A"
+    expect(btn.getAttribute('aria-keyshortcuts')).toBe('a');
+  });
+  it('the outside-click listener is installed once per open, not once per render', () => {
+    const add = vi.spyOn(document, 'addEventListener');
+    const { rerender } = render(<Host onAdd={vi.fn()} start={{}} />);
+    const before = add.mock.calls.filter((c) => c[0] === 'pointerdown').length;
+    rerender(<Host onAdd={vi.fn()} start={{}} />);
+    expect(add.mock.calls.filter((c) => c[0] === 'pointerdown').length).toBe(before);
+    add.mockRestore();
+  });
 });
