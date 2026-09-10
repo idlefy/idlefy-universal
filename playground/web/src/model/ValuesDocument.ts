@@ -19,6 +19,7 @@ export class ValuesDocument {
   private lc: LineCounter;
   private source: string;
   readonly errors: { message: string; line: number; col: number }[];
+  private _stringifyFailed = false;
 
   private constructor(doc: Document, lc: LineCounter, source: string, errors: { message: string; line: number; col: number }[]) {
     this.doc = doc;
@@ -26,6 +27,16 @@ export class ValuesDocument {
     this.source = source;
     this.errors = errors;
   }
+
+  /**
+   * Set by `toString()` when `yaml` threw stringifying this document and the fallback below returned
+   * the pre-edit source instead — e.g. deleting an anchored child whose alias lives elsewhere leaves
+   * an unresolvable alias. `false` before `toString()` has been called, and after a call that
+   * stringified cleanly. Callers that apply edits (`state.ts`'s `edit` case, the edit-integrity
+   * sweeps) must check this after calling `toString()`: a fallback means the edit silently did not
+   * land, which — unlike a genuine no-op — must never pass as success.
+   */
+  get stringifyFailed(): boolean { return this._stringifyFailed; }
 
   static parse(text: string): ValuesDocument {
     const lc = new LineCounter();
@@ -136,14 +147,18 @@ export class ValuesDocument {
     try {
       // lineWidth 0 disables folding; flowCollectionPadding false keeps `{a: b}` from becoming
       // `{ a: b }` on every round-trip, which would make the "minimal" diff span the whole file.
-      return this.doc.toString({ lineWidth: 0, flowCollectionPadding: false });
-    } catch {
+      const out = this.doc.toString({ lineWidth: 0, flowCollectionPadding: false });
+      this._stringifyFailed = false;
+      return out;
+    } catch (err) {
       // `yaml` throws stringifying rather than emitting invalid YAML when an edit leaves an alias
       // unresolved — e.g. deleting an anchored child (`web: &w {}`) whose alias (`*w`) lives
       // elsewhere. toString() must never throw (same contract as the two fallbacks above: a throw
       // here reaches React's render phase and unmounts the whole app), so fall back to the source
-      // this document was parsed from. The reducer then sees `text === s.text` and reports the edit
-      // as the no-op it effectively is (EDIT_FAILED when a focus was requested).
+      // this document was parsed from — but flag it via `stringifyFailed` and log it, rather than a
+      // bare `catch {}`, so the fallback is observable instead of looking like an ordinary no-op.
+      this._stringifyFailed = true;
+      console.error('values serialize failed', err);
       return this.source;
     }
   }

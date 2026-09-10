@@ -13,7 +13,7 @@ import type { EngineRawResult, RenderResult } from '../src/engine/types';
 import { resolve, type SchemaNode } from '../src/inspector/schema';
 import { buildFields, itemShape, type Field } from '../src/inspector/form';
 import { OWNED_FLAGS, SEC_IDS } from '../src/graph/secondary';
-import type { ValuesPath } from '../src/model/ValuesDocument';
+import { type EditOp, type ValuesDocument, type ValuesPath } from '../src/model/ValuesDocument';
 import { isObj } from '../src/model/guards';
 
 export const root = schema as SchemaNode;
@@ -80,6 +80,24 @@ export function renderRaw(values: string): EngineRawResult {
 }
 
 export const render = (values: string): RenderResult => toRenderResult(renderRaw(values), 0);
+
+/**
+ * `render(doc.toString())`, guarded: `ValuesDocument.toString()` never throws, but when `yaml` cannot
+ * re-emit the edited tree (e.g. deleting an anchored child whose alias lives elsewhere) it silently
+ * falls back to `doc`'s pre-edit source instead. Rendering that fallback would render the *unchanged*
+ * document — indistinguishable from a genuinely successful, no-op-producing edit — and let exactly the
+ * failure this sweep exists to catch pass silently. Report the fallback as its own failure instead.
+ */
+export function renderDoc(doc: ValuesDocument): RenderResult {
+  const text = doc.toString();
+  if (doc.stringifyFailed) return { ok: false, error: { kind: 'template', message: 'edit did not serialize' } };
+  return render(text);
+}
+
+/** `renderDoc(doc.apply(ops))` — the sweeps' most common shape, applying one edit and rendering it. */
+export function applyRender(doc: ValuesDocument, ops: EditOp[]): RenderResult {
+  return renderDoc(doc.apply(ops));
+}
 
 /**
  * One readable line per failure. A template failure arrives as a 5-line Go `include` chain whose only

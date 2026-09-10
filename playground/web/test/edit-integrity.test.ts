@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { stringify } from 'yaml';
 import examplesJson from '../src/chart-bundle/examples.json';
-import { bootEngine, render, why, root, workloadHide, walkFields, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
+import { bootEngine, renderDoc, applyRender, why, root, workloadHide, walkFields, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
 import { ValuesDocument, type EditOp } from '../src/model/ValuesDocument';
 import { resolve, schemaAt, type SchemaNode } from '../src/inspector/schema';
 import { appendItemValue, itemShape, leafEditOps, starterValue } from '../src/inspector/form';
@@ -42,7 +42,7 @@ describe('edit integrity', () => {
         for (const s of secondariesFor(kind)) {
           const cfg = (start.toJS() as any)[kind].app as Record<string, any>;
           if (toggleState(s, cfg, kind, false).isDisabled) continue;   // the switch is disabled and says why
-          const r = render(start.apply(s.on([kind, 'app'], cfg, 'app')).toString());
+          const r = applyRender(start, s.on([kind, 'app'], cfg, 'app'));
           if (!r.ok) fails.push(`on ${base.label}/${s.id} → ${why(r)}`);
         }
       }
@@ -62,12 +62,12 @@ describe('edit integrity', () => {
         allOn = allOn.apply(s.on([kind, 'app'], cfg, 'app'));
         applied.push(s);
       }
-      const r0 = render(allOn.toString());
+      const r0 = renderDoc(allOn);
       if (!r0.ok) { fails.push(`all-on ${kind} → ${why(r0)}`); continue; }
       const cfgAllOn = (allOn.toJS() as any)[kind].app as Record<string, any>;
       for (const s of applied) {
         if (toggleState(s, cfgAllOn, kind, false).isDisabled) continue;   // the switch is disabled and says why
-        const r = render(allOn.apply(s.off([kind, 'app'])).toString());
+        const r = applyRender(allOn, s.off([kind, 'app']));
         if (!r.ok) fails.push(`off ${kind}/${s.id} (all others on) → ${why(r)}`);
       }
     }
@@ -94,11 +94,11 @@ describe('edit integrity', () => {
           doc = doc.apply(s.on([kind, 'app'], cfg, 'app'));
         }
         if (skip) continue;
-        const before = render(doc.toString());
+        const before = renderDoc(doc);
         if (!before.ok) { fails.push(`pair ${kind}/${a.id}+${b.id} → ${why(before)}`); continue; }
         const cfg = (doc.toJS() as any)[kind].app as Record<string, any>;
         if (toggleState(b, cfg, kind, false).isDisabled) continue;
-        const after = render(doc.apply(b.off([kind, 'app'])).toString());
+        const after = applyRender(doc, b.off([kind, 'app']));
         if (!after.ok) fails.push(`pair ${kind}/${a.id} on + ${b.id} off → ${why(after)}`);
       }
     }
@@ -114,7 +114,7 @@ describe('edit integrity', () => {
       for (const e of ENTITIES) {
         const existing = Object.keys(isObj(values[e.key]) ? (values[e.key] as object) : {});
         const name = uniqueName(defaultName(root, e.key), existing);
-        const r = render(start.apply(addEntityOps(root, e.key, name)).toString());
+        const r = applyRender(start, addEntityOps(root, e.key, name));
         if (!r.ok) fails.push(`add ${e.key}.${name} into ${base.label} → ${why(r)}`);
       }
     }
@@ -155,7 +155,7 @@ describe('edit integrity', () => {
               // uses starterValue directly — a scalar list item has no identity to rename or de-duplicate.
               const value = f.widget.kind === 'objectList' ? appendItemValue(root, item, items) : starterValue(root, item);
               const added: EditOp[] = [{ op: 'set', path: [...f.path, items.length], value }];
-              const ra = render(start.apply(added).toString());
+              const ra = applyRender(start, added);
               if (!ra.ok) fails.push(`append ${base.label} · ${f.path.join('.')} → ${why(ra)}`);
               for (let i = 0; i < items.length; i++) {
                 // ObjectListField/ListField.remove: the last item takes the whole key with it. When the
@@ -164,7 +164,7 @@ describe('edit integrity', () => {
                 const removed: EditOp[] = items.length === 1
                   ? [{ op: 'delete', path: f.path }]
                   : [{ op: 'delete', path: [...f.path, i] }];
-                const rr = render(start.apply(removed).toString());
+                const rr = applyRender(start, removed);
                 if (!rr.ok) fails.push(`remove ${base.label} · ${f.path.join('.')}[${i}] → ${why(rr)}`);
               }
             } else if (f.key === 'ports' && f.widget.kind === 'map' && isObj(f.value)) {
@@ -175,7 +175,7 @@ describe('edit integrity', () => {
               for (const n of names) {
                 if (names.length === 1 && autoCreateService) continue;
                 const removed: EditOp[] = [{ op: 'delete', path: [...f.path, n] }];
-                const rr = render(start.apply(removed).toString());
+                const rr = applyRender(start, removed);
                 if (!rr.ok) fails.push(`remove ${base.label} · ${f.path.join('.')}.${n} → ${why(rr)}`);
               }
             }
@@ -229,7 +229,7 @@ describe('edit integrity', () => {
                   if ((row as Record<string, unknown>)[k] === undefined) continue;
                   const ops = leafEditOps(root, shape, item, f.path, i, row, [k], resolve(root, props[k]), '');
                   expect(ops, `${base.label} clear ${f.path.join('.')}[${i}].${k}`).toEqual([{ op: 'delete', path: [...f.path, i, k] }]);
-                  const r = render(start.apply(ops!).toString());
+                  const r = applyRender(start, ops!);
                   if (!r.ok) fails.push(`clear ${base.label} · ${f.path.join('.')}[${i}].${k} → ${why(r)}`);
                 }
               });
@@ -243,7 +243,7 @@ describe('edit integrity', () => {
                 if (leafSchema.type !== 'string') continue;
                 const ops = leafEditOps(root, shape, item, f.path, i, row, [k], leafSchema, k === 'subdomain' ? 'api' : 'x');
                 expect(ops, `${base.label} ${f.path.join('.')}[${i}].${k}`).not.toBeNull();
-                const r = render(start.apply(ops!).toString());
+                const r = applyRender(start, ops!);
                 if (!r.ok) fails.push(`swap ${base.label} · ${f.path.join('.')}[${i}] → ${k} → ${why(r)}`);
               }
               // emptying the member that *is* set must emit nothing at all

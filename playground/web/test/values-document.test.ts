@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { ValuesDocument } from '../src/model/ValuesDocument';
 
 const src = `# top comment
@@ -8,6 +8,8 @@ deployments:
     containers:
       main: {image: nginx, imageTag: "1"}
 `;
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('ValuesDocument', () => {
   it('parses and exposes JS', () => {
@@ -206,8 +208,20 @@ describe('ValuesDocument', () => {
     // so it falls back to the source the document was parsed from, leaving it unchanged.
     const src = 'deployments:\n  web: &w\n    replicas: 1\nother: *w\n';
     const d = ValuesDocument.parse(src).apply([{ op: 'delete', path: ['deployments', 'web'] }]);
+    expect(d.stringifyFailed).toBe(false);   // toString() has not been called yet
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => d.toString()).not.toThrow();
     expect(d.toString()).toBe(src);
+    // the fallback is observable, not a bare swallow: stringifyFailed flags it and the caught error
+    // is logged once per call rather than silently dropped
+    expect(d.stringifyFailed).toBe(true);
+    expect(spy).toHaveBeenCalledWith('values serialize failed', expect.anything());
+  });
+  it('toString() reports no stringifyFailed for a normal edit', () => {
+    const d = ValuesDocument.parse(src).apply([{ op: 'set', path: ['deployments', 'api', 'replicas'], value: 5 }]);
+    expect(d.stringifyFailed).toBe(false);
+    d.toString();
+    expect(d.stringifyFailed).toBe(false);
   });
   it('setIn un-flows an empty flow sequence so the insert is block style', () => {
     const d = ValuesDocument.parse('env: []\n').apply([{ op: 'set', path: ['env', 0], value: { name: 'A' } }]);

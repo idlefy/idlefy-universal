@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { stringify } from 'yaml';
 import examplesJson from '../src/chart-bundle/examples.json';
-import { bootEngine, render, why, root, workloadHide, walkFields, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
+import { bootEngine, render, applyRender, why, root, workloadHide, walkFields, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
 import { ValuesDocument, type ValuesPath } from '../src/model/ValuesDocument';
 import { resolve, schemaAt, type SchemaNode } from '../src/inspector/schema';
 import { chipValue, starterValue } from '../src/inspector/form';
@@ -129,7 +129,7 @@ function sweep(bases: { label: string; text: string }[], fails: string[]): void 
       for (const key of Object.keys(values.generic as Record<string, unknown>)) {
         const path = ['generic', key];
         if (lockedPaths?.has(path.join('.'))) continue;
-        const r = render(start.apply([{ op: 'delete', path }]).toString());
+        const r = applyRender(start, [{ op: 'delete', path }]);
         if (!r.ok) fails.push(`clear ${base.label} · ${path.join('.')} → ${why(r)}`);
       }
     }
@@ -149,13 +149,13 @@ function sweep(bases: { label: string; text: string }[], fails: string[]): void 
         const users = secretRefUsers(values, group);
         const cardPath = ['secretRefs', group];
         if (users.length === 0) {
-          const r = render(start.apply([{ op: 'delete', path: cardPath }]).toString());
+          const r = applyRender(start, [{ op: 'delete', path: cardPath }]);
           if (!r.ok) fails.push(`clear ${base.label} · ${cardPath.join('.')} → ${why(r)}`);
         }
         if (items.length > 1) {
           for (let i = 0; i < items.length; i++) {
             const rowPath = ['secretRefs', group, i];
-            const r = render(start.apply([{ op: 'delete', path: rowPath }]).toString());
+            const r = applyRender(start, [{ op: 'delete', path: rowPath }]);
             if (!r.ok) fails.push(`clear ${base.label} · ${rowPath.join('.')} → ${why(r)}`);
           }
         }
@@ -169,10 +169,10 @@ function sweep(bases: { label: string; text: string }[], fails: string[]): void 
           // matches AddChips' own onClick: an absent member of an "exactly one of" group carries
           // `evict` ops for whichever sibling is currently set (PdbConfig, EnvVar's valueFrom) —
           // applying only the `set` half would leave the document matching two oneOf/anyOf branches.
-          const r = render(start.apply([{ op: 'set', path: f.path, value }, ...f.evict]).toString());
+          const r = applyRender(start, [{ op: 'set', path: f.path, value }, ...f.evict]);
           if (!r.ok) fails.push(`chip ${id} = ${JSON.stringify(value)} → ${why(r)}`);
         } else if (!f.locked) {
-          const r = render(start.apply([{ op: 'delete', path: f.path }]).toString());
+          const r = applyRender(start, [{ op: 'delete', path: f.path }]);
           if (!r.ok) fails.push(`clear ${id} → ${why(r)}`);
         }
       }
@@ -203,7 +203,7 @@ describe('edit integrity — chips and clears', () => {
   it.skipIf(SKIP)('the subdomain lock on generic.ingressesGeneral is still load-bearing', () => {
     const { text } = genericBase(true);
     const start = ValuesDocument.parse(text);
-    const r = render(start.apply([{ op: 'delete', path: ['generic', 'ingressesGeneral'] }]).toString());
+    const r = applyRender(start, [{ op: 'delete', path: ['generic', 'ingressesGeneral'] }]);
     expect(r.ok, 'clearing generic.ingressesGeneral while a subdomain reference exists should fail to render — the lock is no longer load-bearing').toBe(false);
   }, TIMEOUT);
 

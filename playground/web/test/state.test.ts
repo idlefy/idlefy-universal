@@ -145,31 +145,38 @@ describe('app state', () => {
       expect(reducer(s, { type: 'text', text: 'a: 1\n' }).editError).toBe(null);
       expect(reducer(s, { type: 'select', id: null }).editError).toBe(null);
     });
-    it('an op that cannot be stringified (no YAML tag) is a silent no-op like any other, reported only when focus is set', () => {
-      // A Symbol has no YAML tag; `ValuesDocument.toString()` now catches that throw internally
-      // (see values-document.test.ts) and falls back to the source, so this reaches the reducer as
-      // an ordinary `text === s.text` no-op rather than the reducer's own try/catch — same policy as
-      // every other no-op edit: silent without a focus path, reported with one.
+    it('an op that cannot be stringified (no YAML tag) reports it even without a focus path — a serialize failure is never silent', () => {
+      // A Symbol has no YAML tag; `ValuesDocument.toString()` catches that throw internally (see
+      // values-document.test.ts), falls back to the source, and sets `stringifyFailed`. Per the
+      // review ruling the reducer surfaces *any* failed apply/serialize regardless of `focus` — only
+      // a genuine no-op (text === s.text without a stringify failure) stays silent.
       const s0 = initialState('a: 1\n');
+      vi.spyOn(console, 'error').mockImplementation(() => {});
       const s = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['a'], value: Symbol('x') }] });
       expect(s.text).toBe('a: 1\n');
       expect(s.doc).toBe(s0.doc);
-      expect(s.editError).toBe(null);
+      expect(s.editError).toBe(EDIT_FAILED);
       expect(s.focusPath).toBe(null);
       const withFocus = reducer(s0, { type: 'edit', ops: [{ op: 'set', path: ['a'], value: Symbol('x') }], focus: ['a'] });
       expect(withFocus.editError).toBe(EDIT_FAILED);
       expect(withFocus.focusPath).toBe(null);
     });
-    it('an edit that leaves toString unable to stringify (unresolved alias) falls back to the source and reports a no-op', () => {
+    it('an edit that leaves toString unable to stringify (unresolved alias) reports it, focus or not', () => {
       // deleteIn removes the anchored `web` node outright; the alias `*w` elsewhere is left dangling,
-      // so ValuesDocument.toString() catches yaml's throw and returns the pre-edit source unchanged —
-      // the reducer then sees `text === s.text` and, since a focus was requested, reports EDIT_FAILED.
+      // so ValuesDocument.toString() catches yaml's throw, returns the pre-edit source unchanged, and
+      // sets `stringifyFailed` — the reducer reports EDIT_FAILED unconditionally on that flag, not
+      // only when a focus was requested (a silent revert is never a plain no-op).
       const src = 'deployments:\n  web: &w\n    replicas: 1\nother: *w\n';
       const s0 = initialState(src);
+      vi.spyOn(console, 'error').mockImplementation(() => {});
       const s = reducer(s0, { type: 'edit', ops: [{ op: 'delete', path: ['deployments', 'web'] }], focus: ['deployments', 'web'] });
       expect(s.text).toBe(src);
       expect(s.focusPath).toBe(null);
       expect(s.editError).toBe(EDIT_FAILED);
+      const withoutFocus = reducer(s0, { type: 'edit', ops: [{ op: 'delete', path: ['deployments', 'web'] }] });
+      expect(withoutFocus.text).toBe(src);
+      expect(withoutFocus.focusPath).toBe(null);
+      expect(withoutFocus.editError).toBe(EDIT_FAILED);
     });
     it('a focus-carrying edit while the document has parse errors reports it instead of vanishing silently', () => {
       const s0 = initialState('deployments: [\n');

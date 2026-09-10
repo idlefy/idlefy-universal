@@ -69,15 +69,25 @@ export function reducer(s: AppState, a: Action): AppState {
       // palette's Add) must not vanish silently even here — it is the same "the change did not
       // land" case as the no-op check below, just caught earlier.
       if (s.doc.errors.length || a.ops.length === 0) return a.focus ? { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 } : s;
+      let applied: ValuesDocument;
       let text: string;
       try {
-        text = s.doc.apply(a.ops).toString();
+        applied = s.doc.apply(a.ops);
+        text = applied.toString();
       } catch (err) {
-        // A throw here would reach React's render phase and unmount the root: no op shape may
-        // blank the page. Keep the document and say so.
+        // Both ValuesDocument.apply() and toString() are documented to never throw — apply()'s
+        // setIn/deleteIn only ever no-op on a shape they don't recognise, and toString() catches
+        // yaml's own throw internally (see its `stringifyFailed` fallback below) — so this branch is
+        // currently unreachable. Kept as defence-in-depth: no future EditOp[] shape may reach React's
+        // render phase and blank the page.
         console.error('values edit failed', err);
         return { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 };
       }
+      // toString() had to fall back to the pre-edit source (e.g. deleting an anchored child whose
+      // alias lives elsewhere leaves the document unresolvable) — a silent revert, and per review
+      // ruling this must always be surfaced, regardless of `focus`: unlike a genuine no-op it is not
+      // "nothing to apply", it is an edit that was lost.
+      if (applied.stringifyFailed) return { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 };
       // A plain widget edit that resolves to the same text is a silent no-op (Monaco echoes the
       // reducer's own text back); an *add* that changes nothing is a failure the user must see.
       if (text === s.text) return a.focus ? { ...s, focusPath: null, editError: EDIT_FAILED, editErrorSeq: s.editErrorSeq + 1 } : s;
