@@ -62,4 +62,15 @@ describe('compound widgets', () => {
     fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main.ports.http'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...c, 'ports', 'http'] }]);
   });
+  it('image and tag are held, not deleted, when a box is emptied', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} />);
+    const img = screen.getByLabelText('deployments.web.containers.main.image') as HTMLInputElement;
+    fireEvent.change(img, { target: { value: '' } });
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(img.value).toBe('');
+    expect(img.className).toContain('invalid');
+    fireEvent.change(img, { target: { value: 'httpd' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...c, 'image'], value: 'httpd' }]);
+  });
 });
