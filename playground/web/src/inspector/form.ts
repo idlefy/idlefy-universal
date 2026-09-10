@@ -39,6 +39,9 @@ const CHART_REQUIRED_PATHS: readonly string[] = [
   '*.*.containers.*.ports',                // <Kind> <n>: autoCreateService=true requires at least one container port
   '*.*.networkPolicy.ingress',             // <Kind> <n>: policyTypes contains 'Ingress' but 'networkPolicy.ingress' is not defined (use [] for explicit deny)
   '*.*.networkPolicy.egress',              // <Kind> <n>: policyTypes contains 'Egress' but 'networkPolicy.egress' is not defined (use [] for explicit deny)
+  // Jobs/CronJobs have no ServiceAccount toggle; with autoCreateRbac on, the chart needs this name (RB-3). Locked unconditionally — the value stays editable.
+  'jobs.*.serviceAccountName',
+  'cronJobs.*.serviceAccountName',
 ];
 
 /** True for a values path `CHART_REQUIRED_PATHS` matches. */

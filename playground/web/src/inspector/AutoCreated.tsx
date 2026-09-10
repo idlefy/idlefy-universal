@@ -26,9 +26,11 @@ export function AutoCreated(p: {
         const why = blockedOff ?? blocked;
         const kind = s.kind;
         const node = on ? p.nodeFor(s.id) : null;
-        // a rendered node opens itself; a block with a schema node opens as `block:<path>` even without a node
-        const target = node ?? (p.hasSchema(s.id) ? blockId([...p.base, s.id]) : null);
         const configured = !on && isFilledObj(p.cfg[s.id]);
+        // a rendered node opens itself; a block with a schema node opens as `block:<path>` when the
+        // secondary is on or already has a body — off + empty means the switch is the only affordance,
+        // since opening an off block whose autoCreate* flag is false fails the chart on any edit
+        const target = node ?? (p.hasSchema(s.id) && (on || configured) ? blockId([...p.base, s.id]) : null);
         const sub = why ?? (on ? summaryOf(s.id, p.cfg) : configured ? 'configured, not created' : s.hint);
         const isDisabled = p.disabled || (!on && !!blocked) || !!blockedOff;
         return (

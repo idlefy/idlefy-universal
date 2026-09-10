@@ -41,12 +41,27 @@ describe('AutoCreated', () => {
     expect(document.querySelectorAll('.sub.why').length).toBe(0);
   });
   it('a block with a schema node but no rendered node opens as a block selection', () => {
-    const p = props('deployments', { hpa: { minReplicas: 1, maxReplicas: 3 } });
+    const p = props('deployments', {
+      hpa: { minReplicas: 1, maxReplicas: 3 },
+      autoCreateIngress: true, ingress: { hosts: [{ host: 'a.example.com' }] },
+    });
     render(<AutoCreated {...p} />);
     fireEvent.click(screen.getByLabelText('open HorizontalPodAutoscaler'));
     expect(p.onSelect).toHaveBeenCalledWith('block:deployments.api.hpa');
     fireEvent.click(screen.getByLabelText('open Ingress'));
     expect(p.onSelect).toHaveBeenCalledWith('block:deployments.api.ingress');
+  });
+  it('opens a block panel only when the secondary is on or already has a body', () => {
+    // off + no rbac body: the switch is the only affordance, opening it would fail the chart
+    // (`'rbac' block is defined but autoCreateRbac is not true`)
+    const { rerender } = render(<AutoCreated {...props('deployments', { autoCreateRbac: false })} />);
+    expect(screen.queryByRole('button', { name: /^open /i })).toBeNull();
+    // on: openable
+    rerender(<AutoCreated {...props('deployments', { autoCreateRbac: true, rbac: { rules: [{}] } })} />);
+    expect(screen.getByLabelText('open Role + RoleBinding')).toBeTruthy();
+    // off but a body is already present: still openable (so the user can look at/clear the leftover config)
+    rerender(<AutoCreated {...props('deployments', { autoCreateRbac: false, rbac: { rules: [{}] } })} />);
+    expect(screen.getByLabelText('open Role + RoleBinding')).toBeTruthy();
   });
   it('the Service row (no schema node) opens only when its node exists', () => {
     const { rerender } = render(<AutoCreated {...props('deployments', { autoCreateService: true, containers: { main: { image: 'x', ports: { http: { containerPort: 80 } } } } })} />);

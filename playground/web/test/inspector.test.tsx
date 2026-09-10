@@ -200,8 +200,9 @@ describe('Inspector', () => {
     ]);
     fireEvent.click(screen.getByLabelText('open Service'));
     expect(p.onSelect).toHaveBeenCalledWith(svc.id);
-    fireEvent.click(screen.getByLabelText('open Ingress'));
-    expect(p.onSelect).toHaveBeenCalledWith('block:deployments.hello.ingress');
+    // Ingress is off with no body here — no Open button (see AutoCreated.tsx: a block panel opens
+    // only for a secondary that is on or already has a body; the switch is the only affordance otherwise)
+    expect(screen.queryByLabelText('open Ingress')).toBeNull();
     expect(screen.queryByLabelText('deployments.hello.replicas')).toBeNull();   // no workload fields here
   });
   it('group panel: disabled state disables the switches', () => {

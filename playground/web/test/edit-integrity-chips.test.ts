@@ -1,7 +1,7 @@
 // The edit-integrity invariant, shard 2 of 2: "Add" chips and clears. Split from
-// test/edit-integrity.test.ts purely for wall-clock — 338 engine renders ≈ 39 s, and vitest runs
+// test/edit-integrity.test.ts purely for wall-clock — 327 engine renders ≈ 40 s, and vitest runs
 // test files in parallel worker threads. EDIT_INTEGRITY=full adds the same sweep over the five
-// shipped examples (+263 renders).
+// shipped examples (+264 renders).
 import { describe, it, expect, beforeAll } from 'vitest';
 import { stringify } from 'yaml';
 import examplesJson from '../src/chart-bundle/examples.json';
@@ -12,7 +12,7 @@ import { buildFields, chipValue, type Field } from '../src/inspector/form';
 import { defaultName } from '../src/graph/entities';
 import { starterBody } from '../src/palette/add';
 import { secondariesFor, OWNED_FLAGS, SEC_IDS, WORKLOAD_KEYS } from '../src/graph/secondary';
-import { isObj } from '../src/model/guards';
+import { isFilledObj, isObj } from '../src/model/guards';
 
 const examples = examplesJson as { id: string; values: string }[];
 const STANDALONE = ['configs', 'services', 'ingresses', 'httpRoutes', 'hpas', 'persistentVolumeClaims'];
@@ -50,12 +50,16 @@ function panelsOf(doc: ValuesDocument): Panel[] {
       out.push({ label: `${key}.${name}`, node, path: [key, name], hide: isWorkload ? workloadHide : undefined });
       if (!isWorkload) continue;
       for (const s of secondariesFor(key)) {
-        // GroupPanel opens a block panel on schema existence alone (AutoCreated.tsx:
-        // `node ?? (p.hasSchema(s.id) ? blockId([...p.base, s.id]) : null)`), and SecondaryPanel
-        // builds its fields from schemaAt(root, path) with doc.valueAt(path) possibly undefined —
-        // so blocks whose on() seeds no body (serviceMonitor, serviceAccount) still show every chip.
+        // AutoCreated.tsx only offers Open for a secondary that is on or already has a body
+        // (`node ?? (p.hasSchema(s.id) && (on || configured) ? blockId(...) : null)`) — off + empty
+        // means the switch is the only affordance, so a block that exists with its autoCreate* flag
+        // off still gets walked (SecondaryPanel builds its fields from schemaAt/doc.valueAt whenever
+        // the panel is reached), but an off + never-configured block never does.
         const blockNode = schemaAt(root, [key, name, s.id]);
         if (!blockNode) continue;
+        const raw = doc.valueAt([key, name]);
+        const cfg = isObj(raw) ? raw : {};
+        if (!(s.isOn(cfg) || isFilledObj(cfg[s.id]))) continue;
         out.push({ label: `${key}.${name}.${s.id}`, node: blockNode, path: [key, name, s.id] });
       }
     }

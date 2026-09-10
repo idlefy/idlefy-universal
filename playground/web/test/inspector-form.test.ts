@@ -124,6 +124,10 @@ describe('buildFields', () => {
     expect(chartRequired(['statefulSets', 'db', 'networkPolicy', 'ingress'])).toBe(true);
     expect(chartRequired(['deployments', 'web', 'networkPolicy', 'egress'])).toBe(true);
     expect(chartRequired(['deployments', 'web', 'replicas'])).toBe(false);
+    // Jobs/CronJobs have no ServiceAccount toggle; autoCreateRbac=true needs this name (RB-3).
+    expect(chartRequired(['jobs', 'app', 'serviceAccountName'])).toBe(true);
+    expect(chartRequired(['cronJobs', 'app', 'serviceAccountName'])).toBe(true);
+    expect(chartRequired(['deployments', 'web', 'serviceAccountName'])).toBe(false);
   });
 });
 
