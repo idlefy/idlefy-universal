@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactElement } from 'react';
 import type { FieldProps } from './index';
 import { FieldList } from './index';
 import { resolve, type SchemaNode } from '../schema';
-import { itemShape, itemLabelOf, leafEditOps, starterValue } from '../form';
+import { itemShape, itemLabelOf, leafEditOps, appendItemValue } from '../form';
 import { YamlField } from './YamlField';
 import { isObj } from '../../model/guards';
 
@@ -43,8 +43,7 @@ export function ObjectListField(props: FieldProps & { itemLabel?: string }): Rea
   const blockOpen = (i: number) => open[i] ?? false;
   // appending sets the next index rather than rewriting the whole array, so flow style and untouched item types survive
   const append = () => {
-    const v = starterValue(root, item);
-    onEdit([{ op: 'set', path: [...field.path, items.length], value: v }]);
+    onEdit([{ op: 'set', path: [...field.path, items.length], value: appendItemValue(root, item, items) }]);
   };
   // deleting one index splices the sequence in place; the expansion map (and any pending drafts) shift
   // down so they keep following the same items

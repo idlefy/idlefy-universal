@@ -266,8 +266,11 @@ describe('field widgets', () => {
     fireEvent.change(screen.getByLabelText('new key deployments.web.containers'), { target: { value: 'sidecar' } });
     fireEvent.click(screen.getByLabelText('add deployments.web.containers'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...base, 'containers', 'sidecar'], value: expect.objectContaining({ image: expect.any(String) }) }]);
+    // one container left: removing it would leave `containers: {}`, which renders `containers: null`
+    expect((screen.getByLabelText('remove deployments.web.containers.main') as HTMLButtonElement).disabled).toBe(true);
+    onEdit.mockClear();
     fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main'));
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'containers', 'main'] }]);
+    expect(onEdit).not.toHaveBeenCalled();
   });
 
   it('object section: nested fields render with full paths and a clear button deletes the block', () => {
@@ -304,5 +307,22 @@ describe('field widgets', () => {
     expect([...sel.options].map((o) => o.value)).toContain('');
     fireEvent.change(sel, { target: { value: '' } });
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...base, 'serviceType'] }]);
+  });
+  it('a second container gets free port names and numbers, and both are then removable', () => {
+    const onEdit = vi.fn();
+    const value = { containers: { main: { image: 'n', imageTag: '1', ports: { http: { containerPort: 8080 } } } } };
+    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} />);
+    fireEvent.change(screen.getByLabelText('new key deployments.web.containers'), { target: { value: 'sidecar' } });
+    fireEvent.click(screen.getByLabelText('add deployments.web.containers'));
+    const added = onEdit.mock.calls.at(-1)![0][0].value;
+    // ContainerSpec's example declares ports.http = {containerPort: 8080, servicePort: 80}; `main`
+    // already uses 8080 as both its container port and (by default) its service port.
+    expect(Object.keys(added.ports)).toEqual(['http-2']);
+    expect(added.ports['http-2'].containerPort).toBe(8081);
+    expect(added.ports['http-2'].servicePort).toBe(80);
+    cleanup();
+    const two = { containers: { main: value.containers.main, sidecar: added } };
+    render(<FieldList root={root} node={dep} basePath={base} value={two} tier="basic" onEdit={onEdit} />);
+    expect((screen.getByLabelText('remove deployments.web.containers.main') as HTMLButtonElement).disabled).toBe(false);
   });
 });

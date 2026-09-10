@@ -13,7 +13,7 @@ import examplesJson from '../src/chart-bundle/examples.json';
 import { bootEngine, render, why, root, MINIMAL, FULL, SKIP, TIMEOUT } from './integrity';
 import { ValuesDocument, type EditOp, type ValuesPath } from '../src/model/ValuesDocument';
 import { resolve, schemaAt, type SchemaNode } from '../src/inspector/schema';
-import { buildFields, itemShape, leafEditOps, starterValue, type Field } from '../src/inspector/form';
+import { appendItemValue, buildFields, itemShape, leafEditOps, type Field } from '../src/inspector/form';
 import { ENTITIES, defaultName, uniqueName } from '../src/graph/entities';
 import { addEntityOps, starterBody } from '../src/palette/add';
 import { secondariesFor, OWNED_FLAGS, SEC_IDS, WORKLOAD_KEYS } from '../src/graph/secondary';
@@ -180,7 +180,7 @@ describe('edit integrity', () => {
             const item = resolve(root, f.schema).items as SchemaNode;
             // ObjectListField.append: set the next index, never rewrite the array (Task 16 replaces
             // starterValue here with appendItemValue, the same call the widget makes).
-            const added: EditOp[] = [{ op: 'set', path: [...f.path, items.length], value: starterValue(root, item) }];
+            const added: EditOp[] = [{ op: 'set', path: [...f.path, items.length], value: appendItemValue(root, item, items) }];
             const ra = render(start.apply(added).toString());
             if (!ra.ok) fails.push(`append ${base.label} · ${f.path.join('.')} → ${why(ra)}`);
             for (let i = 0; i < items.length; i++) {

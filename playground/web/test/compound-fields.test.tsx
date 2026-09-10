@@ -23,8 +23,8 @@ describe('compound widgets', () => {
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...c, 'imageTag'], value: '2' }]);
     // absent container fields are chips inside the card
     expect(screen.getByLabelText('add field deployments.web.containers.main.env')).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main'));
-    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: c }]);
+    // the sole container's remove is disabled — `containers: {}` renders `containers: null`
+    expect((screen.getByLabelText('remove deployments.web.containers.main') as HTMLButtonElement).disabled).toBe(true);
   });
   it('adds a container with a validated name and the starter value', () => {
     const onEdit = vi.fn();

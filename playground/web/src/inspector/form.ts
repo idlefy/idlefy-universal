@@ -3,6 +3,7 @@ import type { Tier } from '../app/state';
 import { classify, resolve, type SchemaNode, type Widget } from './schema';
 import { isObj } from '../model/guards';
 import { REF_FIXUPS, intOrStringStarter, stringStarter } from './starters';
+import { uniqueName } from '../graph/entities';
 
 export type Field = {
   key: string; path: ValuesPath; label: string; description?: string;
@@ -311,6 +312,70 @@ export function leafEditOps(
   const value = parseScalarText(text, classify(root, leafSchema));
   if (value === undefined) return null;
   return [{ op: 'set', path, value }, ...evictions];
+}
+
+/**
+ * The value one "add item" writes into an object list. `starterValue` returns the item schema's own
+ * example, so a second Service port used to be a byte copy of the first — same `name`, same `port` —
+ * which renders happily and Kubernetes then rejects. The identifying leaf gets `uniqueName`, and a
+ * numeric `port` moves to the first number the list does not already use.
+ */
+export function appendItemValue(root: SchemaNode, item: SchemaNode, items: readonly unknown[]): unknown {
+  const v = starterValue(root, item);
+  if (!isObj(v)) return v;
+  const out = v as Record<string, unknown>;
+  const rows = items.filter(isObj) as Record<string, unknown>[];
+  const shape = itemShape(root, item);
+  const id = shape.identifying;
+  // `type` is an ID_KEY, so an HpaMetric row's identifying leaf is its enum — renaming `Resource`
+  // to `Resource-2` makes the item schema-invalid. Only a free-text identifier is uniquified.
+  const idSchema = id ? resolve(root, (resolve(root, item).properties as Record<string, SchemaNode>)[id]) : undefined;
+  if (id && typeof out[id] === 'string' && !Array.isArray(idSchema?.enum)) {
+    out[id] = uniqueName(out[id] as string, rows.map((r) => r[id]).filter((x): x is string => typeof x === 'string'));
+  }
+  if (typeof out.port === 'number') {
+    out.port = nextFreeNumber(out.port, new Set(rows.map((r) => r.port).filter((x): x is number => typeof x === 'number')));
+  }
+  return out;
+}
+
+/**
+ * The value one "add container" writes. `ContainerSpec`'s example declares `ports.http` with a fixed
+ * `containerPort`/`servicePort`, so a second container used to give the auto-created Service two
+ * ports with the same name *and* the same number. Container ports and *effective* service ports
+ * (`servicePort ?? containerPort` — that is what the Service publishes) are tracked separately, or
+ * the new container's service port lands on the first container's implicit one.
+ */
+export function containerStarterValue(root: SchemaNode, item: SchemaNode, siblings: Record<string, unknown>): unknown {
+  const v = starterValue(root, item);
+  if (!isObj(v) || !isObj((v as Record<string, unknown>).ports)) return v;
+  const out = v as Record<string, any>;
+  const names: string[] = [];
+  const containerPorts = new Set<number>();
+  const servicePorts = new Set<number>();
+  for (const c of Object.values(siblings)) {
+    if (!isObj(c) || !isObj((c as Record<string, unknown>).ports)) continue;
+    for (const [pn, p] of Object.entries((c as Record<string, any>).ports as Record<string, unknown>)) {
+      names.push(pn);
+      if (!isObj(p)) continue;
+      const spec = p as Record<string, unknown>;
+      if (typeof spec.containerPort === 'number') containerPorts.add(spec.containerPort);
+      const effective = typeof spec.servicePort === 'number' ? spec.servicePort : spec.containerPort;
+      if (typeof effective === 'number') servicePorts.add(effective);
+    }
+  }
+  const ports: Record<string, unknown> = {};
+  for (const [pn, p] of Object.entries(out.ports as Record<string, unknown>)) {
+    const name = uniqueName(pn, names);
+    names.push(name);
+    if (!isObj(p)) { ports[name] = p; continue; }
+    const spec = { ...(p as Record<string, unknown>) };
+    if (typeof spec.containerPort === 'number') { spec.containerPort = nextFreeNumber(spec.containerPort, containerPorts); containerPorts.add(spec.containerPort as number); }
+    if (typeof spec.servicePort === 'number') { spec.servicePort = nextFreeNumber(spec.servicePort, servicePorts); servicePorts.add(spec.servicePort as number); }
+    ports[name] = spec;
+  }
+  out.ports = ports;
+  return out;
 }
 
 const ITEM_LABELS: Record<string, string> = {

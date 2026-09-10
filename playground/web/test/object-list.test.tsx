@@ -195,4 +195,14 @@ describe('ObjectListField', () => {
       { op: 'delete', path: [...ibase, 'hosts', 0, 'host'] },
     ]);
   });
+  it('adding a second item does not repeat the first one\'s name or port', () => {
+    const onEdit = vi.fn();
+    const svc = schemaAt(root, ['services', 'api'])!;
+    const ports = [{ name: 'http', port: 80, targetPort: 8080 }];
+    render(<FieldList root={root} node={svc} basePath={['services', 'api']} value={{ ports }} tier="advanced" onEdit={onEdit} />);
+    fireEvent.click(screen.getByLabelText('add services.api.ports'));
+    const ops = onEdit.mock.calls.at(-1)![0];
+    expect(ops[0].path).toEqual(['services', 'api', 'ports', 1]);
+    expect(ops[0].value).toMatchObject({ name: 'http-2', port: 81 });
+  });
 });
