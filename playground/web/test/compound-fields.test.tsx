@@ -62,6 +62,30 @@ describe('compound widgets', () => {
     fireEvent.click(screen.getByLabelText('remove deployments.web.containers.main.ports.http'));
     expect(onEdit).toHaveBeenLastCalledWith([{ op: 'delete', path: [...c, 'ports', 'http'] }]);
   });
+  it('ports table: containerPort is 1…65535 and never deleted; the add row picks a free number', () => {
+    const onEdit = vi.fn();
+    render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} />);
+    const cp = screen.getByLabelText('deployments.web.containers.main.ports.http.containerPort') as HTMLInputElement;
+    onEdit.mockClear();
+    fireEvent.change(cp, { target: { value: '0' } });          // PortSpec.containerPort has minimum: 1
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(cp.className).toContain('invalid');
+    fireEvent.change(cp, { target: { value: '70000' } });       // maximum: 65535
+    expect(onEdit).not.toHaveBeenCalled();
+    fireEvent.change(cp, { target: { value: '' } });            // required by PortSpec
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(cp.value).toBe('');
+    fireEvent.change(cp, { target: { value: '9090' } });
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...c, 'ports', 'http', 'containerPort'], value: 9090 }]);
+  });
+  it('ports table: the add row does not repeat a containerPort the container already uses', () => {
+    const onEdit = vi.fn();
+    const taken = { containers: { main: { image: 'n', imageTag: '1', ports: { http: { containerPort: 8080 } } } } };
+    render(<FieldList root={root} node={dep} basePath={base} value={taken} tier="basic" onEdit={onEdit} />);
+    fireEvent.change(screen.getByLabelText('new port name deployments.web.containers.main.ports'), { target: { value: 'admin' } });
+    fireEvent.click(screen.getByLabelText('add port deployments.web.containers.main.ports'));
+    expect(onEdit).toHaveBeenLastCalledWith([{ op: 'set', path: [...c, 'ports', 'admin'], value: { containerPort: 8081 } }]);
+  });
   it('image and tag are held, not deleted, when a box is emptied', () => {
     const onEdit = vi.fn();
     render(<FieldList root={root} node={dep} basePath={base} value={value} tier="basic" onEdit={onEdit} />);

@@ -146,6 +146,13 @@ export function parseScalarText(text: string, widget: Widget, opts: { nonNegativ
   return text;
 }
 
+/** The first integer at or above `start` that `used` does not contain. */
+export function nextFreeNumber(start: number, used: ReadonlySet<number>): number {
+  let n = start;
+  while (used.has(n)) n++;
+  return n;
+}
+
 /** Deep-clones a schema-derived value (an `examples`/`default` entry) so callers never hold a live
  *  reference into the imported schema module — two "add" actions must not share one object. */
 const clone = <T>(v: T): T => structuredClone(v);
