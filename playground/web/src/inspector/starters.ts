@@ -66,25 +66,40 @@ export const ENTITY_FIXUPS: Readonly<Record<string, (body: Record<string, any>, 
   httpRoutes: (b, name) => { b.hostnames = [{ host: `${name}.example.com` }]; },
 };
 
-/**
- * Two more nodes for which `''` fails independent of any pattern: `HostAlias.ip` and
- * `IngressPath.path` carry `minLength: 1` but no `pattern` of their own (Task 1's review added the
- * `minLength` check to the starter contract). Unlike the `pattern`-carrying nodes above, they are
- * both a bare `{type: 'string', minLength: 1}` — structurally indistinguishable from one another —
- * so a table keyed by pattern or by shape cannot tell them apart. `resolve()` returns the very same
- * object reference for a node with no `$ref`/`allOf` to fold, so identity against the schema's own
- * nodes is a stable key here instead.
- */
-function minLengthStarter(root: SchemaNode, r: SchemaNode): string | undefined {
-  const defs = root.$defs as Record<string, SchemaNode> | undefined;
-  if (r === defs?.HostAlias?.properties?.ip) return '10.0.0.1';
-  if (r === defs?.IngressPath?.properties?.path) return '/';
-  return undefined;
+/** Starters for string leaves whose only constraint is `minLength` — no `pattern`, no `examples`/
+ *  `default` of their own, and structurally identical to one another, so they can only be keyed by
+ *  position. Keyed by `<$defs name>.<property path>` (`[]` = that property's `items`), the way
+ *  REF_FIXUPS is keyed by `$defs` name; the keys are resolved to node identities once per root,
+ *  which is exact because `resolve()` copies a node only when it carries `$ref` or `allOf` and both
+ *  copies keep the same child `properties` objects. A key that stops resolving fails the contract
+ *  test rather than silently falling back to ''. */
+export const LEAF_STARTERS: Readonly<Record<string, string>> = {
+  'HostAlias.ip': '10.0.0.1',
+  'HostAlias.hostnames[]': 'legacy-db.internal',
+  'IngressPath.path': '/',
+};
+
+const leafIndex = new WeakMap<SchemaNode, Map<SchemaNode, string>>();
+/** `LEAF_STARTERS` resolved against one schema root: node identity → starter. */
+export function leafStarters(root: SchemaNode): Map<SchemaNode, string> {
+  const cached = leafIndex.get(root);
+  if (cached) return cached;
+  const m = new Map<SchemaNode, string>();
+  for (const [key, value] of Object.entries(LEAF_STARTERS)) {
+    const [defName, ...rest] = key.split('.');
+    let node: SchemaNode | undefined = (root.$defs as Record<string, SchemaNode> | undefined)?.[defName];
+    for (const seg of rest) {
+      const prop = seg.endsWith('[]') ? seg.slice(0, -2) : seg;
+      node = node?.properties?.[prop] as SchemaNode | undefined;
+      if (seg.endsWith('[]')) node = node?.items as SchemaNode | undefined;
+    }
+    if (node) m.set(node, value);
+  }
+  leafIndex.set(root, m);
+  return m;
 }
 
-/** A non-empty starter for a pattern- or minLength-constrained string with no `examples`/`default`
- *  of its own, or `''` when the node carries neither constraint (an ordinary free-text field). */
 export function stringStarter(root: SchemaNode, r: SchemaNode): string {
   if (typeof r.pattern === 'string') return PATTERN_STARTERS[r.pattern] ?? '';
-  return minLengthStarter(root, r) ?? '';
+  return leafStarters(root).get(r) ?? '';
 }

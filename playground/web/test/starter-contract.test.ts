@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { root } from './integrity';
 import { classify, resolve, type SchemaNode } from '../src/inspector/schema';
 import { starterValue } from '../src/inspector/form';
-import { PATTERN_STARTERS } from '../src/inspector/starters';
+import { PATTERN_STARTERS, LEAF_STARTERS, leafStarters } from '../src/inspector/starters';
 
 /** JSON-Schema subset this chart's leaf nodes actually use. Returns one message per violation. */
 function violations(value: unknown, node: SchemaNode, where: string): string[] {
@@ -63,19 +63,29 @@ describe('starter contract', () => {
     for (const [pattern, value] of Object.entries(PATTERN_STARTERS)) {
       expect(new RegExp(pattern).test(value), `${value} !~ ${pattern}`).toBe(true);
     }
+    // every LEAF_STARTERS key still names a real node, and its value satisfies that node
+    const leaves = leafStarters(root);
+    expect(leaves.size, `${Object.keys(LEAF_STARTERS)} — a key no longer resolves`).toBe(Object.keys(LEAF_STARTERS).length);
+    for (const [node, value] of leaves) expect(value.length >= (node.minLength ?? 0)).toBe(true);
+
     const missing = new Set<string>();
+    const missingLeaf: string[] = [];
     const seen = new Set<SchemaNode>();
-    const walk = (node: SchemaNode, depth = 0) => {
+    const walk = (node: SchemaNode, label: string, depth = 0) => {
       if (!node || typeof node !== 'object' || depth > 8 || seen.has(node)) return;
       seen.add(node);
       const r = resolve(root, node);
       const isString = r.type === 'string' || (Array.isArray(r.type) && r.type.includes('string'));
       if (isString && typeof r.pattern === 'string' && !Array.isArray(r.examples) && r.default === undefined && !(r.pattern in PATTERN_STARTERS)) missing.add(r.pattern);
-      if (r.properties) for (const v of Object.values(r.properties as Record<string, SchemaNode>)) walk(v, depth + 1);
-      if (r.items) walk(r.items as SchemaNode, depth + 1);
-      if (r.additionalProperties && typeof r.additionalProperties === 'object') walk(r.additionalProperties as SchemaNode, depth + 1);
+      // a `minLength`-only string leaf (no `pattern`) is just as unrepresentable by '' as a
+      // pattern-constrained one, and can only be keyed by position — LEAF_STARTERS must cover it.
+      if (isString && typeof r.pattern !== 'string' && typeof r.minLength === 'number' && r.minLength > 0 && !Array.isArray(r.examples) && r.default === undefined && !leaves.has(r)) missingLeaf.push(label);
+      if (r.properties) for (const [k, v] of Object.entries(r.properties as Record<string, SchemaNode>)) walk(v, `${label}.${k}`, depth + 1);
+      if (r.items) walk(r.items as SchemaNode, `${label}.items`, depth + 1);
+      if (r.additionalProperties && typeof r.additionalProperties === 'object') walk(r.additionalProperties as SchemaNode, `${label}.*`, depth + 1);
     };
-    for (const def of Object.values(root.$defs as Record<string, SchemaNode>)) walk(def);
+    for (const [defName, def] of Object.entries(root.$defs as Record<string, SchemaNode>)) walk(def, defName);
     expect([...missing]).toEqual([]);
+    expect(missingLeaf).toEqual([]);
   });
 });
