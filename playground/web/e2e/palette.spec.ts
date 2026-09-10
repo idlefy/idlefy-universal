@@ -85,6 +85,22 @@ test('adding into an existing `deployments: {}` stays block style', async ({ pag
     .toMatch(/deployments:\n\s+backend-api:/);
 });
 
+test('adding into a `deployments:` sequence root reports the failure and leaves values.yaml unchanged', async ({ page }) => {
+  await page.goto('./');
+  await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
+  await openYaml(page);
+  await setText(page, 'deployments:\n  - name: api\n');
+  await page.locator('.add-btn').click();
+  await page.keyboard.type('dep');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  const banner = page.locator('.banner.warn[role="alert"]');
+  await expect(banner).toHaveText('That change could not be applied to values.yaml, which was left unchanged.');
+  await expect
+    .poll(async () => (await page.locator('.view-lines').innerText()))
+    .toMatch(/deployments:\s*\n\s*-\s*name:\s*api/);
+});
+
 test('Ctrl+Z outside the editor undoes an add, and Ctrl+Shift+Z redoes with the pane collapsed', async ({ page }) => {
   await page.goto('./');
   await expect(page.locator('header')).toContainText('rendered', { timeout: 30_000 });
